@@ -1,7 +1,7 @@
 param([string]$SdkPath = 'dotnet', [string]$OutputDirectory = '', [string]$NugetCache = '', [switch]$TestBuild)
 $ErrorActionPreference = 'Stop'
 $appRoot = Split-Path $PSScriptRoot -Parent
-if (!$OutputDirectory) { $OutputDirectory = if ($TestBuild) { 'publish/Open Net 0.3.1 Test' } else { 'publish/Open Net 0.3.1' } }
+if (!$OutputDirectory) { $OutputDirectory = if ($TestBuild) { 'publish/Open Net 0.3.2 Test' } else { 'publish/Open Net 0.3.2' } }
 if (![IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory = Join-Path $appRoot $OutputDirectory }
 $env:DOTNET_CLI_HOME = Join-Path $appRoot 'tools/cli-home'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'

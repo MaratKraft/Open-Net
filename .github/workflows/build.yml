@@ -1,15 +1,17 @@
 name: Windows build
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/**', 'fix/**']
   pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
+    name: Windows build and safe checks
     runs-on: windows-latest
     timeout-minutes: 20
     defaults:
@@ -24,9 +26,13 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+      - name: Build safe test host
+        run: ./scripts/publish.ps1 -TestBuild
+      - name: Run headless safe checks
+        run: ./scripts/test-headless.ps1
       - name: Build Windows x64
         run: ./scripts/publish.ps1
-      - name: Package clean artifacts
+      - name: Package clean test artifacts
         run: ./scripts/package.ps1
       - uses: actions/upload-artifact@v7
         with:

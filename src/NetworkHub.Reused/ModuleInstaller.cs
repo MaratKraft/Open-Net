@@ -28,7 +28,7 @@ public sealed class ModuleInstaller : IDisposable
     {
         running=runningProbe??(id=>ProcessObserver.Find(ModuleCatalog.Get(id).ProcessName).Length>0);
         this.files=files;http=handler==null?new HttpClient():new HttpClient(handler);
-        http.Timeout=TimeSpan.FromMinutes(5);http.DefaultRequestHeaders.UserAgent.ParseAdd("Open-Net/0.3.0");
+        http.Timeout=TimeSpan.FromMinutes(5);http.DefaultRequestHeaders.UserAgent.ParseAdd("Open-Net/0.3.2");
         http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
     }
     public static string Repository(string id)=>ModuleCatalog.Get(id).Repository;

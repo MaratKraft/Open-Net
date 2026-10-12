@@ -314,5 +314,21 @@
   "The portable startup identity is missing. Save the startup setting again.": "Идентификатор портативного автозапуска отсутствует. Сохраните настройку ещё раз.",
   "Choose the module path first.": "Сначала выберите путь к модулю.",
   "TG may be stopped forcibly with its child processes. Unsaved settings may be lost. Stop this owned instance?": "TG может быть принудительно остановлен вместе с дочерними процессами. Несохранённые настройки могут потеряться. Остановить этот принадлежащий Open Net экземпляр?",
-  "Diagnostics": "Диагностика"
+  "Diagnostics": "Диагностика",
+  "Theme": "Тема",
+  "System": "Как в системе",
+  "Light": "Светлая",
+  "Dark": "Тёмная",
+  "Solid": "Сплошная",
+  "Downloading": "Скачивание",
+  "Installing": "Установка",
+  "Installing…": "Установка…",
+  "Update available": "Доступно обновление",
+  "Download failed": "Ошибка скачивания",
+  "Yes": "Да",
+  "No": "Нет",
+  "Cancel": "Отмена",
+  "OK": "ОК",
+  "Open Open Net on GitHub": "Открыть GitHub Open Net",
+  "Could not open the browser. Open github.com/MaratKraft/Open-Net manually.": "Не удалось открыть браузер. Откройте github.com/MaratKraft/Open-Net вручную."
 }

@@ -3,10 +3,10 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 if (!$OutputDirectory) { $OutputDirectory = Join-Path $root 'artifacts' }
 $destination = [IO.Path]::GetFullPath($OutputDirectory)
-if (!$ExePath) { $ExePath = Join-Path $root 'publish/Open Net 0.3.1/Open Net.exe' }
+if (!$ExePath) { $ExePath = Join-Path $root 'publish/Open Net 0.3.2/Open Net.exe' }
 $exe = Get-Item -LiteralPath $ExePath
-if ($exe.VersionInfo.FileVersion -ne '0.3.1.0') { throw 'Expected Open Net 0.3.1.0' }
-$names = @('Open-Net-0.3.1-Windows-x64.exe','Open-Net-0.3.1-Windows-x64-Portable.zip','LICENSE.txt','SHA256SUMS.txt')
+if ($exe.VersionInfo.FileVersion -ne '0.3.2.0') { throw 'Expected Open Net 0.3.2.0' }
+$names = @('Open-Net-0.3.2-Windows-x64.exe','Open-Net-0.3.2-Windows-x64-Portable.zip','LICENSE.txt','SHA256SUMS.txt')
 foreach ($name in $names) { if (Test-Path -LiteralPath (Join-Path $destination $name)) { throw "Output already exists: $name" } }
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
 Copy-Item -LiteralPath $exe.FullName -Destination (Join-Path $destination $names[0])
@@ -22,7 +22,7 @@ try {
     $texts = @{
         'portable.flag' = 'Open Net portable storage marker'
         'README.txt' = @'
-Open Net 0.3.1 Beta / Windows x64
+Open Net 0.3.2 Stable / Windows x64
 Extract the entire Open Net folder into a writable location. Keep portable.flag.
 Data and Modules stay beside the EXE. Stop tools and exit before moving the folder.
 Zapret and TG WS Proxy are not bundled: install official components in the app.

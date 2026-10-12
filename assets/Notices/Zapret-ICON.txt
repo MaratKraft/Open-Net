@@ -1,0 +1,16 @@
+Zapret module icon
+
+The project owner supplied the composite SVG used for this module marker.
+Its outline resembles Discord's Clyde symbol and contains a Play cutout.
+Discord and YouTube retain rights to their respective marks and brand assets.
+These rights are not granted or relicensed by Open Net's MIT license.
+
+Discord's published brand rules restrict modification of its logo:
+https://discord.com/branding
+YouTube brand resources:
+https://brand.youtube/
+
+Separate permission for the derivative has not been provided. Inclusion in
+this development build is not a claim of trademark or brand-asset clearance.
+Open Net is independent and is not affiliated with or endorsed by Discord
+or YouTube. The icon identifies the Zapret module, not Open Net's own brand.

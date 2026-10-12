@@ -1,0 +1,10 @@
+Telegram plane
+
+Source: official Telegram Logo.svg, logo archive linked by https://telegram.org/press
+https://telegram.org/file/464001088/1/bI7AJLo7oX4.287931.zip/374fe3b0a59dc60005
+Terms checked 2026-10-12: Telegram permits illustrative/logo/button uses while requiring that users understand the user does not represent Telegram officially.
+Only the plane silhouette is adapted for monochrome display; no source raster or circular logo background is distributed.
+Telegram's brand asset is not covered by Open Net's MIT license. No trademark ownership or official endorsement is claimed.
+
+Open Net is independent, is not an official Telegram client, and is not endorsed by Telegram.
+The symbol identifies the TG WS Proxy module; Telegram and TG WS Proxy's own application/tray icons are unchanged.

@@ -26,18 +26,19 @@ internal static class Program
             {
                 if(args[i] is "--autostart" or "--startup-probe" or "--close-probe")continue;
 #if OPENNET_TESTING
-                if(args[i] is "--test-mode" or "--self-test" or "--installer-test")continue;
+                if(args[i] is "--test-mode" or "--self-test" or "--installer-test" or "--headless-tests")continue;
                 if(args[i]=="--data-dir"&&i+1<args.Length){data=Path.GetFullPath(args[++i]);continue;}
 #endif
                 throw new ArgumentException(L.T("Unknown parameter. Start Open Net without command-line arguments."));
             }
 #if OPENNET_TESTING
+            if(args.Contains("--headless-tests")&&!test)throw new ArgumentException("Headless tests require safe mode.");
             if(selfTest&&!test)throw new ArgumentException(L.T("Self-test is allowed only in safe mode."));
             if(args.Contains("--installer-test")&&!selfTest)throw new ArgumentException("Installer-test requires self-test.");
             SelfTests.NetworkRequested=args.Contains("--installer-test");
             if(data!=null&&(!test||!NetworkHub.Core.Paths.Within(data,Path.Combine(root,"test-results"))))throw new ArgumentException(L.T("Test data must be in test-results next to the EXE."));
 #endif
-            var files=PortableStartup.Open(root,data);files.Log("Startup 0.3.1; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+            var files=PortableStartup.Open(root,data);files.Log("Startup 0.3.2; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
             AppIdentity.Apply(files.Log);
             using var instance=new SingleInstance(files.Data,files.Log);
             if(!instance.Primary)
@@ -47,6 +48,9 @@ internal static class Program
                 MessageBox.Show(L.T("Open Net is already open but did not respond. Check its tray icon."),"Open Net");return 1;
             }
             var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};var shell=new Shell(files,test,instance);
+#if OPENNET_TESTING
+            if(args.Contains("--headless-tests")){try{return TestsHeadless.Run(shell,files);}finally{shell.Exit();shell.Runtime.CloseShell();shell.Dispose();}}
+#endif
             app.DispatcherUnhandledException+=(_,e)=>{files.Log("UI: "+e.Exception);shell.ShowMessage(L.T("An interface error occurred. Check the diagnostic log and reopen the window."));e.Handled=true;};
             instance.Listen(()=>app.Dispatcher.BeginInvoke(new Action(shell.Restore)));
             bool tested=false;

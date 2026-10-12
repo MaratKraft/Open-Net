@@ -33,13 +33,14 @@ public static class SelfTests
     }
     public static async Task Run(Shell shell,AppFiles files,SingleInstance instance)
     {
+        ThemeManager.SystemDarkForTests=()=>true;ThemeManager.SetMode(shell.Settings.Theme);
         int failures=0;var results=new List<object>();
         async Task Test(string name,Func<Task> action){try{await action();results.Add(new{Name=name,Passed=true});files.Log("PASS "+name);}catch(Exception ex){failures++;results.Add(new{Name=name,Passed=false,Error=ex.ToString()});files.Log("FAIL "+name+": "+ex);}}
         Task Sync(Action action){action();return Task.CompletedTask;}
         await shell.Refresh();
         await Test("Portable WPF window, tray, Open Net name, missing-module install buttons",()=>Sync(()=>{
             Require(shell.Window.IsVisible&&shell.Tray.Visible&&shell.Window.Title=="Open Net");
-            Require(shell.Find<Button>("ZapretInstall").Content.ToString()==L.T("Install")&&shell.Find<Button>("TgInstall").Content.ToString()==L.T("Install"));Capture(shell.Window,Path.Combine(files.Data,"main.png"));
+            Require(System.Windows.Automation.AutomationProperties.GetName(shell.Find<Button>("ZapretInstall"))==L.T("Install")&&System.Windows.Automation.AutomationProperties.GetName(shell.Find<Button>("TgInstall"))==L.T("Install"));Capture(shell.Window,Path.Combine(files.Data,"main.png"));
         }));
         await Test("Settings persist and round-trip managed relative paths",()=>Sync(()=>{
             var settings=new UserSettings{ZapretDirectory=Path.Combine(files.Modules,"zapret-discord-youtube-example"),TgExe=Path.Combine(files.Modules,"tg-ws-proxy-example","TgWsProxy_windows.exe"),ZapretSelected=false};files.Save(settings);
@@ -161,6 +162,9 @@ public static class SelfTests
         await TestsFoundation.Run(shell,files,Test);
         await Tests030.Run(shell,files,Test);
         await Tests031.Run(shell,files,Test);
+        await Tests032.Run(shell,files,Test);
+        await Tests032Final.Run(shell,files,Test);
+        await TestsFluent.Run(shell,files,Test);
         await Test("Tray Exit terminates shell and removes icon",()=>Sync(()=>{shell.TrayExit.PerformClick();Require(!shell.Tray.Visible);}));
         File.WriteAllText(Path.Combine(files.Data,"ui-tests.json"),JsonSerializer.Serialize(new{Total=results.Count,Failed=failures,ExecutableSHA256=Metadata.Hash(Environment.ProcessPath!),NetworkInstallation=NetworkRequested,Results=results},new JsonSerializerOptions{WriteIndented=true}));shell.ExitCode=failures==0?0:1;
     }
