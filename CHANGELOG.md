@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3.2 — Unreleased
+## v0.3.2 Stable — 2026-10-12
 
 - Approved compact variant A: original 1.4 DIP rounded Refresh/Download contours, a short straight download bar, 15.8 DIP Settings and 16 DIP Select. Gear centering stays fixed across action/loading states. The owner's second rounded Zapret SVG replaces the preceding SVG after staged visual approval.
 - Optical refinement: 17 DIP Download/Refresh and Select ink with unchanged 28 DIP hit areas, shared calm action foreground, stable gear during loading and a shared 12 DIP module marker-to-text gap. The owner's Zapret SVG is retained as themed vector geometry; its brand-permission limitation is documented separately.
@@ -16,7 +16,7 @@
 - Shared System/Light/Dark palettes for all owned windows, dialogs, controls and tray menus; independent Mica/Acrylic/solid material selection.
 - Published v0.3.1 settings retain dark appearance until a new theme is chosen; new installs default to System, reacting to Windows app-theme changes.
 - Only the module list scrolls; main dimensions and existing network/storage/tray/autostart contracts are preserved.
-- Permanent Git/PR workflow documentation and safe headless CI checks. No future placeholder modules, release publication or main merge.
+- Permanent Git/PR workflow documentation and safe headless CI checks. No future placeholder modules.
 
 
 ## 0.3.1 Beta — 2026-10-12 — first public release

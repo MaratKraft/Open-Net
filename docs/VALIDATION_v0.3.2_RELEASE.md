@@ -20,7 +20,7 @@ The screenshots show sample component states, not a claim that components are bu
 
 ## Release gates and limitations
 
-Publication and merge are pending owner approval of the README/gallery/release layout. The user-supplied Zapret symbol is a derivative brand asset: [its retained notice](../assets/Notices/Zapret-ICON.txt) records that separate permission has not been supplied. Discord's published brand guidelines restrict changes to its logo. This is an unresolved permission question to address before public Stable distribution; MIT for the shell does not clear third-party marks. No icon redesign is made in this release-preparation task.
+The owner approved publication and merge on 2026-10-12, with a dark presentation background and no separate Dark/Light comparison in the README. The user-supplied Zapret symbol is a derivative brand asset: [its retained notice](../assets/Notices/Zapret-ICON.txt) records that separate permission has not been supplied. Discord's published brand guidelines restrict changes to its logo. The owner was informed of this unresolved permission question before authorizing publication; that authorization is not evidence of third-party permission. MIT for the shell does not clear third-party marks. No icon redesign is made in this release-preparation task.
 
 Real Windows 10, physical multi-monitor/DPI/hardware input, live network/UAC behavior and startup after a real Windows sign-in remain target-machine checks. Safe tests launch only owned stubs; upstream executables, BATs and WinDivert drivers are not executed. EXEs are unsigned. Initial GitHub access and offline import trust requirements still apply.
 

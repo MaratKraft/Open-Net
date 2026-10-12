@@ -15,15 +15,7 @@ Install supported network tools, choose their settings and manage them from one 
 
 [![Open Net main window and settings](assets/screenshots/v0.3.2/overview.png)](assets/screenshots/v0.3.2/overview.png)
 
-### Dark
-
-[![Open Net — Dark theme](assets/screenshots/v0.3.2/main-dark.png)](assets/screenshots/v0.3.2/main-dark.png)
-
-### Light
-
-[![Open Net — Light theme](assets/screenshots/v0.3.2/main-light.png)](assets/screenshots/v0.3.2/main-light.png)
-
-Real Open Net 0.3.2 windows with **Solid** material, placed on a neutral background. The main-window captures use the verified safe test state; the settings capture uses the approved production EXE and an isolated profile. Shown tools are not bundled. Click an image for its original size. [Settings screenshot](assets/screenshots/v0.3.2/settings.png).
+Real Open Net 0.3.2 windows with **Solid** material, placed on a dark neutral background. The main-window captures use the verified safe test state; the settings capture uses the approved production EXE and an isolated profile. Shown tools are not bundled. Click an image for its original size. [Settings screenshot](assets/screenshots/v0.3.2/settings.png).
 
 ## Download
 
@@ -34,8 +26,6 @@ Download the EXE and run it. Data stays in `%LOCALAPPDATA%\Open Net`.
 Extract into a separate folder and run `Open Net.exe`. Data stays beside the application.
 
 Zapret and TG WS Proxy are not included; install them through Open Net. [Releases](https://github.com/MaratKraft/Open-Net/releases) · [Latest stable release](https://github.com/MaratKraft/Open-Net/releases/latest).
-
-_v0.3.2 is awaiting release approval. Its direct download links become active after publication._
 
 ## Features
 
