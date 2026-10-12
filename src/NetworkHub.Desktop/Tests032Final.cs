@@ -87,10 +87,10 @@ public static class Tests032Final
     foreach(bool installed in new[]{false,true})foreach(string prefix in new[]{"Zapret","Tg"})
     {
      var group=new ModuleActionGroup{HorizontalAlignment=HorizontalAlignment.Left,Margin=new Thickness(8)};
-     var glyph=new System.Windows.Shapes.Path{Data=GeometryParse(installed),Fill=ThemeManager.Brush("Text"),Width=18,Height=18,Stretch=Stretch.Fill};
+     var glyph=new System.Windows.Shapes.Path{Data=GeometryParse(installed),Style=(Style)shell.Window.Resources["IconArrow"]};
      var installContent=new Grid{Width=18,Height=18};installContent.Children.Add(glyph);
      group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=installContent});
-     group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=new System.Windows.Shapes.Path{Data=(System.Windows.Media.Geometry)shell.Window.Resources["GearGeometry"],Fill=ThemeManager.Brush("Text"),Stretch=Stretch.Fill,Width=18,Height=18}});
+     group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=new System.Windows.Shapes.Path{Data=(System.Windows.Media.Geometry)shell.Window.Resources["GearGeometry"],Fill=ThemeManager.Brush("ActionForeground"),Stretch=Stretch.Fill,Width=18,Height=18}});
      group.Children.Add(new CheckBox{Style=(Style)shell.Window.Resources["ModuleSelection"],IsChecked=prefix=="Zapret"});preview.Children.Add(group);
      ModuleIconAlignment.Attach((Button)group.Children[0],(Button)group.Children[1],(CheckBox)group.Children[2]);
      foreach(DependencyObject action in group.Children)if(prefix=="Tg")Force(action,typeof(UIElement),"IsMouseOverPropertyKey");

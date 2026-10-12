@@ -21,12 +21,20 @@ public static class TestsFluent
    var controls=new Control[]{shell.Find<Button>(prefix+"Install"),shell.Find<Button>(prefix+"Settings"),shell.Find<CheckBox>(prefix+"Check")};
    foreach(var c in controls){c.ApplyTemplate();var surface=(Border)c.Template.FindName("IconSurface",c);Check(c.Width==28&&c.Height==28&&surface.CornerRadius.TopLeft==6&&FocusCues.GetOwnFocusIndicator(c),"Shared icon control geometry");Check(surface.ActualWidth==28&&surface.ActualHeight==28,"Equal hover surfaces");}
    var glyph=shell.Find<System.Windows.Shapes.Path>(prefix+"InstallGlyph");Check(glyph.Stroke==null&&glyph.Fill!=null&&glyph.Width==18&&glyph.Height==18,"Filled Fluent paths share one viewport");
+   var group=(Visual)controls[0].Parent;
+   Check(Math.Abs(ModuleIconAlignment.Ink(glyph,group).Width-17)<.01,"Arrow ink is reduced by one DIP while hit area stays fixed");
+   Check(controls.All(c=>c.Foreground==ThemeManager.Brush("ActionForeground"))&&glyph.Fill==ThemeManager.Brush("ActionForeground"),"All enabled actions share the theme foreground");
+   var selection=(CheckBox)controls[2];var selected=selection.IsChecked;
+   try{selection.IsChecked=false;var circle=(Border)selection.Template.FindName("Box",selection);Check(circle.BorderBrush==ThemeManager.Brush("ActionForeground"),"Unselected circle uses the same contour color");Check(Math.Abs(circle.TransformToAncestor(group).TransformBounds(new Rect(circle.RenderSize)).Width-17)<.01,"Selection ink is reduced without shrinking the hit area");}finally{selection.IsChecked=selected;}
+   var marker=shell.Find<System.Windows.Shapes.Path>(prefix+"ModuleIcon");var row=(Grid)((Border)shell.Find<Border>(prefix+"Row")).Child;
+   Check(row.ColumnDefinitions[0].Width.Value==32&&row.ColumnDefinitions[2].Width.Value==92,"Shared marker gap preserves the right action group");
+   var markerBounds=ModuleIconAlignment.Ink(marker,row);var status=shell.Find<TextBlock>(prefix+"State");Check(Math.Abs(status.TranslatePoint(new Point(),row).X-markerBounds.Right-12)<.1,"Both module rows have a twelve DIP visible marker-to-text gap");
    var gear=(System.Windows.Shapes.Path)((Button)controls[1]).Content;var transform=gear.RenderTransform.Value;var visibility=glyph.Visibility;
    try{glyph.Visibility=Visibility.Collapsed;shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],(CheckBox)controls[2]);shell.Window.UpdateLayout();Check(gear.RenderTransform.Value==transform,"Loading keeps neighboring glyphs fixed");}
    finally{glyph.Visibility=visibility;shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],(CheckBox)controls[2]);shell.Window.UpdateLayout();}
   }
   var plane=shell.Find<System.Windows.Shapes.Path>("TgModuleIcon");Check(plane.Data!=null&&plane.Fill==ThemeManager.Brush("SecondaryText")&&plane.RenderedGeometry.Bounds.Width>=16,"Theme-aware plane without background/padding");
-  Check(shell.Find<System.Windows.Shapes.Path>("ZapretModuleIcon").Stroke==plane.Fill,"Module marker palette matches");
+  Check(shell.Find<System.Windows.Shapes.Path>("ZapretModuleIcon").Fill==plane.Fill,"Module marker palette matches");
  }
  public static async Task Run(Shell shell,AppFiles files,Func<string,Func<Task>,Task> test)
  {
@@ -61,7 +69,7 @@ public static class TestsFluent
     var preview=new StackPanel{Background=ThemeManager.Brush("Surface")};
     foreach(bool installed in new[]{false,true})foreach(string state in new[]{"normal","hover","pressed","focus","disabled"})
     {
-     var group=new ModuleActionGroup{Margin=new Thickness(12,8,12,8),HorizontalAlignment=HorizontalAlignment.Left};var glyph=FluentIcons.Glyph(shell.Window,installed?"RefreshGeometry":"DownloadGeometry");var content=new Grid{Width=18,Height=18};content.Children.Add(glyph);
+     var group=new ModuleActionGroup{Margin=new Thickness(12,8,12,8),HorizontalAlignment=HorizontalAlignment.Left};var glyph=FluentIcons.Glyph(shell.Window,installed?"RefreshGeometry":"DownloadGeometry");glyph.Style=(Style)shell.Window.Resources["IconArrow"];var content=new Grid{Width=18,Height=18};content.Children.Add(glyph);
      group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=content});group.Children.Add(new Button{Style=(Style)shell.Window.Resources["IconButton"],Content=FluentIcons.Glyph(shell.Window,"GearGeometry")});group.Children.Add(new CheckBox{Style=(Style)shell.Window.Resources["ModuleSelection"],IsChecked=installed});preview.Children.Add(group);
      foreach(Control c in group.Children)
      {c.ApplyTemplate();if(state=="hover"||state=="pressed")Force(c,typeof(UIElement),"IsMouseOverPropertyKey");if(state=="pressed")Force(c,typeof(System.Windows.Controls.Primitives.ButtonBase),"IsPressedPropertyKey");if(state=="focus"){FocusCues.SetKeyboardNavigation(c,true);Force(c,typeof(UIElement),"IsKeyboardFocusedPropertyKey");}if(state=="disabled")c.IsEnabled=false;}

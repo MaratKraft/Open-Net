@@ -19,6 +19,8 @@ public static class ModuleIconAlignment
     {
         if(settings.Content is not Path gear||install.Content is not Grid grid)return;
         var first=grid.Children.OfType<Path>().First();selection.ApplyTemplate();
+        // Progress replaces the glyph without moving its neighbors.
+        if(first.Visibility!=Visibility.Visible)return;
         if(selection.Template.FindName("Box",selection) is not Border circle)return;
         var group=(Visual)settings.Parent;
         var left=Ink(first,group);

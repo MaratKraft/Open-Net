@@ -2,6 +2,7 @@
 
 ## v0.3.2 — Unreleased
 
+- Optical refinement: 17 DIP Download/Refresh and Select ink with unchanged 28 DIP hit areas, shared calm action foreground, stable gear during loading and a shared 12 DIP module marker-to-text gap. The owner's Zapret SVG is retained as themed vector geometry; its brand-permission limitation is documented separately.
 - Shared Fluent icon buttons and selection controls: stable 28 DIP hit areas, 18 DIP vectors, 6 DIP corners, themed hover/pressed/disabled and keyboard-only focus. Fixed action cells preserve row/window dimensions and avoid movement when Download changes to Refresh.
 - Fluent Download/Refresh/Folder vectors, vector dropdown chevron and Zapret marker; official monochrome Telegram plane for TG WS Proxy with theme colors and a brand-use notice. Compact module folder pickers use the shared style; larger actions and caption controls retain their separate templates.
 

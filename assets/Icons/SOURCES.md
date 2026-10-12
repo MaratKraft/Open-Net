@@ -6,4 +6,8 @@ Telegram plane: the white plane path from the official `Logo.svg` in the logo ar
 
 Open Net is an independent project, not an official Telegram client and not endorsed by Telegram. The icon identifies the TG WS Proxy module only. Its original application/tray icons are not modified. The user-provided raster reference is not redistributed.
 
-The Zapret diamond is a vector version of the preceding geometric module marker, authored within Open Net under the project's MIT license.
+Zapret: `Zapret.User.svg` was supplied by the project owner. WPF uses its single path verbatim, with nonzero filling and a theme brush; no raster conversion, new dependency or silhouette editing. The owner explicitly chose this SVG after reviewing a separate independent-controller proposal; that proposal is not part of the application.
+
+This SVG combines a Discord-like silhouette with a Play cutout. The Discord resemblance is a visual assessment, not a trademark clearance decision. [Discord's brand rules](https://discord.com/branding) prohibit editing the logo and limit use of its marks and assets. Separate permission for this derivative has not been provided; the owner's choice does not establish Discord authorization. The [YouTube brand resource site](https://brand.youtube/) is the authoritative source for its assets; the supplied file contains a triangle rather than a complete official YouTube wordmark/icon. This observation is not permission or legal clearance. Third-party marks are not relicensed under Open Net's MIT license. See `assets/Notices/Zapret-ICON.txt`.
+
+Open Net is independent and is not endorsed by Discord or YouTube. No stable release or tag is created by this visual change; brand permission remains an unresolved distribution consideration.
