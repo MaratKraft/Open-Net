@@ -1,6 +1,6 @@
 # Third-party notices
 
-Scope: proposed Open Net 0.3.1 Beta distribution, reviewed 12 October 2026. The MIT license for Open Net's original code does not replace any third-party license. This inventory distinguishes included dependencies from separately downloaded tools.
+Scope: Open Net 0.3.1 Beta distribution, reviewed 12 October 2026. The MIT license for Open Net's original code does not replace any third-party license. This inventory distinguishes included dependencies from separately downloaded tools.
 
 ## Included in the application
 

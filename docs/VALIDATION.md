@@ -47,3 +47,5 @@ Existing development reports also record 8/8 storage probes and 3/3 startup prob
 Local byte identity was verified with the documented SDK/runtime. Different SDK patches, package contents or environments may change future builds. The Portable ZIP hash differs from the development candidate because its license and usage documents were completed; its EXE is unchanged. ZIP timestamps may also affect archive hashes.
 
 GitHub Actions builds and packages the shell without executing network tools or drivers. Its hosted result must be checked before replacing the reviewed EXE. Release checksums describe the specific attached files.
+
+The [initial GitHub Actions run](https://github.com/MaratKraft/Open-Net/actions/runs/38216211000) passed the public-file guard, Windows build, clean packaging and artifact upload. Its EXE differed from the reviewed release by 128 bytes. A bundle/assembly comparison found identical runtime payloads and compiled method bodies; four desktop resources differed only in line endings, and informational-version metadata included the commit ID. See [BUILD.md](BUILD.md) for both hashes. The release uses the reviewed local EXE.
