@@ -12,7 +12,7 @@ Welcome to the first public beta of Open Net: a free Windows interface for manag
 
 ## Downloads
 
-| Asset | Choose this whenвЂ¦ |
+| Asset | Choose this when... |
 | --- | --- |
 | `Open-Net-0.3.1-Windows-x64.exe` | You want a standalone application EXE with data under `%LOCALAPPDATA%\Open Net`. It is not an installer. Download `LICENSE.txt` alongside it. |
 | `Open-Net-0.3.1-Windows-x64-Portable.zip` | You want `Data` and `Modules` beside the EXE. Extract the whole folder and keep `portable.flag`. |
@@ -40,4 +40,4 @@ Closing the main window hides it in the tray by default. Exiting Open Net does n
 
 Open this release’s **Assets** list. Standard is the usual choice: download the Windows x64 EXE and `LICENSE.txt`, then run the EXE. For Portable, download the ZIP, extract the entire `Open Net` folder and run `Open Net.exe` from there; never run it inside the ZIP. On first launch, use **Install** beside each desired component, wait for installation, review its settings, then start it explicitly. The [README](../README.md) includes step-by-step instructions and troubleshooting for GitHub access and unsigned-app warnings.
 
-See [validation details](VALIDATION.md), [English documentation](../README.md), [СЂСѓСЃСЃРєСѓСЋ РґРѕРєСѓРјРµРЅС‚Р°С†РёСЋ](README_RU.md) and [third-party notices](../THIRD_PARTY_NOTICES.md). Thanks to Flowseal, bol-van, the WinDivert and Cygwin contributors, and the .NET and Fluent teams.
+See [validation details](VALIDATION.md), [English documentation](../README.md), [Russian documentation](README_RU.md) and [third-party notices](../THIRD_PARTY_NOTICES.md). Thanks to Flowseal, bol-van, the WinDivert and Cygwin contributors, and the .NET and Fluent teams.
