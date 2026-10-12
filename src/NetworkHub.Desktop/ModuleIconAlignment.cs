@@ -6,8 +6,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 namespace NetworkHub.Desktop;
 
-// Equal hit areas stay fixed. The gear is centered in the visible gap,
-// measured from the current download/refresh ink to the selection circle.
+// Shared ink measurements and stable centering for the approved compact controls.
 public static class ModuleIconAlignment
 {
     public static Rect Ink(Path path,Visual relative)
@@ -17,21 +16,9 @@ public static class ModuleIconAlignment
     }
     public static void Update(Button install,Button settings,CheckBox selection)
     {
-        if(settings.Content is not Path gear||install.Content is not Grid grid)return;
-        var first=grid.Children.OfType<Path>().First();selection.ApplyTemplate();
-        // Progress replaces the glyph without moving its neighbors.
-        if(first.Visibility!=Visibility.Visible)return;
-        if(selection.Template.FindName("Box",selection) is not Border circle)return;
-        var group=(Visual)settings.Parent;
-        var left=Ink(first,group);
-        var right=circle.TransformToAncestor(group).TransformBounds(new Rect(circle.RenderSize));
-        if(left.IsEmpty||right.Width==0)return;
-        double current=gear.RenderTransform is TranslateTransform shift?shift.X:0;
-        // The unchanged, symmetric gear fills its centered icon content box.
-        // Use the fixed button center so a pending render transform cannot accumulate.
-        double center=settings.TranslatePoint(new Point(settings.ActualWidth/2,settings.ActualHeight/2),(UIElement)group).X;
-        double wanted=(left.Right+right.Left)/2-center;
-        if(Math.Abs(wanted-current)>.01)gear.RenderTransform=new TranslateTransform(wanted,0);
+        // Approved compact glyphs share fixed centered hit areas. Keep the gear stable
+        // across Download, Refresh and progress rather than chasing asymmetric ink.
+        if(settings.Content is Path gear)gear.RenderTransform=Transform.Identity;
     }
     public static void Attach(Button install,Button settings,CheckBox selection)
     {

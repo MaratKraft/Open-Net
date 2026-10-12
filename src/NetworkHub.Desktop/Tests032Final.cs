@@ -35,7 +35,7 @@ public static class Tests032Final
    {
     glyph.Data=GeometryParse(installed);shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);shell.Window.UpdateLayout();
     var gear=(System.Windows.Shapes.Path)((Button)controls[1]).Content;var left=ModuleIconAlignment.Ink(glyph,(Visual)shell.Window.Content);var middle=ModuleIconAlignment.Ink(gear,(Visual)shell.Window.Content);
-    Check(Math.Abs((middle.Left-left.Right)-(circle.Left-middle.Right))<.1,"Gear is centered between visible icon edges for both glyphs");
+    Check(Math.Abs(middle.Left+middle.Width/2-rects[1].Left-rects[1].Width/2)<.1,"Gear stays centered in its hover area for both glyphs");
    }}finally{glyph.Data=original;shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);}
   }
  }
@@ -90,7 +90,7 @@ public static class Tests032Final
      var glyph=new System.Windows.Shapes.Path{Data=GeometryParse(installed),Style=(Style)shell.Window.Resources["IconArrow"]};
      var installContent=new Grid{Width=18,Height=18};installContent.Children.Add(glyph);
      group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=installContent});
-     group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=new System.Windows.Shapes.Path{Data=(System.Windows.Media.Geometry)shell.Window.Resources["GearGeometry"],Fill=ThemeManager.Brush("ActionForeground"),Stretch=Stretch.Fill,Width=18,Height=18}});
+     group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=new System.Windows.Shapes.Path{Data=(System.Windows.Media.Geometry)shell.Window.Resources["GearGeometry"],Style=(Style)shell.Window.Resources["IconGear"]}});
      group.Children.Add(new CheckBox{Style=(Style)shell.Window.Resources["ModuleSelection"],IsChecked=prefix=="Zapret"});preview.Children.Add(group);
      ModuleIconAlignment.Attach((Button)group.Children[0],(Button)group.Children[1],(CheckBox)group.Children[2]);
      foreach(DependencyObject action in group.Children)if(prefix=="Tg")Force(action,typeof(UIElement),"IsMouseOverPropertyKey");

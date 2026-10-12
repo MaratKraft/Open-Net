@@ -27,8 +27,8 @@ public sealed class ModuleReadiness(AppFiles files)
 }
 public static class ModuleActionPresentation
 {
- public const string Download=FluentIcons.Download;
- public const string Refresh=FluentIcons.Refresh;
+ public const string Download="M9,2.5 L9,11.5 M5.5,8 L9,11.5 L12.5,8 M4,15 L14,15";
+ public const string Refresh="M14.7,5.2 A6.4,6.4 0 1 0 15.4,9 M14.7,2 L14.7,5.2 L11.5,5.2";
  public static string Caption(bool installed)=>L.T(installed?"Check for updates":"Install");
  public static string Glyph(bool installed)=>installed?Refresh:Download;
 }
