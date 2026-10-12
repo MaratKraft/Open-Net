@@ -76,7 +76,7 @@ public static class Tests022
             files.Log("Frame style="+GetWindowLongPtr(hwnd,-16).ToInt64().ToString("X")+" client="+(cr.Right-cr.Left)+"x"+(cr.Bottom-cr.Top)+" window="+(wr.Right-wr.Left)+"x"+(wr.Bottom-wr.Top));
             Check(cr.Bottom-cr.Top==wr.Bottom-wr.Top,"No reserved native caption height");
             int Hit(FrameworkElement element){var screen=element.PointToScreen(new Point(element.ActualWidth/2,element.ActualHeight/2));long packed=((long)(ushort)(short)screen.Y<<16)|(ushort)(short)screen.X;return (int)SendMessage(hwnd,0x84,IntPtr.Zero,new IntPtr(packed));}
-            Check(Hit(shell.Find<Image>("Logo"))==2,"Header remains HTCAPTION");Check(Hit(shell.Find<Button>("Minimize"))==1&&Hit(shell.Find<Button>("Close"))==1,"Buttons remain HTCLIENT");
+            Check(Hit(shell.Find<Image>("Logo"))==1,"Clickable logo remains HTCLIENT");Check(Hit(shell.Find<TextBlock>("AppName"))==2,"Title remains HTCAPTION");Check(Hit(shell.Find<Button>("Minimize"))==1&&Hit(shell.Find<Button>("Close"))==1,"Buttons remain HTCLIENT");
             double Center(string name){var e=shell.Find<FrameworkElement>(name);return e.TranslatePoint(new Point(0,e.ActualHeight/2),shell.Window).Y;}
             Check(new[]{"Logo","AppName","Minimize","Close"}.Select(Center).Max()-new[]{"Logo","AppName","Minimize","Close"}.Select(Center).Min()<0.1,"Header centers aligned");
             shell.Find<Button>("Minimize").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Check(shell.Window.WindowState==WindowState.Minimized,"Minimize works");shell.Restore();await Task.Delay(100);
@@ -89,11 +89,11 @@ public static class Tests022
             backdrop.Background=gradient;backdrop.Show();
             try{
                 foreach(string material in new[]{"mica","acrylic"}){
-                    shell.Settings.Backdrop=material;shell.ApplySettings(shell.Settings);shell.Restore();TestActivation.Own(shell.Window);await Task.Delay(600);shell.Window.UpdateLayout();Screen(shell.Window,Path.Combine(files.Data,"screen-"+material+".png"));
+                    TestActivation.Own(backdrop);shell.Settings.Backdrop=material;shell.ApplySettings(shell.Settings);shell.Restore();TestActivation.Own(shell.Window);await Task.Delay(600);shell.Window.UpdateLayout();Screen(shell.Window,Path.Combine(files.Data,"screen-"+material+".png"));
                     double width=shell.Window.Width,height=shell.Window.Height;shell.Window.Width=width+12;shell.Window.Height=height+12;await Task.Delay(150);shell.Window.Width=width;shell.Window.Height=height;await Task.Delay(150);
                     Screen(shell.Window,Path.Combine(files.Data,"screen-"+material+"-resized.png"));
                 }
-                backdrop.Background=new SolidColorBrush(Colors.Green);backdrop.UpdateLayout();await Task.Delay(250);shell.Settings.Backdrop="acrylic";shell.ApplySettings(shell.Settings);shell.Restore();TestActivation.Own(shell.Window);await Task.Delay(600);Screen(shell.Window,Path.Combine(files.Data,"screen-acrylic-green.png"));
+                backdrop.Background=new SolidColorBrush(Colors.Green);backdrop.UpdateLayout();TestActivation.Own(backdrop);await Task.Delay(250);shell.Settings.Backdrop="acrylic";shell.ApplySettings(shell.Settings);shell.Restore();TestActivation.Own(shell.Window);await Task.Delay(600);Screen(shell.Window,Path.Combine(files.Data,"screen-acrylic-green.png"));
                 if(Environment.OSVersion.Version.Build>=22621)
                 {
                     using var mica=new System.Drawing.Bitmap(Path.Combine(files.Data,"screen-mica.png"));using var acrylic=new System.Drawing.Bitmap(Path.Combine(files.Data,"screen-acrylic.png"));using var green=new System.Drawing.Bitmap(Path.Combine(files.Data,"screen-acrylic-green.png"));

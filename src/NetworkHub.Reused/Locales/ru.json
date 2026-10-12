@@ -328,5 +328,7 @@
   "Yes": "Да",
   "No": "Нет",
   "Cancel": "Отмена",
-  "OK": "ОК"
+  "OK": "ОК",
+  "Open Open Net on GitHub": "Открыть GitHub Open Net",
+  "Could not open the browser. Open github.com/MaratKraft/Open-Net manually.": "Не удалось открыть браузер. Откройте github.com/MaratKraft/Open-Net вручную."
 }

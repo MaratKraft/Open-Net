@@ -78,6 +78,7 @@ public sealed class Shell : IDisposable
         Find<CheckBox>("TgCheck").Checked+=ChoiceChanged; Find<CheckBox>("TgCheck").Unchecked+=ChoiceChanged;
         Find<Button>("Minimize").Click+=(_,_)=>Window.WindowState=WindowState.Minimized;
         Find<Button>("Close").Click+=(_,_)=>HideToTray();
+        Find<Button>("LogoLink").Click+=(_,_)=>OpenRepository();
         Find<Button>("Settings").Click+=(_,_)=>OpenSettings();
         Find<Button>("ZapretSettings").Click+=(_,_)=>OpenModuleSettings("zapret");
         Find<Button>("TgSettings").Click+=(_,_)=>OpenModuleSettings("tg");
@@ -101,6 +102,20 @@ public sealed class Shell : IDisposable
         Window.Loaded+=async(_,_)=>{await Refresh();if(Runtime.TestMode)ShowMessage(L.T("Safe testing: buttons run only our test processes."));else if(errors.ContainsKey("settings"))ShowMessage(L.T("Settings are damaged. Save them again; the original and a backup have been kept."));else if(Settings.StartWithWindows){var state=Autostart.Inspect(Settings);if(state.NeedsRepair||!state.Registered)ShowMessage(state.Message);}else if(!string.Equals(files.Data,Path.Combine(files.Root,"Data"),StringComparison.OrdinalIgnoreCase))ShowMessage(L.T("Data: ")+files.Data);};
     }
     public T Find<T>(string name) where T:class => (T)Window.FindName(name);
+#if OPENNET_TESTING
+    internal Action<System.Diagnostics.ProcessStartInfo>? RepositoryLaunchForTests {get;set;}
+#endif
+    private void OpenRepository()
+    {
+        try
+        {
+#if OPENNET_TESTING
+            if(Runtime.TestMode){RepositoryLaunchForTests?.Invoke(RepositoryLink.Plan());return;}
+#endif
+            RepositoryLink.Open();
+        }
+        catch(Exception ex){files.Log("Open repository: "+ex);ShowMessage(L.T("Could not open the browser. Open github.com/MaratKraft/Open-Net manually."));}
+    }
     private void ChoiceChanged(object sender,RoutedEventArgs e)
     {
         if(updatingChecks) return;

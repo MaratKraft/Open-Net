@@ -3,6 +3,9 @@
 ## v0.3.2 — Unreleased
 
 - Compact Zapret/TG rows with version/strategy metadata, full tooltips and separate install/settings/select icon actions.
+- Equal module-action hit areas and spacing; centered Download/Refresh and selection icons without changing main dimensions or row heights.
+- Shared Windows-style toggle geometry with balanced insets, stable focus, hover/pressed/disabled states and a contrasting off-state thumb in the light theme.
+- The unchanged header logo opens the official GitHub repository in the default browser, with RU/EN tooltips, keyboard activation and a nonfatal failure message; the remaining title area still drags the window.
 - File-validated Download/Refresh presentation and small progress indicator; installation failures preserve the previous module and restore retry controls.
 - Shared System/Light/Dark palettes for all owned windows, dialogs, controls and tray menus; independent Mica/Acrylic/solid material selection.
 - Published v0.3.1 settings retain dark appearance until a new theme is chosen; new installs default to System, reacting to Windows app-theme changes.
