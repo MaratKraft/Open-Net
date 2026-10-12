@@ -10,7 +10,15 @@ New coverage includes published-configuration dark preservation/new System defau
 
 The old dark-log test now checks high-contrast near-white text rather than exact white: the shared dark Text brush is #F3F3F3, retaining readable dark appearance. The initial main-install assertion now checks the accessible action name because the action uses an icon rather than a text caption. No actual failure was converted into a fake Passed. Graphical capture helpers verify the foreground belongs to the owned test window.
 
-Local production and test builds succeed with SDK 10.0.100 and runtime 10.0.12. The restricted local environment returned NU1900 because the NuGet vulnerability feed could not be reached; this is not a completed vulnerability audit. CI retains normal auditing. Final production-package and hosted-CI results are recorded separately after they execute.
+Local production and test builds succeed with SDK 10.0.100 and runtime 10.0.12. The restricted local environment returned NU1900 because the NuGet vulnerability feed could not be reached; this is not a completed vulnerability audit. CI retains normal auditing.
+
+## Final production and package checks
+
+The production executable SHA-256 is **D65E503F00337D601FF880B4A94430F7848A613C03CE88D062BE10BEE2460315**. The portable ZIP SHA-256 is **BBDE5A77F6590AD17151E069CD2490DDB742DDA080933B6BEEBBC277F7585DAE**. Normal and portable executables are byte-identical. Production metadata inspection checked 208 types and found no test harness, safe-stub or test supervisor types.
+
+All **4/4** final package probes passed: normal EXE outside the repository, extracted portable ZIP, hidden autostart entrypoint without registry registration, and portable folder moved to a path with spaces and Cyrillic characters. The normal probe ran after the owner closed the previous shell; fresh output confirms an independent launch. Each probe reported LaunchCount=0 and the expected storage, window and tray state. Already-running network tools were only observed and left unchanged. The ZIP contains one executable, notices, license, instructions, portable.flag and empty data/module directories; no bundled network tools, user profiles or test artifacts.
+
+[Hosted Windows build and safe checks](https://github.com/MaratKraft/Open-Net/actions/runs/38229493436) completed successfully for implementation commit **49a5f99fa1bef209334caa15878ef0bb1a818cbd**, including test build, 9 safe checks, production build, clean packaging and artifact upload. Subsequent documentation-only commits do not change the tested production inputs.
 
 ## Visual review
 
