@@ -33,6 +33,7 @@ public sealed class Shell : IDisposable
     private bool stopping;
     private bool configuring;
     private Window? settingsWindow;
+    private DnsManagerView? dnsWindow;
     private readonly Dictionary<string,Window> moduleWindows=new();
     private readonly Dictionary<string,string> moduleMessages=new();
     public event Action? StateChanged;
@@ -82,6 +83,8 @@ public sealed class Shell : IDisposable
         Find<Button>("Settings").Click+=(_,_)=>OpenSettings();
         Find<Button>("ZapretSettings").Click+=(_,_)=>OpenModuleSettings("zapret");
         Find<Button>("TgSettings").Click+=(_,_)=>OpenModuleSettings("tg");
+        Find<Button>("DnsSettings").Click+=(_,_)=>OpenDnsSettings();
+        UpdateDnsStatus();
         Primary.Click+=async(_,_)=> {await Refresh();if(PrimaryAction.Stop(Observations,Selected())) await StopSelected(false);else await StartSelected();};
         Find<Button>("ZapretInstall").Click+=async(_,_)=>await InstallOrCheck("zapret");
         Find<Button>("TgInstall").Click+=async(_,_)=>await InstallOrCheck("tg");
@@ -296,7 +299,26 @@ public sealed class Shell : IDisposable
         Window.ShowInTaskbar=true;Window.Show();Window.WindowState=WindowState.Normal;Window.Activate();
         var handle=new WindowInteropHelper(Window).Handle;BringWindowToTop(handle);SetForegroundWindow(handle);Window.Focus();
     }
-    public void Exit() {if(exiting)return;if(Busy){ShowMessage(L.T("Wait for the current operation to finish before exiting."));return;}exiting=true;timer.Stop();Tray.Visible=false;Window.Close();Application.Current.Shutdown();}
+    public void Exit() {if(exiting)return;if(Busy||dnsWindow?.IsBusy==true){ShowMessage(L.T("Wait for the current operation to finish before exiting."));return;}exiting=true;timer.Stop();Tray.Visible=false;Window.Close();Application.Current.Shutdown();}
+    internal Window OpenDnsSettings()
+    {
+        if(dnsWindow!=null){dnsWindow.Window.Activate();return dnsWindow.Window;}
+        try{dnsWindow=new DnsManagerView(this,files);var view=dnsWindow;view.Window.Closed+=(_,_)=>dnsWindow=null;view.Window.Show();UpdateDnsStatus();return view.Window;}
+        catch(Exception ex){ShowMessage(L.Error(ex));files.Log("DNS window: "+ex);throw;}
+    }
+    internal void UpdateDnsStatus()
+    {
+        if(dnsWindow!=null){Find<TextBlock>("DnsState").Text=L.T(dnsWindow.Status);return;}
+        string text="Open to inspect DNS settings";
+        if(!Runtime.TestMode)try{
+            string owner=DnsRecoveryStore.Owner(),directory=DnsRecoveryStore.DirectoryFor(owner);var store=DnsRecoveryStore.Open(owner,false);
+            if(Directory.Exists(directory))foreach(string path in Directory.EnumerateFiles(directory,"*.json").Take(64)){
+                if(Guid.TryParse(Path.GetFileNameWithoutExtension(path),out var id)&&store.Load(id)?.Active==true){text="DNS backup available. Open to review recovery.";break;}
+            }
+        }catch(Exception){text="DNS recovery storage needs review.";}
+        Find<TextBlock>("DnsState").Text=L.T(text);
+        // Journal inspection only; never inspect adapters or run probes on dashboard refresh.
+    }
     public void ApplySettings(UserSettings settings) {files.Save(settings);if(Settings.Language!=settings.Language){moduleMessages.Clear();}Settings=settings;ThemeManager.SetMode(settings.Theme);L.Set(settings.Language);WindowAppearance.Refresh(Window);errors.Clear();_ =Refresh();Render();}
     public void ApplyGeneralSettings(UserSettings settings)
     {

@@ -13,6 +13,7 @@ internal static class Program
         long startupTicks=System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
+            if(args.Length>0&&args[0]=="--dns-elevated")return DnsElevated.Run(args);
             if(args.Length>0&&args[0]=="--elevated")return ElevatedActions.Run(args);
 #if OPENNET_TESTING
             if(args.Length>0&&args[0]=="--safe-stub")return SafeStub.Run(args.Skip(1).ToArray());
@@ -38,7 +39,7 @@ internal static class Program
             SelfTests.NetworkRequested=args.Contains("--installer-test");
             if(data!=null&&(!test||!NetworkHub.Core.Paths.Within(data,Path.Combine(root,"test-results"))))throw new ArgumentException(L.T("Test data must be in test-results next to the EXE."));
 #endif
-            var files=PortableStartup.Open(root,data);files.Log("Startup 0.3.2; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+            var files=PortableStartup.Open(root,data);files.Log("Startup 0.4.0-alpha.1; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
             AppIdentity.Apply(files.Log);
             using var instance=new SingleInstance(files.Data,files.Log);
             if(!instance.Primary)

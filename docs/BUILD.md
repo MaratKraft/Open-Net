@@ -8,7 +8,7 @@ Use Windows x64, PowerShell 7 and .NET SDK **10.0.100** (`global.json` permits S
 ./scripts/publish.ps1 -SdkPath 'C:/SDK/dotnet.exe' -NugetCache 'C:/NuGetCache'
 ```
 
-Output: `publish/Open Net 0.3.2/Open Net.exe`. Production compilation excludes the test harness and safe stub classes. Options: Release, win-x64, self-contained, single-file compression, native extraction, no trimming, no debug symbols. No network component is bundled or launched by the build.
+Current development output: `publish/Open Net 0.4.0-alpha.1/Open Net.exe`; safe host: `publish/Open Net 0.4.0-alpha.1 Test/Open Net.exe`. Production compilation excludes the test harness and safe stub classes. Options: Release, win-x64, self-contained, single-file compression, native extraction, no trimming, no debug symbols. No network component is bundled or launched by the build. Published Stable v0.3.2 remains unchanged. See [DNS Manager alpha](DNS_MANAGER_ALPHA.md) for capability restrictions and manual-test gates.
 
 ## Repository layout
 
@@ -52,4 +52,4 @@ The [first hosted build](https://github.com/MaratKraft/Open-Net/actions/runs/382
 
 ## Current development checks
 
-After building with -TestBuild, run ./scripts/test-headless.ps1 for the CI-safe palette/layout/configuration checks. The full interactive harness still requires the private official BAT fixtures and a Windows desktop; it tests native materials and only owned stub processes. Its graphical checks must not be represented as real network tests.
+After building with -TestBuild, run ./scripts/test-headless.ps1 for palette/layout/configuration and isolated DNS transaction checks. The alpha currently has 30 always-run checks; an additional protected-file ACL fixture runs only under an elevated administrator token, entirely in the owned temporary data directory. A skipped ACL fixture is not evidence of production UAC validation. The full interactive harness still requires the private official BAT fixtures and a Windows desktop; it tests native materials, only owned stub processes, and fake DNS apply/restore. Its graphical checks must not be represented as real network tests. Safe DNS mode never constructs the production writer or probe runner, and the safe executable rejects the DNS elevated entry point.

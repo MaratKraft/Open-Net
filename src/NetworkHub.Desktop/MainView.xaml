@@ -115,10 +115,17 @@
       <TextBlock x:Name="TgState" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1" Text="Checking" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
      </Grid>
     </Border>
+    <TextBlock Text="SYSTEM SETTINGS" Foreground="{DynamicResource ToggleBorder}" FontSize="10" FontWeight="SemiBold" Margin="0,22,0,10"/>
+    <Border x:Name="DnsRow" Padding="0,13,0,13" MinHeight="70"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/><ColumnDefinition Width="96"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <Grid Width="22" Height="22" HorizontalAlignment="Left"><Ellipse Width="16" Height="16" Stroke="{DynamicResource SecondaryText}" StrokeThickness="1.4"/><Path Data="M3,11 L19,11 M11,3 C5,7 5,15 11,19 M11,3 C17,7 17,15 11,19" Stroke="{DynamicResource SecondaryText}" StrokeThickness="1.2"/></Grid>
+     <TextBlock Grid.Column="1" Text="DNS Manager" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center"/>
+     <Button x:Name="DnsSettings" Grid.Column="2" Content="Configure" Height="32" FontSize="12" Padding="10,6" Background="{DynamicResource ButtonSurface}" AutomationProperties.Name="Configure DNS"/>
+     <TextBlock x:Name="DnsState" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1" Text="Open to inspect DNS settings" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
+    </Grid></Border>
     </StackPanel></ScrollViewer>
     <TextBlock x:Name="Message" Grid.Row="2" Text="Close the window — Open Net stays in the tray." Foreground="{DynamicResource Muted}" FontSize="11" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="50" Margin="0,15,0,10"/>
    </Grid>
-   <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Button x:Name="Settings" HorizontalAlignment="Left" Padding="0,5" Foreground="{DynamicResource Muted}" FontSize="12"><StackPanel Orientation="Horizontal"><Viewbox Width="17" Height="17" Margin="0,0,7,0"><Canvas Width="20" Height="20"><Path x:Name="SettingsGear" Fill="{Binding Foreground,RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource GearGeometry}"/></Canvas></Viewbox><TextBlock x:Name="SettingsCaption" Text="Settings" VerticalAlignment="Center"/></StackPanel></Button><TextBlock Grid.Column="1" Text="0.3.2" Foreground="{DynamicResource Muted}" FontSize="11" VerticalAlignment="Center"/></Grid>
+   <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Button x:Name="Settings" HorizontalAlignment="Left" Padding="0,5" Foreground="{DynamicResource Muted}" FontSize="12"><StackPanel Orientation="Horizontal"><Viewbox Width="17" Height="17" Margin="0,0,7,0"><Canvas Width="20" Height="20"><Path x:Name="SettingsGear" Fill="{Binding Foreground,RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource GearGeometry}"/></Canvas></Viewbox><TextBlock x:Name="SettingsCaption" Text="Settings" VerticalAlignment="Center"/></StackPanel></Button><TextBlock Grid.Column="1" Text="0.4.0-alpha.1" Foreground="{DynamicResource Muted}" FontSize="11" VerticalAlignment="Center"/></Grid>
   </Grid>
  </Border>
 </Window>
