@@ -1,6 +1,6 @@
 # Third-party notices
 
-Scope: Open Net 0.3.1 Beta distribution, reviewed 12 October 2026. The MIT license for Open Net's original code does not replace any third-party license. This inventory distinguishes included dependencies from separately downloaded tools.
+Scope: Open Net 0.3.2 release preparation, reviewed 12 October 2026. The MIT license for Open Net's original code does not replace any third-party license. This inventory distinguishes included dependencies from separately downloaded tools.
 
 ## Included in the application
 
@@ -10,7 +10,11 @@ Scope: Open Net 0.3.1 Beta distribution, reviewed 12 October 2026. The MIT licen
 | Windows Desktop runtime: WPF and Windows Forms | .NET Foundation and contributors / Microsoft | 10.0.12 | MIT plus dependency-specific notices: [license](assets/Notices/windowsdesktop-LICENSE.txt), [WPF notices](assets/Notices/dotnet-wpf-THIRD-PARTY-NOTICES.txt), [WinForms notices](assets/Notices/dotnet-winforms-THIRD-PARTY-NOTICES.txt); [WPF source](https://github.com/dotnet/wpf/tree/v10.0.12), [WinForms source](https://github.com/dotnet/winforms/tree/v10.0.12) |
 | Fluent UI System Icons: settings gear | Microsoft Corporation | Existing vector supplied with this project; exact upstream commit was not recorded | [MIT text](assets/Notices/Fluent-LICENSE.txt); [source](https://github.com/microsoft/fluentui-system-icons), [upstream license](https://github.com/microsoft/fluentui-system-icons/blob/main/LICENSE) |
 
-Retain the applicable copyright, permission and dependency notices when redistributing. All six original notice files are embedded in the existing EXE and displayed by **Settings → About and licenses**; Portable also includes readable copies under `Notices/`. .NET dependency notices list additional licenses, including native/runtime dependencies; these must not be replaced by a blanket MIT statement. Windows system DLLs are referenced through operating-system APIs and are not copied into this repository as third-party network tools.
+Retain the applicable copyright, permission and dependency notices when redistributing. The six original .NET/Fluent notices and two module-symbol notices are embedded in the v0.3.2 EXE and displayed by **Settings → About and licenses**; Portable also includes readable copies under `Notices/`. .NET dependency notices list additional licenses, including native/runtime dependencies; these must not be replaced by a blanket MIT statement. Windows system DLLs are referenced through operating-system APIs and are not copied into this repository as third-party network tools.
+
+### Module symbols
+
+The Telegram plane follows separate [Telegram brand terms](assets/Notices/Telegram-BRAND.txt), not MIT. The owner-supplied Zapret composite is described in [Zapret-ICON.txt](assets/Notices/Zapret-ICON.txt): separate permission for the derivative has not been supplied, and [Discord's brand guidelines](https://discord.com/branding) restrict modification of its logo. This question remains open before Stable distribution. Neither symbol implies endorsement or affiliation; the symbols do not relicense the corresponding brands.
 
 The original Open Net logo is owner-supplied artwork, preserved without redesign. It is not a Fluent icon. This release assigns MIT to original code and documentation; it does not assign a separate artwork/trademark license.
 
