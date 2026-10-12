@@ -14,6 +14,7 @@ namespace NetworkHub.App;
 public sealed class UserSettings
 {
     public string Language { get; set; } = "en";
+    public string Theme { get; set; } = "system";
     public string Backdrop { get; set; } = "mica";
     public string LastWorkingStrategy { get; set; } = "";
     public string ZapretDirectory { get; set; } = "";
@@ -62,7 +63,11 @@ public sealed class AppFiles
     public UserSettings Load()
     {
         if(!File.Exists(SettingsPath)) return Defaults();
-        var settings=JsonSerializer.Deserialize<UserSettings>(File.ReadAllText(SettingsPath)) ?? throw new InvalidDataException(L.T("Settings are empty. Save them again or restore a backup."));
+        string json=File.ReadAllText(SettingsPath);
+        using var document=JsonDocument.Parse(json);
+        var settings=JsonSerializer.Deserialize<UserSettings>(json) ?? throw new InvalidDataException(L.T("Settings are empty. Save them again or restore a backup."));
+        if(!document.RootElement.EnumerateObject().Any(x=>string.Equals(x.Name,"Theme",StringComparison.OrdinalIgnoreCase)))settings.Theme="dark";
+        if(settings.Theme is not ("system" or "light" or "dark"))settings.Theme="system";
         settings.ZapretDirectory=Resolve(settings.ZapretDirectory);settings.TgExe=Resolve(settings.TgExe);return settings;
     }
     public string Resolve(string value)=>string.IsNullOrWhiteSpace(value)?"":value.StartsWith("@modules/",StringComparison.Ordinal)?ModulePath(value.Substring(9)):Path.GetFullPath(value,Root);

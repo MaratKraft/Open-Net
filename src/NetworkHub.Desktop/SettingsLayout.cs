@@ -62,7 +62,8 @@ internal static class SettingsLayout
     public static void BrowseBundle(Shell shell,AppFiles files,Window owner,TextBox input,Button button)
     {
         var menu=new ContextMenu{Style=(Style)shell.Window.Resources["ZapretMenu"],Foreground=Brushes.White,PlacementTarget=button};
-        MenuItem Item(string label){var item=new MenuItem{Header=L.T(label),Style=(Style)shell.Window.Resources["ZapretMenuItem"],Padding=new Thickness(12,7,12,7),Foreground=Brushes.White};menu.Items.Add(item);return item;}
+        MenuItem Item(string label){var item=new MenuItem{Header=L.T(label),Style=(Style)shell.Window.Resources["ZapretMenuItem"],Padding=new Thickness(12,7,12,7),Foreground=Brushes.White};ThemeManager.Bind(item,MenuItem.ForegroundProperty,"Text");menu.Items.Add(item);return item;}
+        ThemeManager.Bind(menu,ContextMenu.ForegroundProperty,"Text");
         Item("Open Zapret folder").Click+=(_,_)=>{try{OpenFolder(shell,files,files.Resolve(input.Text.Trim()));}catch(Exception ex){shell.ShowMessage(L.Error(ex));}};
         Item("Configure Zapret").Click+=async(_,_)=>await shell.ConfigureZapret(files.Resolve(input.Text.Trim()),owner);
         Item("Select folder").Click+=(_,_)=>{using var picker=new Forms.FolderBrowserDialog{Description=L.T("Choose the portable Zapret folder"),UseDescriptionForTitle=true,SelectedPath=input.Text};if(picker.ShowDialog()==Forms.DialogResult.OK)input.Text=picker.SelectedPath;};
