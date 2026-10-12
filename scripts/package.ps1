@@ -22,7 +22,7 @@ try {
     $texts = @{
         'portable.flag' = 'Open Net portable storage marker'
         'README.txt' = @'
-Open Net 0.3.2 Beta / Windows x64
+Open Net 0.3.2 Stable / Windows x64
 Extract the entire Open Net folder into a writable location. Keep portable.flag.
 Data and Modules stay beside the EXE. Stop tools and exit before moving the folder.
 Zapret and TG WS Proxy are not bundled: install official components in the app.

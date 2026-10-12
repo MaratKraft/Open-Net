@@ -42,7 +42,7 @@ The packaging script copies the production EXE, constructs a clean Portable ZIP 
 
 ## CI and reproducibility
 
-The proposed GitHub Actions workflow checks tracked public files, builds the production application and uploads a Windows artifact. It has read-only repository permissions and does not run the application, network utilities, WinDivert or system-changing tests. Interactive tests are left to a Windows desktop session; no formatter configuration existed to enforce in CI. The public-file guard checks selected secret patterns and forbidden outputs; it is not a full credential scanner.
+The GitHub Actions workflow checks tracked public files, builds the production application and a separate test executable, runs twelve safe headless checks, and uploads a Windows artifact. It has read-only repository permissions. It does not launch the production application, network utilities, WinDivert or system-changing tests. Interactive tests are left to a Windows desktop session; no formatter configuration existed to enforce in CI. The public-file guard checks selected secret patterns and forbidden outputs; it is not a full credential scanner.
 
 The prepared source rebuilt locally with SDK 10.0.100 and runtime 10.0.12 to an EXE **byte-identical to the supplied release candidate**. This is a measured result for that environment, not a universal reproducible-build guarantee. SDK patches, package contents or build paths may change results. CI artifacts must be independently compared before replacing the reviewed release EXE.
 
