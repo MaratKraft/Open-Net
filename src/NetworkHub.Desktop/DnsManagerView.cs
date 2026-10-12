@@ -29,7 +29,7 @@ internal sealed class DnsManagerView
     {
         this.shell=shell;this.files=files;
 #if OPENNET_TESTING
-        if(shell.Runtime.TestMode){var fake=TestsDns.Fixture();reader=fake;store=new DnsFileJournalStore(Paths.Owned(files.Data,"Dns/IsolatedRecovery"),"safe-test");probes=new TestsDns.FakeProbes();}
+        if(shell.Runtime.TestMode){var fake=TestsDns.Fixture(files.Data);reader=fake;store=new DnsFileJournalStore(Paths.Owned(files.Data,"Dns/IsolatedRecovery"),"safe-test");probes=new TestsDns.FakeProbes();}
         else
 #endif
         {reader=new WindowsDnsSettings();store=DnsRecoveryStore.Open(DnsRecoveryStore.Owner(),false);probes=new WindowsDnsProbeRunner();}
