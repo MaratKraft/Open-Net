@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.2 — Unreleased
+
+- Compact Zapret/TG rows with version/strategy metadata, full tooltips and separate install/settings/select icon actions.
+- File-validated Download/Refresh presentation and small progress indicator; installation failures preserve the previous module and restore retry controls.
+- Shared System/Light/Dark palettes for all owned windows, dialogs, controls and tray menus; independent Mica/Acrylic/solid material selection.
+- Published v0.3.1 settings retain dark appearance until a new theme is chosen; new installs default to System, reacting to Windows app-theme changes.
+- Only the module list scrolls; main dimensions and existing network/storage/tray/autostart contracts are preserved.
+- Permanent Git/PR workflow documentation and safe headless CI checks. No future placeholder modules, release publication or main merge.
+
+
 ## 0.3.1 Beta — 2026-10-12 — first public release
 
 - A Windows interface for managing Zapret and TG WS Proxy, with English and Russian localization.

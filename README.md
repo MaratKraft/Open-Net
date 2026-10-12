@@ -150,3 +150,7 @@ Open Net is an independent project maintained by [MaratKraft](https://github.com
 ## License
 
 Original Open Net code and documentation: [MIT](LICENSE), copyright 2026 MaratKraft. The supplied Open Net logo is retained as project artwork; this release does not grant a separate logo/trademark license. Third-party code, runtime and icons keep their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and `assets/Notices`. License texts for bundled dependencies are also available in **Settings → About and licenses**.
+
+## Development workflow
+
+GitHub is the canonical source. Development uses feature/fix branches, tests and pull requests; main merges and releases require the owner's approval. See [Development Workflow](CONTRIBUTING.md#development-workflow), [v0.3.2 validation](docs/VALIDATION_v0.3.2.md) and [build instructions](docs/BUILD.md). v0.3.2 artifacts are local/CI test builds until separately approved; the download links above still point to published v0.3.1.
