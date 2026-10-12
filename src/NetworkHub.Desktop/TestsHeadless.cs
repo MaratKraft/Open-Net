@@ -26,6 +26,11 @@ public static class TestsHeadless
   Test("material fallback and no automatic tool launch",()=>{Check(WindowAppearance.Select(19045,true,false,false,"mica")=="solid"&&WindowAppearance.Select(26200,true,false,false,"solid")=="solid","Fallback policy");Check(shell.Runtime.LaunchCount==0&&!shell.Settings.StartWithWindows,"No network launch/autostart registration");});
   Test("final action spacing and toggle geometry",()=>{Tests032Final.Geometry(shell);Tests032Final.Toggles(shell);});
   Test("fixed repository HTTPS launch plan",()=>{var plan=RepositoryLink.Plan();Check(plan.FileName=="https://github.com/MaratKraft/Open-Net"&&plan.UseShellExecute&&plan.Verb=="open"&&plan.Arguments=="","External browser plan");});
+  Test("shared Fluent icon geometry and themed plane",()=>{
+   TestsFluent.Geometry(shell);string mode=ThemeManager.Mode;var provider=ThemeManager.SystemDarkForTests;
+   try{foreach(bool dark in new[]{true,false}){ThemeManager.SystemDarkForTests=()=>dark;ThemeManager.SetMode("system");TestsFluent.Geometry(shell);Check(ThemeManager.IsDark==dark,"System palette follows provider including new vectors");}}
+   finally{ThemeManager.SystemDarkForTests=provider;ThemeManager.SetMode(mode);}
+  });
   File.WriteAllText(Path.Combine(files.Data,"headless-tests.json"),JsonSerializer.Serialize(new{Total=results.Count,Failed=failed,NetworkToolsLaunched=false,Results=results},new JsonSerializerOptions{WriteIndented=true}));return failed==0?0:1;
  }
 }

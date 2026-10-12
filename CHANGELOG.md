@@ -2,6 +2,9 @@
 
 ## v0.3.2 — Unreleased
 
+- Shared Fluent icon buttons and selection controls: stable 28 DIP hit areas, 18 DIP vectors, 6 DIP corners, themed hover/pressed/disabled and keyboard-only focus. Fixed action cells preserve row/window dimensions and avoid movement when Download changes to Refresh.
+- Fluent Download/Refresh/Folder vectors, vector dropdown chevron and Zapret marker; official monochrome Telegram plane for TG WS Proxy with theme colors and a brand-use notice. Compact module folder pickers use the shared style; larger actions and caption controls retain their separate templates.
+
 - Compact Zapret/TG rows with version/strategy metadata, full tooltips and separate install/settings/select icon actions.
 - Equal module-action hit areas and spacing; centered Download/Refresh and selection icons without changing main dimensions or row heights.
 - Follow-up: center the gear between the visible edges of the smaller Download/Refresh glyph and larger selection circle, preserving the fixed hit areas.

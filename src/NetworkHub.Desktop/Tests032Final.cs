@@ -86,11 +86,11 @@ public static class Tests032Final
     var preview=new StackPanel{Background=ThemeManager.Brush("Surface"),Margin=new Thickness(8)};
     foreach(bool installed in new[]{false,true})foreach(string prefix in new[]{"Zapret","Tg"})
     {
-     var group=new System.Windows.Controls.Primitives.UniformGrid{Rows=1,Columns=3,Width=92,HorizontalAlignment=HorizontalAlignment.Left,Margin=new Thickness(8)};
-     var glyph=new System.Windows.Shapes.Path{Data=GeometryParse(installed),Stroke=ThemeManager.Brush("Text"),StrokeThickness=1.5,Width=16,Height=16,Stretch=Stretch.Uniform};
-     var installContent=new Grid{Width=16,Height=16};installContent.Children.Add(glyph);
+     var group=new ModuleActionGroup{HorizontalAlignment=HorizontalAlignment.Left,Margin=new Thickness(8)};
+     var glyph=new System.Windows.Shapes.Path{Data=GeometryParse(installed),Fill=ThemeManager.Brush("Text"),Width=18,Height=18,Stretch=Stretch.Fill};
+     var installContent=new Grid{Width=18,Height=18};installContent.Children.Add(glyph);
      group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=installContent});
-     group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=new System.Windows.Shapes.Path{Data=(System.Windows.Media.Geometry)shell.Window.Resources["GearGeometry"],Fill=ThemeManager.Brush("Text"),Stretch=Stretch.Uniform,Width=16,Height=16}});
+     group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=new System.Windows.Shapes.Path{Data=(System.Windows.Media.Geometry)shell.Window.Resources["GearGeometry"],Fill=ThemeManager.Brush("Text"),Stretch=Stretch.Fill,Width=18,Height=18}});
      group.Children.Add(new CheckBox{Style=(Style)shell.Window.Resources["ModuleSelection"],IsChecked=prefix=="Zapret"});preview.Children.Add(group);
      ModuleIconAlignment.Attach((Button)group.Children[0],(Button)group.Children[1],(CheckBox)group.Children[2]);
      foreach(DependencyObject action in group.Children)if(prefix=="Tg")Force(action,typeof(UIElement),"IsMouseOverPropertyKey");
@@ -103,7 +103,7 @@ public static class Tests032Final
      if(state=="pressed")Force(c,typeof(System.Windows.Controls.Primitives.ButtonBase),"IsPressedPropertyKey");
     }
     preview.Measure(new Size(420,600));preview.Arrange(new Rect(new Size(420,preview.DesiredSize.Height)));preview.UpdateLayout();
-    foreach(var group in preview.Children.OfType<System.Windows.Controls.Primitives.UniformGrid>())ModuleIconAlignment.Update((Button)group.Children[0],(Button)group.Children[1],(CheckBox)group.Children[2]);
+    foreach(var group in preview.Children.OfType<ModuleActionGroup>())ModuleIconAlignment.Update((Button)group.Children[0],(Button)group.Children[1],(CheckBox)group.Children[2]);
     foreach(double scale in new[]{1.0,1.25,1.5,2.0})Render(preview,Path.Combine(files.Data,$"032-final-toggles-{mode}-{scale}.png"),scale);
     Geometry(shell);Toggles(shell);SelfTests.Capture(shell.Window,Path.Combine(files.Data,$"032-final-main-{mode}.png"));
     var general=shell.OpenSettings();

@@ -39,6 +39,11 @@ internal static class SettingsLayout
     {
         var button=new Button{Content=L.T(caption),Height=36,FontSize=12,Background=new SolidColorBrush(Color.FromRgb(43,43,43)),Padding=new Thickness(10,6,10,6)};window.RegisterName(name,button);return button;
     }
+    public static Button IconButton(Window window,string name,string caption,string geometry)
+    {
+        var button=new Button{Style=(Style)window.FindResource("IconButton"),Content=FluentIcons.Glyph(window,geometry),ToolTip=L.T(caption)};
+        System.Windows.Automation.AutomationProperties.SetName(button,L.T(caption));window.RegisterName(name,button);return button;
+    }
     public static Grid ActionGrid(Window window,StackPanel panel,string name)
     {
         var grid=new Grid{Margin=new Thickness(0,12,0,0)};grid.ColumnDefinitions.Add(new ColumnDefinition());grid.ColumnDefinitions.Add(new ColumnDefinition());window.RegisterName(name,grid);panel.Children.Add(grid);return grid;

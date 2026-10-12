@@ -2,6 +2,8 @@
 
 Status: local test build, not a published release. Base: published v0.3.1 (50cf7789fd1fcedb7d104567491a875a43b81393), with current main documentation at 9c60ca1b278a015fb107c6cf06b0006e373c67b8. Development branch: feature/ui-theme-0.3.2.
 
+Current icon-control/Telegram-plane build and **87/87 + 12/12** validation: [Fluent UI follow-up](VALIDATION_v0.3.2_FLUENT.md). Preceding sections and linked reports retain historical artifact hashes.
+
 The following records the initial v0.3.2 build. For the subsequent three UI corrections, current artifacts and **85/85 + 11/11** results, see [final UI fixes validation](VALIDATION_v0.3.2_FINAL_FIXES.md).
 
 ## Executed checks

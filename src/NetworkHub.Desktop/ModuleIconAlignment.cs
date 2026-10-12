@@ -6,8 +6,8 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 namespace NetworkHub.Desktop;
 
-// Equal hit areas stay fixed. The smaller gear is centered in the visible gap,
-// measured from the current download/refresh ink to the larger selection circle.
+// Equal hit areas stay fixed. The gear is centered in the visible gap,
+// measured from the current download/refresh ink to the selection circle.
 public static class ModuleIconAlignment
 {
     public static Rect Ink(Path path,Visual relative)
@@ -25,7 +25,7 @@ public static class ModuleIconAlignment
         var right=circle.TransformToAncestor(group).TransformBounds(new Rect(circle.RenderSize));
         if(left.IsEmpty||right.Width==0)return;
         double current=gear.RenderTransform is TranslateTransform shift?shift.X:0;
-        // The unchanged, symmetric gear fills its centered 16 px content box.
+        // The unchanged, symmetric gear fills its centered icon content box.
         // Use the fixed button center so a pending render transform cannot accumulate.
         double center=settings.TranslatePoint(new Point(settings.ActualWidth/2,settings.ActualHeight/2),(UIElement)group).X;
         double wanted=(left.Right+right.Left)/2-center;

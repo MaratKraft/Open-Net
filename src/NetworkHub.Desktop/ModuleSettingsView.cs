@@ -22,7 +22,7 @@ public sealed class ModuleSettingsView
         var state=new TextBlock{Foreground=Brushes.LightGray,FontSize=12,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,10)};Window.RegisterName("ModuleStatus",state);panel.Children.Add(state);
         SettingsLayout.Label(panel,bundle?"Zapret folder":"EXE TG WS Proxy");var row=new Grid();row.ColumnDefinitions.Add(new ColumnDefinition());row.ColumnDefinitions.Add(new ColumnDefinition{Width=GridLength.Auto});panel.Children.Add(row);
         var path=new TextBox{Text=preference.Path,FontSize=12};Window.RegisterName(bundle?"ZapretPath":"TgPath",path);row.Children.Add(path);
-        var browse=SettingsLayout.Button(Window,bundle?"ZapretPathBrowse":"TgPathBrowse","Browse");browse.Margin=new Thickness(8,0,0,0);Grid.SetColumn(browse,1);row.Children.Add(browse);
+        var browse=SettingsLayout.IconButton(Window,bundle?"ZapretPathBrowse":"TgPathBrowse","Browse","FolderGeometry");browse.Margin=new Thickness(8,0,0,0);Grid.SetColumn(browse,1);row.Children.Add(browse);
         void ChooseExisting(){if(bundle){using var picker=new Forms.FolderBrowserDialog{Description=L.T("Choose the portable Zapret folder"),UseDescriptionForTitle=true,SelectedPath=path.Text};if(picker.ShowDialog()==Forms.DialogResult.OK)path.Text=picker.SelectedPath;}else{var picker=new OpenFileDialog{Title=L.T("Choose TgWsProxy_windows.exe"),Filter=L.T("TG WS Proxy|TgWsProxy_windows.exe|Executable file|*.exe")};if(picker.ShowDialog(Window)==true)path.Text=picker.FileName;}}
         browse.Click+=(_,_)=>{if(bundle)SettingsLayout.BrowseBundle(shell,files,Window,path,browse);else ChooseExisting();};
         ComboBox? strategies=null;TextBlock? strategyInfo=null;

@@ -11,12 +11,18 @@ namespace NetworkHub.Desktop;
 public static class FocusCues
 {
     static readonly List<Window> windows=new();
+    public static readonly DependencyProperty KeyboardNavigationProperty=DependencyProperty.RegisterAttached("KeyboardNavigation",typeof(bool),typeof(FocusCues),new PropertyMetadata(false));
+    public static bool GetKeyboardNavigation(DependencyObject item)=>(bool)item.GetValue(KeyboardNavigationProperty);
+    public static void SetKeyboardNavigation(DependencyObject item,bool value)=>item.SetValue(KeyboardNavigationProperty,value);
+    public static readonly DependencyProperty OwnFocusIndicatorProperty=DependencyProperty.RegisterAttached("OwnFocusIndicator",typeof(bool),typeof(FocusCues),new PropertyMetadata(false));
+    public static bool GetOwnFocusIndicator(DependencyObject item)=>(bool)item.GetValue(OwnFocusIndicatorProperty);
+    public static void SetOwnFocusIndicator(DependencyObject item,bool value)=>item.SetValue(OwnFocusIndicatorProperty,value);
     public static bool KeyboardMode {get;private set;}
     public static void SetMode(bool keyboard)
     {
         KeyboardMode=keyboard;
         foreach(var window in windows.ToArray())foreach(var item in LocalizedTree.Walk(window))
-            if(item is Control control && item is not Window && item is not ScrollViewer){control.FocusVisualStyle=keyboard?(Style?)window.TryFindResource("KeyboardFocus"):null;if(!keyboard){var layer=AdornerLayer.GetAdornerLayer(control);var adorners=layer?.GetAdorners(control);if(adorners!=null)foreach(var adorner in adorners)if(adorner.GetType().Name=="FocusVisualAdorner")layer!.Remove(adorner);}}
+            if(item is Control control && item is not Window && item is not ScrollViewer){SetKeyboardNavigation(control,keyboard);control.FocusVisualStyle=keyboard&&!GetOwnFocusIndicator(control)?(Style?)window.TryFindResource("KeyboardFocus"):null;if(!keyboard){var layer=AdornerLayer.GetAdornerLayer(control);var adorners=layer?.GetAdorners(control);if(adorners!=null)foreach(var adorner in adorners)if(adorner.GetType().Name=="FocusVisualAdorner")layer!.Remove(adorner);}}
     }
     public static void Attach(Window window)
     {
