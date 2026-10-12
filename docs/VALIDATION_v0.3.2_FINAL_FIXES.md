@@ -2,6 +2,8 @@
 
 These are three fixes within v0.3.2 on `feature/ui-theme-0.3.2`, updating PR #1. No v0.3.3 branch, merge, tag or Release is created. The earlier v0.3.2 artifacts remain available; new test files are stored separately.
 
+The owner subsequently identified unequal visible gaps despite equal hit areas. The [spacing correction](VALIDATION_v0.3.2_SPACING.md) records the follow-up and its newer artifacts; hashes below identify the preceding build.
+
 ## Changes and causes
 
 - Module actions now share equal 28 × 28 hit areas in a three-cell, 92 px group. Previously the selection template aligned its 24 px circle differently from the two buttons. The circle is centered inside a transparent full-size hit surface, so its edge areas also receive input. Both buttons share one style; both rows use the same layout. Download and Refresh paths stretch uniformly within a centered 16 px box. Main size, row height and text sizes are unchanged.

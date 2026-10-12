@@ -85,6 +85,7 @@ public sealed class Shell : IDisposable
         Primary.Click+=async(_,_)=> {await Refresh();if(PrimaryAction.Stop(Observations,Selected())) await StopSelected(false);else await StartSelected();};
         Find<Button>("ZapretInstall").Click+=async(_,_)=>await InstallOrCheck("zapret");
         Find<Button>("TgInstall").Click+=async(_,_)=>await InstallOrCheck("tg");
+        foreach(string prefix in new[]{"Zapret","Tg"})ModuleIconAlignment.Attach(Find<Button>(prefix+"Install"),Find<Button>(prefix+"Settings"),Find<CheckBox>(prefix+"Check"));
         Window.Closing+=OnClosing;
         TrayOpen=new Forms.ToolStripMenuItem(L.T("Open Open Net")); TrayStart=new Forms.ToolStripMenuItem(L.T("Start selected"));
         TrayStop=new Forms.ToolStripMenuItem(L.T("Stop managed processes")); TrayExit=new Forms.ToolStripMenuItem(L.T("Exit"));

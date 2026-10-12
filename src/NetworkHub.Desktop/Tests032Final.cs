@@ -30,6 +30,13 @@ public static class Tests032Final
    Check(Math.Abs(circle.Left+circle.Width/2-rects[2].Left-rects[2].Width/2)<.1,"Selection optically centered");
    Check(VisualTreeHelper.HitTest(selection,new Point(1,selection.ActualHeight/2))!=null&&VisualTreeHelper.HitTest(selection,new Point(selection.ActualWidth-1,selection.ActualHeight/2))!=null,"Selection visual hits use the full shared area");
    if(shell.Window.IsVisible)Check(selection.InputHitTest(new Point(1,selection.ActualHeight/2))!=null&&selection.InputHitTest(new Point(selection.ActualWidth-1,selection.ActualHeight/2))!=null,"Selection input hits use the full shared area");
+   var glyph=shell.Find<System.Windows.Shapes.Path>(prefix+"InstallGlyph");var original=glyph.Data;
+   try{foreach(bool installed in new[]{false,true})
+   {
+    glyph.Data=GeometryParse(installed);shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);shell.Window.UpdateLayout();
+    var gear=(System.Windows.Shapes.Path)((Button)controls[1]).Content;var left=ModuleIconAlignment.Ink(glyph,(Visual)shell.Window.Content);var middle=ModuleIconAlignment.Ink(gear,(Visual)shell.Window.Content);
+    Check(Math.Abs((middle.Left-left.Right)-(circle.Left-middle.Right))<.1,"Gear is centered between visible icon edges for both glyphs");
+   }}finally{glyph.Data=original;shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);}
   }
  }
  public static void Toggles(Shell shell)
@@ -81,9 +88,11 @@ public static class Tests032Final
     {
      var group=new System.Windows.Controls.Primitives.UniformGrid{Rows=1,Columns=3,Width=92,HorizontalAlignment=HorizontalAlignment.Left,Margin=new Thickness(8)};
      var glyph=new System.Windows.Shapes.Path{Data=GeometryParse(installed),Stroke=ThemeManager.Brush("Text"),StrokeThickness=1.5,Width=16,Height=16,Stretch=Stretch.Uniform};
-     group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=glyph});
+     var installContent=new Grid{Width=16,Height=16};installContent.Children.Add(glyph);
+     group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=installContent});
      group.Children.Add(new Button{Style=(Style)shell.Window.Resources["ModuleAction"],Content=new System.Windows.Shapes.Path{Data=(System.Windows.Media.Geometry)shell.Window.Resources["GearGeometry"],Fill=ThemeManager.Brush("Text"),Stretch=Stretch.Uniform,Width=16,Height=16}});
      group.Children.Add(new CheckBox{Style=(Style)shell.Window.Resources["ModuleSelection"],IsChecked=prefix=="Zapret"});preview.Children.Add(group);
+     ModuleIconAlignment.Attach((Button)group.Children[0],(Button)group.Children[1],(CheckBox)group.Children[2]);
      foreach(DependencyObject action in group.Children)if(prefix=="Tg")Force(action,typeof(UIElement),"IsMouseOverPropertyKey");
     }
     // Render controls from their actual shared templates, including hover/pressed/disabled values.
@@ -93,6 +102,8 @@ public static class Tests032Final
      if(state=="hover")Force(c,typeof(UIElement),"IsMouseOverPropertyKey");
      if(state=="pressed")Force(c,typeof(System.Windows.Controls.Primitives.ButtonBase),"IsPressedPropertyKey");
     }
+    preview.Measure(new Size(420,600));preview.Arrange(new Rect(new Size(420,preview.DesiredSize.Height)));preview.UpdateLayout();
+    foreach(var group in preview.Children.OfType<System.Windows.Controls.Primitives.UniformGrid>())ModuleIconAlignment.Update((Button)group.Children[0],(Button)group.Children[1],(CheckBox)group.Children[2]);
     foreach(double scale in new[]{1.0,1.25,1.5,2.0})Render(preview,Path.Combine(files.Data,$"032-final-toggles-{mode}-{scale}.png"),scale);
     Geometry(shell);Toggles(shell);SelfTests.Capture(shell.Window,Path.Combine(files.Data,$"032-final-main-{mode}.png"));
     var general=shell.OpenSettings();
