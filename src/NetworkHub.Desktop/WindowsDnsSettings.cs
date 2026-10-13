@@ -90,7 +90,8 @@ internal sealed class WindowsDnsSettings : IDnsSettingsReader,IDnsSettingsWriter
         if(encrypted){supported=false;limitation="Active DDR, DoT or global DNS encryption settings cannot be restored by this backend.";}
         try{
             var scope=ReadInterfaceEncryption(id,v4,v6);
-            if(!v4.Encryption.SequenceEqual(scope.IPv4)){supported=false;limitation="Windows API and adapter-specific IPv4 DoH settings disagree. Application is blocked.";}
+            if(!v4.SameConfiguration(v4 with{Encryption=scope.IPv4})){supported=false;limitation="Windows API and adapter-specific IPv4 DoH settings disagree. Application is blocked.";}
+            else v4=v4 with{Encryption=scope.IPv4}; // Preserve verified disabled properties in backups.
             v6=v6 with{Encryption=scope.IPv6};
             if(v6.Encryption.Any(p=>(p.Flags&3)!=0)){supported=false;limitation="Active IPv6 DoH cannot be independently verified by this Windows API. IPv6 settings are preserved; application is blocked.";}
         }catch(DnsException ex){supported=false;limitation=ex.Message;}

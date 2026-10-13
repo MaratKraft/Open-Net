@@ -10,6 +10,24 @@ internal static class TestsDnsReapply
     static void Reject(Action operation){try{operation();}catch(Exception ex)when(ex is DnsException or IOException or InvalidDataException){return;}throw new Exception("Unsafe repeat accepted");}
     internal static void Run(Action<string,Action> test,AppFiles files)
     {
+        test("DNS disabled DoH: empty native properties match zero flags without losing backup data",()=>{
+            var plain=TestsDns.Fixture().State;var disabled=plain with{IPv4=plain.IPv4 with{Encryption=plain.IPv4.Servers.Select(s=>new DnsDohSettings(s,null,0)).ToArray()}};
+            Check(plain.SameConfiguration(disabled)&&plain.Fingerprint()==disabled.Fingerprint()&&disabled.IPv4.Encryption.Length==plain.IPv4.Servers.Length,"Disabled native omission disagrees or backup lost");
+            foreach(var property in new[]{new DnsDohSettings(plain.IPv4.Servers[0],"https://dns.example/query",0),new DnsDohSettings(plain.IPv4.Servers[0],"https://dns.example/query",2),new DnsDohSettings(plain.IPv4.Servers[0],null,1)})Check(!plain.SameConfiguration(plain with{IPv4=plain.IPv4 with{Encryption=new[]{property}}}),"Meaningful DoH mismatch ignored");
+        });
+        test("DNS interrupted disable DoH: repeat verifies persisted destination and keeps original",()=>{
+            var fake=TestsDns.Fixture();var original=fake.State;var comss=DnsProfiles.All[0];var encrypted=original with{IPv4=DnsProfiles.ProfilePlan(original.IPv4,comss.IPv4,comss,true,false)};var disabled=encrypted with{IPv4=DnsProfiles.ProfilePlan(encrypted.IPv4,comss.IPv4,comss,false,false)};fake.State=disabled;
+            var store=new TestsDns.FakeStore{Journal=new DnsJournal(1,Guid.NewGuid(),"test",original,encrypted,disabled,new[]{DnsFamily.IPv4},DnsPhase.Writing,DnsFamily.IPv4,DateTime.UtcNow.ToString("O"),""){RollbackTarget=encrypted,Action="apply",ProfileId="comss",ProfileName="ComssDNS"}};var id=store.Journal.Id;
+            Check(DnsTransaction.CanCompletePendingWrite(store.Journal,disabled),"Completed intent not recognized");new DnsTransaction(fake,fake,store,"test").Reapply(disabled,disabled,new[]{DnsFamily.IPv4},"comss");
+            Check(fake.Writes==1&&store.Journal!.Id==id&&store.Journal.Before.SameConfiguration(original)&&store.Journal.Phase==DnsPhase.Applied&&store.Journal.History.Length==2,"Repeat lost original or intent history");
+            new DnsTransaction(fake,fake,store,"test").Restore(original.AdapterId,fake.State.Fingerprint());Check(fake.State.SameConfiguration(original),"Original restoration failed");
+        });
+        test("DNS interrupted repeat: partial foreign owner and unsupported states remain blocked",()=>{
+            var fake=TestsDns.Fixture();var original=fake.State;var target=original with{IPv4=new(DnsMode.Manual,DnsProfiles.All[0].IPv4,DnsProfiles.All[0].IPv4)};fake.State=target;
+            var baseline=new DnsJournal(1,Guid.NewGuid(),"test",original,original,target,new[]{DnsFamily.IPv4},DnsPhase.Writing,DnsFamily.IPv4,DateTime.UtcNow.ToString("O"),"");
+            foreach(var invalid in new[]{baseline with{Owner="foreign"},baseline with{Pending=null},baseline with{Phase=DnsPhase.Restoring},baseline with{Phase=DnsPhase.RollingBack},baseline with{Target=target with{IPv6=new(DnsMode.Manual,new[]{"2606:4700:4700::1111"},Array.Empty<string>())}}}){var store=new TestsDns.FakeStore{Journal=invalid};Reject(()=>new DnsTransaction(fake,fake,store,"test").Reapply(target,target,new[]{DnsFamily.IPv4},"comss"));Check(fake.Writes==0&&store.Saves==0,"Unverified intent adopted");}
+            Check(!DnsTransaction.CanCompletePendingWrite(baseline,target with{CanChange=false})&&!DnsTransaction.CanCompletePendingWrite(baseline,target with{DependencyFingerprint="foreign"}),"Inspection/identity check bypassed");
+        });
         test("DNS repeat: five scoped write requests retain encrypted Xbox original across restart",()=>{
             string path=Path.Combine(files.Data,"Repeat-restart",Guid.NewGuid().ToString("N"));var fake=TestsDns.Fixture(path);var xbox=DnsProfiles.All[1];fake.State=fake.State with{IPv4=DnsProfiles.ProfilePlan(fake.State.IPv4,xbox.IPv4,xbox,true,false)};var original=fake.State;var store=new DnsFileJournalStore(path,"test");var tx=new DnsTransaction(fake,fake,store,"test");var comss=DnsProfiles.All[0];var target=fake.State with{IPv4=DnsProfiles.ProfilePlan(fake.State.IPv4,comss.IPv4,comss,true,false)};tx.Apply(fake.State,target,new[]{DnsFamily.IPv4},"comss",true);var id=store.Load(original.AdapterId)!.Id;
             for(int i=0;i<5;i++){var proof=new DnsOperationEvidence();new DnsTransaction(fake,fake,store,"test",proof).Reapply(fake.State,fake.State,new[]{DnsFamily.IPv4},"comss");Check(proof.AcceptedWrites==1&&proof.VerifiedWrites==1&&proof.ValuesChanged==false&&!proof.NetworkStateChangeConfirmed&&proof.CacheResult=="not performed"&&proof.HttpsResult=="not tested","Repeat was skipped or evidence claimed network repair");}

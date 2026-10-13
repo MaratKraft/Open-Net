@@ -17,8 +17,10 @@ public sealed record DnsDohSettings(string Server,string? Template,ulong Flags);
 public sealed record DnsFamilySettings(DnsMode Mode,string[] Servers,string[] EffectiveServers)
 {
     public DnsDohSettings[] Encryption {get;init;}=Array.Empty<DnsDohSettings>();
+    // Native readback can omit an empty, disabled DoH property. Preserve raw backup data.
+    public DnsDohSettings[] ComparableEncryption()=>Encryption.Where(p=>p.Flags!=0||p.Template!=null).ToArray();
     public bool SameConfiguration(DnsFamilySettings other)=>Mode==other.Mode &&
-        (Mode==DnsMode.Automatic || Servers.SequenceEqual(other.Servers,StringComparer.OrdinalIgnoreCase))&&Encryption.SequenceEqual(other.Encryption);
+        (Mode==DnsMode.Automatic || Servers.SequenceEqual(other.Servers,StringComparer.OrdinalIgnoreCase))&&ComparableEncryption().SequenceEqual(other.ComparableEncryption());
 }
 public sealed record DnsSnapshot(Guid AdapterId,string AdapterName,string MachineId,DnsFamilySettings IPv4,DnsFamilySettings IPv6,string DependencyFingerprint,bool CanChange,string Limitation)
 {
@@ -26,7 +28,7 @@ public sealed record DnsSnapshot(Guid AdapterId,string AdapterName,string Machin
     public DnsFamilySettings Family(DnsFamily family)=>family==DnsFamily.IPv4?IPv4:IPv6;
     public DnsSnapshot With(DnsFamily family,DnsFamilySettings value)=>family==DnsFamily.IPv4?this with{IPv4=value}:this with{IPv6=value};
     public bool SameConfiguration(DnsSnapshot other)=>AdapterId==other.AdapterId&&MachineId==other.MachineId&&DependencyFingerprint==other.DependencyFingerprint&&IPv4.SameConfiguration(other.IPv4)&&IPv6.SameConfiguration(other.IPv6);
-    public string Fingerprint()=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new{AdapterId,MachineId,DependencyFingerprint,V4=new{IPv4.Mode,Servers=IPv4.Mode==DnsMode.Manual?IPv4.Servers:Array.Empty<string>(),IPv4.Encryption},V6=new{IPv6.Mode,Servers=IPv6.Mode==DnsMode.Manual?IPv6.Servers:Array.Empty<string>(),IPv6.Encryption}}))));
+    public string Fingerprint()=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new{AdapterId,MachineId,DependencyFingerprint,V4=new{IPv4.Mode,Servers=IPv4.Mode==DnsMode.Manual?IPv4.Servers:Array.Empty<string>(),Encryption=IPv4.ComparableEncryption()},V6=new{IPv6.Mode,Servers=IPv6.Mode==DnsMode.Manual?IPv6.Servers:Array.Empty<string>(),Encryption=IPv6.ComparableEncryption()}}))));
 }
 public sealed record DnsAdapter(Guid Id,string Name,string Kind,bool Connected,bool Virtual);
 public sealed record DnsProfile(string Id,string Name,string[] IPv4,string[] IPv6,string? Doh,string Source,string CheckedOn,bool Available,string Warning);
@@ -118,9 +120,15 @@ public sealed class DnsTransaction
         if(action=="reapply")ValidateReapply(approved,target,families);
         DnsProfiles.ValidateSelection(profileId,target,families);
         var previous=store.Load(approved.AdapterId);
-        if(previous?.Active==true&&(previous.Phase!=DnsPhase.Applied||previous.Owner!=owner||!previous.Expected.SameConfiguration(approved)))throw new DnsException("The managed DNS session needs recovery review before another change.");
+        bool completedIntent=action=="reapply"&&previous!=null&&CanCompletePendingWrite(previous,approved);
+        if(previous?.Active==true&&(previous.Owner!=owner||!completedIntent&&(previous.Phase!=DnsPhase.Applied||!previous.Expected.SameConfiguration(approved))))throw new DnsException("The managed DNS session needs recovery review before another change.");
         var current=reader.Read(approved.AdapterId);
         if(!current.CanChange||!current.SameConfiguration(approved))throw new DnsException("DNS settings changed before application. Refresh and review them again.");
+        if(completedIntent){
+            if(!CanCompletePendingWrite(previous!,current)||previous!.History.Length>=127)throw new DnsException("The managed DNS session needs recovery review before another change.");
+            // Reconcile only a fully observed persisted write destination, preserving the first backup.
+            previous=previous with{Expected=current,Pending=null,Phase=DnsPhase.Applied,History=previous.History.Append(new DnsHistory(DateTime.UtcNow.ToString("O"),previous.Action,previous.ProfileName,previous.RollbackTarget??previous.Expected,current,"verified after interrupted readback")).ToArray()};
+        }
         if(action!="reapply"&&current.SameConfiguration(target)){evidence.WriteResult="not needed";evidence.VerificationResult="verified";evidence.AfterFingerprint=current.Fingerprint();evidence.ValuesChanged=false;return previous?.Active==true?previous:new DnsJournal(1,Guid.NewGuid(),owner,current,current,current,Array.Empty<DnsFamily>(),DnsPhase.Restored,null,DateTime.UtcNow.ToString("O"),"No DNS change was needed.");}
         bool continuing=previous?.Active==true;
         var j=continuing?previous! with{Expected=current,Target=target,Families=previous!.Families.Union(families).ToArray(),Phase=DnsPhase.Prepared,Pending=null}:new DnsJournal(1,Guid.NewGuid(),owner,current,current,target,families,DnsPhase.Prepared,null,DateTime.UtcNow.ToString("O"),"");
@@ -191,6 +199,7 @@ public sealed class DnsTransaction
         }
         j=j with{Phase=DnsPhase.Restored,Action="restore",History=j.History.Append(new DnsHistory(DateTime.UtcNow.ToString("O"),"restore","",observed,j.Expected,"verified")).ToArray()};store.Save(j);return j;
     }
+    public static bool CanCompletePendingWrite(DnsJournal j,DnsSnapshot current)=>current.CanChange&&j.Phase==DnsPhase.Writing&&(j.Action is "apply" or "reapply")&&j.Pending is DnsFamily family&&j.Target.SameConfiguration(current)&&j.Expected.With(family,j.Target.Family(family)).SameConfiguration(current);
     public static bool Recoverable(DnsJournal j,DnsSnapshot current)
     {
         if(j.Expected.SameConfiguration(current))return true;
