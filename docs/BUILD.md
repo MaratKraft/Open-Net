@@ -8,7 +8,7 @@ Use Windows x64, PowerShell 7 and .NET SDK **10.0.100** (`global.json` permits S
 ./scripts/publish.ps1 -SdkPath 'C:/SDK/dotnet.exe' -NugetCache 'C:/NuGetCache'
 ```
 
-Output: `publish/Open Net 0.3.2/Open Net.exe`. Production compilation excludes the test harness and safe stub classes. Options: Release, win-x64, self-contained, single-file compression, native extraction, no trimming, no debug symbols. No network component is bundled or launched by the build.
+Current development output: `publish/Open Net 0.4.0-alpha.1/Open Net.exe`; safe host: `publish/Open Net 0.4.0-alpha.1 Test/Open Net.exe`. Production compilation excludes the test harness and safe stub classes. Options: Release, win-x64, self-contained, single-file compression, native extraction, no trimming, no debug symbols. No network component is bundled or launched by the build. Published Stable v0.3.2 remains unchanged. See [DNS Manager alpha](DNS_MANAGER_ALPHA.md) for capability restrictions and manual-test gates.
 
 ## Repository layout
 
@@ -52,4 +52,12 @@ The [first hosted build](https://github.com/MaratKraft/Open-Net/actions/runs/382
 
 ## Current development checks
 
-After building with -TestBuild, run ./scripts/test-headless.ps1 for the CI-safe palette/layout/configuration checks. The full interactive harness still requires the private official BAT fixtures and a Windows desktop; it tests native materials and only owned stub processes. Its graphical checks must not be represented as real network tests.
+The direct-launch user preview is a separate build: `./scripts/publish.ps1 -SafePreview` writes `publish/Open Net Safe Preview`. Verify it with `./scripts/verify-safe-preview.ps1 -ExePath 'publish/Open Net Safe Preview/Open Net.exe'`. This check launches without `--test-mode`, verifies isolated data and zero tool launches, rejects privileged/self-test entry points, and compares observed system DNS before/after using read-only enumeration. CI also builds and checks this preview. The developer harness remains separate: its legacy startup-registration fixture uses only an owned temporary HKCU key; that fixture cannot be run in the user preview.
+
+The compact DNS update has 59 always-run headless checks (plus the conditional administrator ACL fixture) and 83 interactive checks. New checks cover profile ownership across restart, inspection failures, actual Configure/Apply/Restore events, minimized/hidden reopening, and simulated Xbox application. Rendered dark/light images and scale checks do not substitute for physical DPI or real DNS/UAC validation.
+
+After building with -TestBuild, run ./scripts/test-headless.ps1 for palette/layout/configuration and isolated DNS transaction checks. The alpha currently has 59 always-run checks; an additional protected-file ACL fixture runs only under an elevated administrator token, entirely in the owned temporary data directory. A skipped ACL fixture is not evidence of production UAC validation. The full interactive harness still requires the private official BAT fixtures and a Windows desktop; it tests native materials, only owned stub processes, and fake DNS apply/restore. Its graphical checks must not be represented as real network tests. Safe DNS mode never constructs the production writer or probe runner, and the safe executable rejects the DNS elevated entry point.
+
+R5 adds thirteen headless session/profile/cache checks and three interactive scenarios for automatic assignment, profile switches, custom-profile persistence and simulated UAC/write/verification/restore/cache failures. `--dns-recovery --verify-only` opens the independent emergency window and produces a local read-only probe without applying DNS. Safe Preview rejects that entry point. A real Windows DNS trial is still separately gated; fake tests and inspection cannot certify real setters or physical Windows 10.
+
+R6 adds eight headless checks and two interactive scenarios for explicit same-value repeat, immutable originals, Google/foreign-adapter handling, error evidence, UAC denial, independent diagnostic modes and restart recovery. Repeat always excludes automatic assignment and cache clearing. These checks use mocks; no real DNS setter, flush or active probes run in development tests.

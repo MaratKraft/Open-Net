@@ -18,7 +18,7 @@ if(-not(Test-Path -LiteralPath (Join-Path $FixtureDirectory 'general.bat'))){thr
 foreach($fixtureName in @('general.bat','general (ALT13).bat','service.bat')){Copy-Item -LiteralPath (Join-Path $FixtureDirectory $fixtureName) -Destination (Join-Path $fixtureTarget $(if($fixtureName -eq 'general (ALT13).bat'){'ALT13.bat'}else{$fixtureName}))}
 Set-Content -LiteralPath (Join-Path $root 'portable.flag') -Value 'Open Net portable' -Encoding utf8
 $exe=Join-Path $root 'Open Net.exe'
-Copy-Item -LiteralPath (Join-Path $appRoot 'publish/Open Net 0.3.2 Test/Open Net.exe') -Destination $exe
+Copy-Item -LiteralPath (Join-Path $appRoot 'publish/Open Net 0.4.0-alpha.1 Test/Open Net.exe') -Destination $exe
 $info=[Diagnostics.ProcessStartInfo]::new($exe);$info.UseShellExecute=$false;$info.WorkingDirectory=$env:WINDIR;$info.CreateNoWindow=$true
 foreach($arg in @('--test-mode','--self-test','--data-dir',$run)){$info.ArgumentList.Add($arg)}
 if($InstallFiles){$info.ArgumentList.Add('--installer-test')}

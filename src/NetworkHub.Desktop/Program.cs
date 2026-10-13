@@ -10,13 +10,23 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        #if OPENNET_SAFE_PREVIEW
+        if(args.Any(a=>a is "--elevated" or "--dns-elevated" or "--dns-diagnostic" or "--dns-recovery" or "--installer-test" or "--self-test" or "--headless-tests" or "--autostart"))return 2;
+#endif
         long startupTicks=System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
+            if(args.Length>0&&args[0]=="--dns-diagnostic")return DnsDiagnostics.Run(args);
+            if(args.Length>0&&args[0]=="--dns-recovery")return DnsEmergencyRecovery.Run(args);
+            if(args.Length>0&&args[0]=="--dns-elevated")return DnsElevated.Run(args);
             if(args.Length>0&&args[0]=="--elevated")return ElevatedActions.Run(args);
 #if OPENNET_TESTING
             if(args.Length>0&&args[0]=="--safe-stub")return SafeStub.Run(args.Skip(1).ToArray());
+            #if OPENNET_SAFE_PREVIEW
+            bool test=true,selfTest=false;
+#else
             bool test=args.Contains("--test-mode"),selfTest=args.Contains("--self-test");
+#endif
 #else
             bool test=false;
 #endif
@@ -38,7 +48,10 @@ internal static class Program
             SelfTests.NetworkRequested=args.Contains("--installer-test");
             if(data!=null&&(!test||!NetworkHub.Core.Paths.Within(data,Path.Combine(root,"test-results"))))throw new ArgumentException(L.T("Test data must be in test-results next to the EXE."));
 #endif
-            var files=PortableStartup.Open(root,data);files.Log("Startup 0.3.2; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+            #if OPENNET_SAFE_PREVIEW
+            data ??=Path.Combine(root,"test-results","preview");
+#endif
+            var files=PortableStartup.Open(root,data);files.Log("Startup 0.4.0-alpha.1; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
             AppIdentity.Apply(files.Log);
             using var instance=new SingleInstance(files.Data,files.Log);
             if(!instance.Primary)
@@ -61,7 +74,7 @@ internal static class Program
             {
                 if(tested)return;tested=true;await Task.Delay(2500);await shell.Refresh();
                 string path=Path.Combine(files.Data,"Logs","startup-probe.json");Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                File.WriteAllText(path,System.Text.Json.JsonSerializer.Serialize(new{Title=shell.Window.Title,Visible=shell.Window.IsVisible,Tray=shell.Tray.Visible,Data=files.Data,Modules=files.Modules,StorageMode=files.Portable?"portable":"normal",StartedInTray=autostart,Activations=instance.Activations,Observations=shell.Observations,SettingsPath=files.SettingsPath,Runtime=System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,LaunchCount=shell.Runtime.LaunchCount,Language=shell.Settings.Language,ConfirmStartStop=shell.Settings.ConfirmStartStop,StartWithWindows=shell.Settings.StartWithWindows,Summary=shell.Find<System.Windows.Controls.TextBlock>("Summary").Text,ColdStartMilliseconds=System.Diagnostics.Stopwatch.GetElapsedTime(startupTicks).TotalMilliseconds-2500,ZapretVersion=shell.Installer.Current("zapret")?.Version,TgVersion=shell.Installer.Current("tg")?.Version}));
+                File.WriteAllText(path,System.Text.Json.JsonSerializer.Serialize(new{Title=shell.Window.Title,Visible=shell.Window.IsVisible,Tray=shell.Tray.Visible,Data=files.Data,Modules=files.Modules,StorageMode=files.Portable?"portable":"normal",StartedInTray=autostart,Activations=instance.Activations,Observations=shell.Observations,SettingsPath=files.SettingsPath,Runtime=System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,TestMode=test,LaunchCount=shell.Runtime.LaunchCount,Language=shell.Settings.Language,ConfirmStartStop=shell.Settings.ConfirmStartStop,StartWithWindows=shell.Settings.StartWithWindows,Summary=shell.Find<System.Windows.Controls.TextBlock>("Summary").Text,ColdStartMilliseconds=System.Diagnostics.Stopwatch.GetElapsedTime(startupTicks).TotalMilliseconds-2500,ZapretVersion=shell.Installer.Current("zapret")?.Version,TgVersion=shell.Installer.Current("tg")?.Version}));
                 if(args.Contains("--close-probe"))shell.Window.Close();else shell.Exit();
             }
             if(args.Contains("--startup-probe")&&!autostart)shell.Window.ContentRendered+=async(_,_)=>await Probe();
@@ -79,7 +92,9 @@ internal static class Program
             if(args.Contains("--self-test")){int i=Array.IndexOf(args,"--data-dir");if(i>=0&&i+1<args.Length){string dir=Path.GetFullPath(args[i+1]),root=Path.GetDirectoryName(Environment.ProcessPath!)!;if(NetworkHub.Core.Paths.Within(dir,Path.Combine(root,"test-results")))File.WriteAllText(Path.Combine(dir,"startup-error.txt"),ex.ToString());}return 1;}
 #endif
             string details="",diagnosticRoot=Path.GetDirectoryName(Environment.ProcessPath!)!;
+            #if !OPENNET_SAFE_PREVIEW
             if(!File.Exists(Path.Combine(diagnosticRoot,"portable.flag")))try{string diagnostic=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net","Startup-errors");Directory.CreateDirectory(diagnostic);File.WriteAllText(Path.Combine(diagnostic,DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")+".log"),ex.ToString());details=L.T("\nDetails: ")+diagnostic;}catch(IOException){}catch(UnauthorizedAccessException){}
+            #endif
             MessageBox.Show(NetworkHub.Core.LogSafety.Redact(L.Error(ex))+details,L.T("Open Net — error"),MessageBoxButton.OK,MessageBoxImage.Error);return 1;
         }
     }
