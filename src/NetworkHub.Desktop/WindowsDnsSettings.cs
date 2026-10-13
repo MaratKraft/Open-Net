@@ -99,7 +99,8 @@ internal sealed class WindowsDnsSettings : IDnsSettingsReader,IDnsSettingsWriter
         if(IsVirtual(n)){supported=false;limitation="VPN and virtual adapters are read-only in this alpha.";}
         if(!n.Supports(NetworkInterfaceComponent.IPv4)){supported=false;limitation="An IPv4-capable physical adapter is required in this alpha.";}
         string hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(native+dependencies)));
-        return new(id,n.Name,Machine(),v4,v6,hash,supported,limitation);
+        if(n.OperationalStatus!=OperationalStatus.Up){supported=false;limitation="The selected adapter is disconnected. Reconnect it before changing DNS.";}
+        return new(id,n.Name,Machine(),v4,v6,hash,supported,limitation){SupportsDoh=Environment.OSVersion.Version.Build>=22000};
     }
     static string[] Parse(string raw,DnsFamily family)=>raw.Split(new[]{',',';',' ','\r','\n','\t'},StringSplitOptions.RemoveEmptyEntries).Select(value=>System.Net.IPAddress.Parse(value)).Where(value=>value.AddressFamily==(family==DnsFamily.IPv4?System.Net.Sockets.AddressFamily.InterNetwork:System.Net.Sockets.AddressFamily.InterNetworkV6)).Select(value=>value.ToString()).ToArray();
     static DnsFamilySettings ReadFamily(Guid id,bool v6,string[] effective)

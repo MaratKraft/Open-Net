@@ -11,12 +11,13 @@ internal static class Program
     private static int Main(string[] args)
     {
         #if OPENNET_SAFE_PREVIEW
-        if(args.Any(a=>a is "--elevated" or "--dns-elevated" or "--dns-diagnostic" or "--installer-test" or "--self-test" or "--headless-tests" or "--autostart"))return 2;
+        if(args.Any(a=>a is "--elevated" or "--dns-elevated" or "--dns-diagnostic" or "--dns-recovery" or "--installer-test" or "--self-test" or "--headless-tests" or "--autostart"))return 2;
 #endif
         long startupTicks=System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
             if(args.Length>0&&args[0]=="--dns-diagnostic")return DnsDiagnostics.Run(args);
+            if(args.Length>0&&args[0]=="--dns-recovery")return DnsEmergencyRecovery.Run(args);
             if(args.Length>0&&args[0]=="--dns-elevated")return DnsElevated.Run(args);
             if(args.Length>0&&args[0]=="--elevated")return ElevatedActions.Run(args);
 #if OPENNET_TESTING

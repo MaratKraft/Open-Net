@@ -16,13 +16,13 @@ using NetworkHub.Dns;
 
 namespace NetworkHub.Desktop;
 
-internal sealed record DnsRequest(string Token,int ParentPid,long ParentStart,string Owner,string Language,string Action,DnsSnapshot Before,DnsSnapshot Target,DnsFamily[] Families,string ApprovedFingerprint) { public string ProfileId {get;init;}=""; }
+internal sealed record DnsRequest(string Token,int ParentPid,long ParentStart,string Owner,string Language,string Action,DnsSnapshot Before,DnsSnapshot Target,DnsFamily[] Families,string ApprovedFingerprint) { public string ProfileId {get;init;}=""; public string ProfileName {get;init;}="";public SavedDnsProfile? CustomProfile {get;init;}public bool EncryptionChangeApproved {get;init;}public bool ClearCache {get;init;}=true; }
 internal sealed record DnsResponse(bool Success,string Message);
 internal static class DnsElevated
 {
     [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(IntPtr handle,uint access,out IntPtr token);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
-    internal static bool ValidRequest(DnsRequest r,string token)=>r.Token==token&&Guid.TryParseExact(token,"N",out _)&&r.Action is "apply" or "restore"&&r.Before.AdapterId!=Guid.Empty&&r.Before.AdapterId==r.Target.AdapterId&&r.ParentPid>0&&r.ParentStart>0&&r.Owner.StartsWith("S-1-",StringComparison.Ordinal)&&r.ApprovedFingerprint.Length==64;
+    internal static bool ValidRequest(DnsRequest r,string token)=>r.Token==token&&Guid.TryParseExact(token,"N",out _)&&r.Action is "apply" or "automatic" or "restore" or "flush"&&r.Before.AdapterId!=Guid.Empty&&r.Before.AdapterId==r.Target.AdapterId&&r.ParentPid>0&&r.ParentStart>0&&r.Owner.StartsWith("S-1-",StringComparison.Ordinal)&&r.ApprovedFingerprint.Length==64;
     internal static string RequestHash(string json)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
     internal static bool MatchesHash(byte[] data,string hash)=>hash.Length==64&&hash.All(Uri.IsHexDigit)&&CryptographicOperations.FixedTimeEquals(SHA256.HashData(data),Convert.FromHexString(hash));
     static string ParentOwner(int pid){using var p=Process.GetProcessById(pid);if(!OpenProcessToken(p.Handle,8,out var token))throw new Win32Exception();try{using var identity=new WindowsIdentity(token);return identity.User!.Value;}finally{CloseHandle(token);}}
@@ -49,18 +49,25 @@ internal static class DnsElevated
                 if(!locked)throw new DnsException("Another DNS operation is in progress. Wait and retry.");
                 var backend=new WindowsDnsSettings();var current=backend.Read(r.Before.AdapterId);
                 if(current.Fingerprint()!=r.ApprovedFingerprint)throw new DnsException("DNS settings changed before application. Refresh and review them again.");
+                if(r.Action=="flush"){Paths.WriteNew(response,JsonSerializer.Serialize(new DnsResponse(true,L.T(DnsCache.Clear(false)))));return 0;}
                 var store=DnsRecoveryStore.Open(r.Owner,true);DnsRecoveryStore.ValidateRecord(r.Before.AdapterId,r.Owner);
                 DnsRecoveryStore.MarkUsed(r.Owner,r.Token);
                 var transaction=new DnsTransaction(backend,backend,store,r.Owner);
                 if(r.Action=="apply"){
-                    DnsTransaction.Validate(r.Before,r.Target,r.Families);
-                    // Availability restriction applies to built-in addresses even if a stale UI requests them.
-                    if(r.Families.Any(f=>r.Target.Family(f).Servers.Any(s=>DnsProfiles.All.First(p=>p.Id=="xbox").IPv4.Concat(DnsProfiles.All.First(p=>p.Id=="xbox").IPv6).Contains(s))))throw new DnsException("The operator reports that Xbox DNS is unavailable. New application is blocked; existing settings are preserved.");
+                    DnsTransaction.Validate(r.Before,r.Target,r.Families,false,r.EncryptionChangeApproved);
+                    if(r.ProfileId=="custom"){
+                        if(r.CustomProfile==null)throw new DnsException("A validated custom profile is required.");DnsProfileStore.Validate(r.CustomProfile);
+                        foreach(var f in r.Families){var addresses=f==DnsFamily.IPv4?r.CustomProfile.IPv4:r.CustomProfile.IPv6;if(!addresses.SequenceEqual(r.Target.Family(f).Servers))throw new DnsException("DNS addresses do not match the selected profile.");var expected=DnsProfiles.ProfilePlan(r.Before.Family(f),addresses,new("custom",r.CustomProfile.Name,r.CustomProfile.IPv4,r.CustomProfile.IPv6,r.CustomProfile.Doh,"","",true,""),r.CustomProfile.UseDoh,r.CustomProfile.Fallback);if(!expected.SameConfiguration(r.Target.Family(f)))throw new DnsException("DoH settings do not match the selected profile.");}
+                    }
                     foreach(var f in r.Families)WindowsDnsSettings.ValidateDestination(r.Target.Family(f).Servers);
                     DnsProfiles.ValidateSelection(r.ProfileId,r.Target,r.Families);
-                    transaction.Apply(r.Before,r.Target,r.Families,r.ProfileId);
+                    transaction.Apply(r.Before,r.Target,r.Families,r.ProfileId,r.EncryptionChangeApproved,r.ProfileName);
+                }else if(r.Action=="automatic"){
+                    DnsTransaction.Validate(r.Before,r.Target,r.Families,true,true);if(!r.Families.SequenceEqual(new[]{DnsFamily.IPv4}))throw new DnsException("Automatic DNS changes only IPv4 DNS assignment.");transaction.Automatic(r.Before);
                 }else transaction.Restore(r.Before.AdapterId,r.ApprovedFingerprint);
-                Paths.WriteNew(response,JsonSerializer.Serialize(new DnsResponse(true,L.T(r.Action=="apply"?"DNS profile applied. Connection has not been tested.":"The original DNS configuration was restored."))));return 0;
+                string message=L.T(r.Action=="apply"?"DNS profile applied. Connection has not been tested.":r.Action=="automatic"?"DNS automatically. The original configuration remains recoverable.":"The original DNS configuration was restored.");
+                if(r.ClearCache)try{message+="\n"+L.T(DnsCache.Clear(false));}catch(Exception){message+="\n"+L.T("DNS configuration is verified, but cache clearing failed. Retry cache clearing separately.");}
+                Paths.WriteNew(response,JsonSerializer.Serialize(new DnsResponse(true,message)));return 0;
             }finally{if(locked)gate.ReleaseMutex();}
         }catch(Exception ex){files?.Log("DNS helper: "+ex);try{if(response!=null&&!File.Exists(response))Paths.WriteNew(response,JsonSerializer.Serialize(new DnsResponse(false,ex is DnsException?L.T(ex.Message):L.Error(ex))));}catch(IOException){}catch(UnauthorizedAccessException){}return 1;}
 #endif
@@ -72,7 +79,8 @@ internal static class DnsElevated
         string directory=Paths.Owned(files.Data,"Dns/Requests/"+r.Token);Directory.CreateDirectory(directory);string request=Path.Combine(directory,"request.json");Paths.WriteNew(request,json);
         var plan=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=true,Verb="runas",WindowStyle=ProcessWindowStyle.Hidden};
         plan.Arguments="--dns-elevated "+r.Token+" --request-sha256 "+hash+" --data-root "+Quote(files.Data);
-        using var p=Process.Start(plan)??throw new DnsException("Windows did not start the DNS helper.");await p.WaitForExitAsync();
+        Process? started;try{started=Process.Start(plan);}catch(Win32Exception ex)when(ex.NativeErrorCode==1223){throw new DnsException("Windows permission was declined. DNS settings were not changed.");}
+        using var p=started??throw new DnsException("Windows did not start the DNS helper.");await p.WaitForExitAsync();
         string response=Path.Combine(directory,"response.json");if(!File.Exists(response))throw new DnsException("The DNS helper did not report completion. Refresh and review recovery before retrying.");
         if(new FileInfo(response).Length>65536)throw new InvalidDataException("Invalid DNS response");return JsonSerializer.Deserialize<DnsResponse>(File.ReadAllText(response))??throw new InvalidDataException("Invalid DNS response");
     }
