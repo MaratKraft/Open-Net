@@ -15,7 +15,8 @@ internal static class DnsEmergencyRecovery
     {
         if(args.Length>2||args.Length==2&&args[1]!="--verify-only")return 2;
         string root=Path.GetDirectoryName(Environment.ProcessPath!)!;
-        var files=new AppFiles(root,Path.Combine(Path.GetTempPath(),"OpenNet-Recovery",Guid.NewGuid().ToString("N")));
+        L.Set("ru");
+        var files=new AppFiles(root,Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net","RecoveryRequests",Guid.NewGuid().ToString("N")));
         string owner=DnsRecoveryStore.Owner();var reader=new WindowsDnsSettings();var store=DnsRecoveryStore.Open(owner,false);
         var app=new Application{ShutdownMode=ShutdownMode.OnMainWindowClose};L.Set("ru");ThemeManager.SetMode("system");
         var window=new Window{Title=L.T("Open Net — offline DNS recovery"),Width=560,Height=510,MinWidth=440,MinHeight=380,WindowStartupLocation=WindowStartupLocation.CenterScreen};

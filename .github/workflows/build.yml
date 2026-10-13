@@ -36,6 +36,8 @@ jobs:
         run: ./scripts/verify-safe-preview.ps1 -ExePath 'publish/Open Net Safe Preview/Open Net.exe'
       - name: Build Windows x64
         run: ./scripts/publish.ps1
+      - name: Verify independent read-only recovery window
+        run: ./scripts/verify-dns-recovery.ps1 -ExePath 'publish/Open Net 0.4.0-alpha.1/Open Net.exe'
       - name: Package clean test artifacts
         run: ./scripts/package.ps1
       - uses: actions/upload-artifact@v7
