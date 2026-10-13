@@ -93,11 +93,11 @@ internal sealed class DnsManagerView
     void Read()
     {
         if(current==null)return;
-        try{snapshot=reader.Read(Adapter);journal=store.Load(Adapter);current.Text="IPv4 · "+FamilyText(snapshot.IPv4)+"\nIPv6 · "+FamilyText(snapshot.IPv6)+"\n"+L.T(snapshot.CanChange?"No encrypted DNS override detected by the alpha backend.":snapshot.Limitation);if(journal?.Active==true){current.Text+="\n"+L.T(DnsTransaction.Recoverable(journal,snapshot)?journal.Phase==DnsPhase.Applied?"A DNS profile is applied by Open Net.":"An unfinished DNS operation needs recovery review.":"DNS settings were changed outside Open Net.");}}
+        try{snapshot=reader.Read(Adapter);journal=store.Load(Adapter);current.Text="IPv4 · "+FamilyText(snapshot.IPv4)+"\nIPv6 · "+FamilyText(snapshot.IPv6)+"\n"+L.T(snapshot.CanChange?snapshot.IPv4.Encryption.Any(p=>(p.Flags&3)!=0)?"Adapter DoH captured; backup is created before applying.":"No active adapter DoH settings detected.":snapshot.Limitation);if(journal?.Active==true){current.Text+="\n"+L.T(DnsTransaction.Recoverable(journal,snapshot)?journal.Phase==DnsPhase.Applied?"A DNS profile is applied by Open Net.":"An unfinished DNS operation needs recovery review.":"DNS settings were changed outside Open Net.");}}
         catch(Exception ex){snapshot=null;journal=null;files.Log("DNS inspection: "+ex);current.Text=L.T("DNS settings could not be read safely.")+" "+Error(ex);}
         UpdatePlan();shell.UpdateDnsStatus();
     }
-    static string FamilyText(DnsFamilySettings settings)=>L.T(settings.Mode==DnsMode.Manual?"Manual":settings.Mode==DnsMode.Automatic?"Automatic":"Unknown")+" · "+string.Join(", ",settings.Mode==DnsMode.Manual?settings.Servers:settings.EffectiveServers);
+    static string FamilyText(DnsFamilySettings settings)=>L.T(settings.Mode==DnsMode.Manual?"Manual":settings.Mode==DnsMode.Automatic?"Automatic":"Unknown")+" · "+string.Join(", ",settings.Mode==DnsMode.Manual?settings.Servers:settings.EffectiveServers)+(settings.Encryption.Length==0?"":"\n"+string.Join("\n",settings.Encryption.Select(p=>p.Server+" · DoH · "+(p.Template??L.T("Automatic template"))+" · "+L.T((p.Flags&4)==0?"No plaintext fallback":"Plaintext fallback permitted"))));
     void ProfileChanged()
     {
         if(addresses4==null)return;var profile=Profile;addresses4.Text=profile==null?"":string.Join(", ",profile.IPv4);addresses6.Text=profile==null?"":string.Join(", ",profile.IPv6);addresses4.IsReadOnly=addresses6.IsReadOnly=profile?.Id!="custom";ipv6.IsChecked=false;ipv6Mode.SelectedIndex=0;customFields.Visibility=profile?.Id=="custom"?Visibility.Visible:Visibility.Collapsed;UpdatePlan();
@@ -108,8 +108,8 @@ internal sealed class DnsManagerView
         if(Profile==null)throw new DnsException("Choose an adapter and a DNS profile.");
         if(!shell.Runtime.TestMode&&!Profile.Available)throw new DnsException(Profile.Warning);
         var target=snapshot;var families=new System.Collections.Generic.List<DnsFamily>();
-        if(ipv4.IsChecked==true){var values=DnsProfiles.Validate(addresses4.Text,DnsFamily.IPv4);target=target.With(DnsFamily.IPv4,new(DnsMode.Manual,values,values));families.Add(DnsFamily.IPv4);}
-        if(ipv6.IsChecked==true){var values=DnsProfiles.Validate(addresses6.Text,DnsFamily.IPv6);target=target.With(DnsFamily.IPv6,new(DnsMode.Manual,values,values));families.Add(DnsFamily.IPv6);}
+        if(ipv4.IsChecked==true){var values=DnsProfiles.Validate(addresses4.Text,DnsFamily.IPv4);target=target.With(DnsFamily.IPv4,DnsProfiles.ManualPlan(snapshot.IPv4,values,Profile));families.Add(DnsFamily.IPv4);}
+        if(ipv6.IsChecked==true){var values=DnsProfiles.Validate(addresses6.Text,DnsFamily.IPv6);target=target.With(DnsFamily.IPv6,DnsProfiles.ManualPlan(snapshot.IPv6,values,Profile));families.Add(DnsFamily.IPv6);}
         DnsTransaction.Validate(snapshot,target,families.ToArray());
         if(reader is WindowsDnsSettings)foreach(var family in families)WindowsDnsSettings.ValidateDestination(target.Family(family).Servers);
         return(target,families.ToArray());
@@ -119,8 +119,8 @@ internal sealed class DnsManagerView
         if(preview==null)return;
         var profile=Profile;profileAddresses.Text=profile==null||profile.Id=="custom"?"":"DNS IPv4 · "+string.Join(", ",profile.IPv4);preview.Text=L.T("IPv6 settings are preserved unless explicitly selected.")+"\n"+L.T("Preserved IPv6 DNS can use a different provider.");
         if(profile!=null&&profile.Source!="")preview.Text+="\n"+L.T("Source checked: ")+profile.CheckedOn+" · "+profile.Source;
-        if(profile?.Doh!=null)preview.Text+="\nDoH: "+profile.Doh+" · "+L.T("information only");
-        warning.Text=L.T(profile?.Warning.Length>0?profile.Warning:snapshot?.CanChange==false?snapshot.Limitation:"DoH changes are not supported in this alpha.");SetEnabled();
+        if(profile?.Doh!=null)preview.Text+="\nDoH: "+profile.Doh+" · "+L.T(snapshot?.IPv4.Encryption.Any(p=>(p.Flags&3)!=0)==true?"Adapter encryption will be preserved with the profile template.":"information only");
+        warning.Text=L.T(profile?.Warning.Length>0?profile.Warning:snapshot?.CanChange==false?snapshot.Limitation:"DNS and DoH changes require confirmation and UAC.");SetEnabled();
     }
     void SetEnabled()
     {

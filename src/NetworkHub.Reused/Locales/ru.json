@@ -446,5 +446,22 @@
   "Original DNS saved · restoration is available.": "Сохранён исходный DNS · доступно восстановление.",
   "DNS operation in progress.": "Выполняется операция DNS.",
   "Simulation only. Windows settings are unchanged; no UAC permission is needed.": "Только имитация. Настройки Windows не изменяются; разрешение UAC не требуется.",
-  "Simulate a DNS and HTTPS check for:": "Имитировать проверку DNS и HTTPS для:"
+  "Simulate a DNS and HTTPS check for:": "Имитировать проверку DNS и HTTPS для:",
+  "No plaintext fallback": "Без перехода на обычный DNS",
+  "Windows returned unsupported per-adapter DoH properties.": "Windows вернула неподдержанные свойства DoH адаптера.",
+  "Plaintext fallback permitted": "Переход на обычный DNS разрешён",
+  "Unknown adapter encryption settings cannot be preserved safely.": "Обнаружены неизвестные параметры шифрования адаптера. Точное восстановление не гарантируется.",
+  "This profile cannot preserve the adapter's DNS encryption policy.": "Этот профиль не позволяет сохранить текущий режим шифрования DNS адаптера.",
+  "Active DDR, DoT or global DNS encryption settings cannot be restored by this backend.": "Точное восстановление обнаруженных глобальных параметров шифрования, DDR или DoT пока не поддерживается.",
+  "Adapter encryption will be preserved with the profile template.": "Шифрование адаптера сохраняется с шаблоном выбранного профиля.",
+  "No active adapter DoH settings detected.": "Активные настройки DoH адаптера не обнаружены.",
+  "Adapter DoH captured; backup is created before applying.": "Настройки DoH прочитаны. Резервная запись будет создана перед применением.",
+  "Active IPv6 DoH cannot be independently verified by this Windows API. IPv6 settings are preserved; application is blocked.": "Этот Windows API не позволяет независимо проверить активный DoH IPv6. IPv6 не меняется; применение заблокировано.",
+  "The DNS plan would weaken encryption. Application is blocked.": "План ослабляет шифрование DNS. Применение заблокировано.",
+  "DNS and DoH changes require confirmation and UAC.": "Изменение DNS и DoH требует подтверждения и UAC.",
+  "Automatic template": "Автоматический шаблон",
+  "Profile-specific DoH overrides cannot be restored by this backend.": "Для точного восстановления DoH-профиля сети нужна дополнительная поддержка Windows API.",
+  "The saved DNS backup did not pass verification. No settings were changed.": "Сохранённая резервная запись DNS не прошла проверку. Настройки не изменены.",
+  "Windows API and adapter-specific IPv4 DoH settings disagree. Application is blocked.": "Windows API и настройки DoH IPv4 адаптера не совпадают. Применение заблокировано.",
+  "The original IPv4 or IPv6 DNS assignment mode could not be determined safely.": "Не удалось достоверно определить режим назначения DNS IPv4 или IPv6."
 }

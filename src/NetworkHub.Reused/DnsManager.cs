@@ -13,27 +13,47 @@ namespace NetworkHub.Dns;
 public enum DnsMode { Automatic, Manual, Unknown }
 public enum DnsFamily { IPv4, IPv6 }
 public enum DnsPhase { Prepared, Writing, Applied, Restoring, Restored, RecoveryRequired }
+public sealed record DnsDohSettings(string Server,string? Template,ulong Flags);
 public sealed record DnsFamilySettings(DnsMode Mode,string[] Servers,string[] EffectiveServers)
 {
+    public DnsDohSettings[] Encryption {get;init;}=Array.Empty<DnsDohSettings>();
     public bool SameConfiguration(DnsFamilySettings other)=>Mode==other.Mode &&
-        (Mode==DnsMode.Automatic || Servers.SequenceEqual(other.Servers,StringComparer.OrdinalIgnoreCase));
+        (Mode==DnsMode.Automatic || Servers.SequenceEqual(other.Servers,StringComparer.OrdinalIgnoreCase))&&Encryption.SequenceEqual(other.Encryption);
 }
 public sealed record DnsSnapshot(Guid AdapterId,string AdapterName,string MachineId,DnsFamilySettings IPv4,DnsFamilySettings IPv6,string DependencyFingerprint,bool CanChange,string Limitation)
 {
     public DnsFamilySettings Family(DnsFamily family)=>family==DnsFamily.IPv4?IPv4:IPv6;
     public DnsSnapshot With(DnsFamily family,DnsFamilySettings value)=>family==DnsFamily.IPv4?this with{IPv4=value}:this with{IPv6=value};
     public bool SameConfiguration(DnsSnapshot other)=>AdapterId==other.AdapterId&&MachineId==other.MachineId&&DependencyFingerprint==other.DependencyFingerprint&&IPv4.SameConfiguration(other.IPv4)&&IPv6.SameConfiguration(other.IPv6);
-    public string Fingerprint()=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new{AdapterId,MachineId,DependencyFingerprint,V4=new{IPv4.Mode,Servers=IPv4.Mode==DnsMode.Manual?IPv4.Servers:Array.Empty<string>()},V6=new{IPv6.Mode,Servers=IPv6.Mode==DnsMode.Manual?IPv6.Servers:Array.Empty<string>()}}))));
+    public string Fingerprint()=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new{AdapterId,MachineId,DependencyFingerprint,V4=new{IPv4.Mode,Servers=IPv4.Mode==DnsMode.Manual?IPv4.Servers:Array.Empty<string>(),IPv4.Encryption},V6=new{IPv6.Mode,Servers=IPv6.Mode==DnsMode.Manual?IPv6.Servers:Array.Empty<string>(),IPv6.Encryption}}))));
 }
 public sealed record DnsAdapter(Guid Id,string Name,string Kind,bool Connected,bool Virtual);
 public sealed record DnsProfile(string Id,string Name,string[] IPv4,string[] IPv6,string? Doh,string Source,string CheckedOn,bool Available,string Warning);
 public static class DnsProfiles
 {
+    public static void ValidateEncryption(DnsFamilySettings settings)
+    {
+        if(settings.Encryption==null||settings.Encryption.Length>settings.Servers.Length||settings.Encryption.Select(p=>p.Server).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=settings.Encryption.Length)throw new DnsException("Invalid per-adapter DoH configuration.");
+        foreach(var item in settings.Encryption){
+            if(!settings.Servers.Contains(item.Server,StringComparer.OrdinalIgnoreCase)||(item.Flags&~15UL)!=0||(item.Flags&3)==3||(item.Flags&3)==0&&(item.Flags&12)!=0)throw new DnsException("Invalid per-adapter DoH configuration.");
+            if((item.Flags&1)!=0&&item.Template!=null)throw new DnsException("Invalid per-adapter DoH configuration.");
+            if((item.Flags&2)!=0&&(!Uri.TryCreate(item.Template,UriKind.Absolute,out var uri)||uri.Scheme!="https"||uri.UserInfo.Length>0||uri.Fragment.Length>0||System.Net.IPAddress.TryParse(uri.Host,out var host)&&!host.Equals(System.Net.IPAddress.Parse(item.Server))))throw new DnsException("Invalid per-adapter DoH configuration.");
+        }
+    }
+    public static DnsFamilySettings ManualPlan(DnsFamilySettings before,string[] servers,DnsProfile profile)
+    {
+        var target=new DnsFamilySettings(DnsMode.Manual,servers,servers);
+        var active=before.Encryption.Where(p=>(p.Flags&3)!=0).ToArray();
+        if(active.Length==0)return target;
+        if(active.Length!=before.Servers.Length||active.Select(p=>p.Flags&12).Distinct().Count()!=1||profile.Doh==null)throw new DnsException("This profile cannot preserve the adapter's DNS encryption policy.");
+        return target with{Encryption=servers.Select(s=>new DnsDohSettings(s,profile.Doh,2UL|(active[0].Flags&12))).ToArray()};
+    }
     public static void ValidateSelection(string id,DnsSnapshot target,DnsFamily[] families)
     {
         if(id=="")return; // Older recovery records do not contain an owned profile identity.
         var profile=All.FirstOrDefault(p=>p.Id==id)??throw new DnsException("Invalid DNS profile identity");
         if(id!="custom"&&families.Any(f=>!target.Family(f).Servers.SequenceEqual(f==DnsFamily.IPv4?profile.IPv4:profile.IPv6)))throw new DnsException("DNS addresses do not match the selected profile.");
+        if(id!="custom"&&families.SelectMany(f=>target.Family(f).Encryption).Any(p=>(p.Flags&3)!=0&&(p.Template!=profile.Doh||(p.Flags&2)==0)))throw new DnsException("DoH settings do not match the selected profile.");
     }
     public static IReadOnlyList<DnsProfile> All {get;}=new[]{
         new DnsProfile("comss","ComssDNS",new[]{"83.220.169.155","212.109.195.93"},Array.Empty<string>(),"https://dns.comss.one/dns-query","https://www.comss.ru/page.php?id=7315","2026-10-12",true,""),
@@ -80,6 +100,8 @@ public sealed class DnsTransaction
         if(!current.CanChange||!current.SameConfiguration(approved))throw new DnsException("DNS settings changed before application. Refresh and review them again.");
         var j=new DnsJournal(1,Guid.NewGuid(),owner,current,current,target,families,DnsPhase.Prepared,null,DateTime.UtcNow.ToString("O"),""){ProfileId=profileId};
         store.Save(j); // No system write is allowed if the durable baseline could not be saved.
+        var verified=store.Load(current.AdapterId);
+        if(verified==null||verified.Id!=j.Id||verified.Owner!=owner||verified.ProfileId!=profileId||!verified.Before.SameConfiguration(current)||!verified.Expected.SameConfiguration(current)||!verified.Target.SameConfiguration(target)||!verified.Families.SequenceEqual(families)||verified.Phase!=DnsPhase.Prepared||verified.Pending!=null)throw new DnsException("The saved DNS backup did not pass verification. No settings were changed.");
         try{
             foreach(var family in families){
                 EnsureExpected(j);
@@ -128,13 +150,18 @@ public sealed class DnsTransaction
     void EnsureExpected(DnsJournal j){if(!reader.Read(j.Before.AdapterId).SameConfiguration(j.Expected))throw new DnsException("DNS settings were changed outside Open Net. The operation was stopped.");}
     public static void Validate(DnsSnapshot before,DnsSnapshot target,DnsFamily[] families)
     {
-        if(!before.CanChange||before.IPv4.Mode==DnsMode.Unknown||before.IPv6.Mode==DnsMode.Unknown)throw new DnsException("The original DNS configuration could not be determined safely.");
+        if(!before.CanChange)throw new DnsException(before.Limitation.Length>0?before.Limitation:"The original DNS configuration could not be determined safely.");
+        if(before.IPv4.Mode==DnsMode.Unknown||before.IPv6.Mode==DnsMode.Unknown)throw new DnsException("The original DNS configuration could not be determined safely.");
         if(families.Length is <1 or >2||families.Distinct().Count()!=families.Length||families.Any(f=>!Enum.IsDefined(f)))throw new DnsException("Select IPv4 and/or IPv6 explicitly.");
         if(before.AdapterId!=target.AdapterId||before.MachineId!=target.MachineId||before.DependencyFingerprint!=target.DependencyFingerprint)throw new DnsException("The DNS plan does not match the original adapter configuration.");
         foreach(var family in Enum.GetValues<DnsFamily>()){
             var desired=target.Family(family);
+            DnsProfiles.ValidateEncryption(before.Family(family));DnsProfiles.ValidateEncryption(desired);
             if(!families.Contains(family)){if(!before.Family(family).SameConfiguration(desired))throw new DnsException("The plan changes an unselected address family.");continue;}
             if(desired.Mode!=DnsMode.Manual||!DnsProfiles.Validate(string.Join(' ',desired.Servers),family).SequenceEqual(desired.Servers))throw new DnsException("Only validated manual DNS profiles can be applied in this alpha.");
+            var active=before.Family(family).Encryption.Where(p=>(p.Flags&3)!=0).ToArray();
+            if(active.Length>0&&(desired.Encryption.Count(p=>(p.Flags&3)!=0)!=desired.Servers.Length||active.Any(p=>(p.Flags&4)==0)&&desired.Encryption.Any(p=>(p.Flags&4)!=0)))throw new DnsException("The DNS plan would weaken encryption. Application is blocked.");
+            if(active.Length>0&&(active.Length!=before.Family(family).Servers.Length||active.Select(p=>p.Flags&12).Distinct().Count()!=1||desired.Encryption.Any(p=>(p.Flags&12)!=(active[0].Flags&12))))throw new DnsException("This profile cannot preserve the adapter's DNS encryption policy.");
         }
     }
 }

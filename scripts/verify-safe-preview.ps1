@@ -32,7 +32,7 @@ function LongDirectory([string]$Path) {
     $buffer.ToString().TrimEnd('\','/')
 }
 if(![StringComparer]::OrdinalIgnoreCase.Equals((LongDirectory $probe.Data),(LongDirectory (Join-Path $root 'test-results/preview')))){throw 'Direct EXE failed preview directory isolation'}
-foreach($entry in @('--dns-elevated','--elevated','--autostart','--self-test','--installer-test')) {
+foreach($entry in @('--dns-elevated','--dns-diagnostic','--elevated','--autostart','--self-test','--installer-test')) {
     if((RunPreview @($entry)) -ne 2){throw "Preview did not reject $entry"}
 }
 if((DnsFingerprint) -ne $before){throw 'Observed system DNS changed during the preview check'}
