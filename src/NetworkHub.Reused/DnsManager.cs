@@ -105,19 +105,23 @@ public interface IDnsJournalStore {DnsJournal? Load(Guid adapter);void Save(DnsJ
 // Persistent intent precedes every write, including compensating writes.
 public sealed class DnsTransaction
 {
-    readonly IDnsSettingsReader reader;readonly IDnsSettingsWriter writer;readonly IDnsJournalStore store;readonly string owner;
-    public DnsTransaction(IDnsSettingsReader reader,IDnsSettingsWriter writer,IDnsJournalStore store,string owner){this.reader=reader;this.writer=writer;this.store=store;this.owner=owner;}
+    readonly IDnsSettingsReader reader;readonly IDnsSettingsWriter writer;readonly IDnsJournalStore store;readonly string owner;readonly DnsOperationEvidence evidence;
+    public DnsTransaction(IDnsSettingsReader reader,IDnsSettingsWriter writer,IDnsJournalStore store,string owner,DnsOperationEvidence? evidence=null){this.reader=reader;this.writer=writer;this.store=store;this.owner=owner;this.evidence=evidence??new();}
     public DnsJournal Apply(DnsSnapshot approved,DnsSnapshot target,DnsFamily[] families,string profileId="",bool encryptionChangeApproved=false,string profileName="")=>Change(approved,target,families,profileId,profileName,"apply",encryptionChangeApproved);
+    public DnsJournal Reapply(DnsSnapshot approved,DnsSnapshot target,DnsFamily[] families,string profileId,string profileName="")=>Change(approved,target,families,profileId,profileName,"reapply",true);
+    public static void ValidateReapply(DnsSnapshot before,DnsSnapshot target,DnsFamily[] families){Validate(before,target,families,false,true);if(!before.SameConfiguration(target)||families.Any(f=>before.Family(f).Mode!=DnsMode.Manual))throw new DnsException("Repeat requires the selected manual DNS and DoH to match the current configuration exactly.");}
     public DnsJournal Automatic(DnsSnapshot approved)=>Change(approved,approved.With(DnsFamily.IPv4,new(DnsMode.Automatic,Array.Empty<string>(),Array.Empty<string>())),new[]{DnsFamily.IPv4},"","","automatic",true);
     DnsJournal Change(DnsSnapshot approved,DnsSnapshot target,DnsFamily[] families,string profileId,string profileName,string action,bool encryptionChangeApproved)
     {
+        evidence.Begin(action,approved);
         Validate(approved,target,families,action=="automatic",encryptionChangeApproved);
+        if(action=="reapply")ValidateReapply(approved,target,families);
         DnsProfiles.ValidateSelection(profileId,target,families);
         var previous=store.Load(approved.AdapterId);
         if(previous?.Active==true&&(previous.Phase!=DnsPhase.Applied||previous.Owner!=owner||!previous.Expected.SameConfiguration(approved)))throw new DnsException("The managed DNS session needs recovery review before another change.");
         var current=reader.Read(approved.AdapterId);
         if(!current.CanChange||!current.SameConfiguration(approved))throw new DnsException("DNS settings changed before application. Refresh and review them again.");
-        if(current.SameConfiguration(target))return previous?.Active==true?previous:new DnsJournal(1,Guid.NewGuid(),owner,current,current,current,Array.Empty<DnsFamily>(),DnsPhase.Restored,null,DateTime.UtcNow.ToString("O"),"No DNS change was needed.");
+        if(action!="reapply"&&current.SameConfiguration(target)){evidence.WriteResult="not needed";evidence.VerificationResult="verified";evidence.AfterFingerprint=current.Fingerprint();evidence.ValuesChanged=false;return previous?.Active==true?previous:new DnsJournal(1,Guid.NewGuid(),owner,current,current,current,Array.Empty<DnsFamily>(),DnsPhase.Restored,null,DateTime.UtcNow.ToString("O"),"No DNS change was needed.");}
         bool continuing=previous?.Active==true;
         var j=continuing?previous! with{Expected=current,Target=target,Families=previous!.Families.Union(families).ToArray(),Phase=DnsPhase.Prepared,Pending=null}:new DnsJournal(1,Guid.NewGuid(),owner,current,current,target,families,DnsPhase.Prepared,null,DateTime.UtcNow.ToString("O"),"");
         j=j with{ProfileId=profileId,ProfileName=profileName,Action=action,RollbackTarget=current,ContinuedSession=continuing,OperationFamilies=families};
@@ -129,14 +133,19 @@ public sealed class DnsTransaction
             foreach(var family in families){
                 EnsureExpected(j);
                 j=j with{Phase=DnsPhase.Writing,Pending=family};store.Save(j);
+                evidence.RequestedWrites++;evidence.WriteResult="requested";
                 writer.Write(current.AdapterId,family,target.Family(family));
+                evidence.AcceptedWrites++;evidence.WriteResult="accepted";evidence.VerificationResult="requested";
                 var expected=j.Expected.With(family,target.Family(family));
                 var observed=reader.Read(current.AdapterId);
                 if(!observed.SameConfiguration(expected))throw new DnsException("DNS verification failed. Review the recovery record before restoring.");
+                evidence.VerifiedWrites++;evidence.VerificationResult="verified";evidence.AfterFingerprint=observed.Fingerprint();evidence.ValuesChanged=!current.SameConfiguration(observed);
                 j=j with{Expected=observed,Pending=null};store.Save(j);
             }
             j=j with{Phase=DnsPhase.Applied,History=j.History.Append(new DnsHistory(DateTime.UtcNow.ToString("O"),action,profileName,current,j.Expected,"verified")).ToArray()};store.Save(j);return j;
         }catch(Exception original){
+            if(evidence.WriteResult=="requested")evidence.WriteResult="failed";
+            if(evidence.VerificationResult=="requested")evidence.VerificationResult="failed";
             try{
                 var durable=store.Load(current.AdapterId)??throw new DnsException("The recovery record is missing.");
                 var observed=reader.Read(current.AdapterId);
@@ -151,7 +160,8 @@ public sealed class DnsTransaction
                 }
                 if(!durable.Expected.SameConfiguration(current))throw new DnsException("Automatic rollback verification failed.");
                 durable=durable with{Phase=continuing?DnsPhase.Applied:DnsPhase.Restored,ProfileId=continuing?previous!.ProfileId:"",ProfileName=continuing?previous!.ProfileName:"",Action=continuing?previous!.Action:"restore",History=durable.History.Append(new DnsHistory(DateTime.UtcNow.ToString("O"),action,profileName,current,durable.Expected,"failed; rollback verified")).ToArray()};store.Save(durable);
-            }catch(Exception recovery){throw new DnsException("DNS change failed; automatic rollback could not be verified. The recovery record is preserved for offline recovery.",new AggregateException(original,recovery));}
+                evidence.RecoveryResult="verified";
+            }catch(Exception recovery){evidence.RecoveryResult="unverified";throw new DnsException("DNS change failed; automatic rollback could not be verified. The recovery record is preserved for offline recovery.",new AggregateException(original,recovery));}
             throw new DnsException("DNS change failed; the previous configuration was restored and verified.",original);
         }
     }
@@ -162,6 +172,7 @@ public sealed class DnsTransaction
         if(!j.Active){if(reader.Read(adapter).SameConfiguration(j.Before))return j;throw new DnsException("DNS settings were changed outside Open Net. Restoration is blocked to preserve those changes.");}
         if(j.Schema!=1||j.Owner!=owner||j.Before.AdapterId!=adapter)throw new DnsException("The recovery record does not belong to this user or adapter.");
         var observed=reader.Read(adapter);
+        evidence.Begin("restore",observed);
         if(observed.Fingerprint()!=approvedFingerprint)throw new DnsException("DNS settings changed before restoration. Refresh and review them again.");
         if(!Recoverable(j,observed))throw new DnsException("DNS settings were changed outside Open Net. Restoration is blocked to preserve those changes.");
         if(!observed.CanChange)throw new DnsException("This adapter cannot be safely changed with the current DNS backend.");
@@ -170,9 +181,12 @@ public sealed class DnsTransaction
             EnsureExpected(j);
             if(j.Expected.Family(family).SameConfiguration(j.Before.Family(family)))continue;
             j=j with{Pending=family};store.Save(j);
-            writer.Write(adapter,family,j.Before.Family(family));
+            evidence.RequestedWrites++;evidence.WriteResult="requested";
+            try{writer.Write(adapter,family,j.Before.Family(family));evidence.AcceptedWrites++;evidence.WriteResult="accepted";}catch{evidence.WriteResult="failed";throw;}
+            evidence.VerificationResult="requested";
             var expected=j.Expected.With(family,j.Before.Family(family));var actual=reader.Read(adapter);
-            if(!actual.SameConfiguration(expected))throw new DnsException("Restoration verification failed. The recovery record has been preserved.");
+            if(!actual.SameConfiguration(expected)){evidence.VerificationResult="failed";throw new DnsException("Restoration verification failed. The recovery record has been preserved.");}
+            evidence.VerifiedWrites++;evidence.VerificationResult="verified";evidence.AfterFingerprint=actual.Fingerprint();evidence.ValuesChanged=!observed.SameConfiguration(actual);
             j=j with{Expected=actual,Pending=null};store.Save(j);
         }
         j=j with{Phase=DnsPhase.Restored,Action="restore",History=j.History.Append(new DnsHistory(DateTime.UtcNow.ToString("O"),"restore","",observed,j.Expected,"verified")).ToArray()};store.Save(j);return j;

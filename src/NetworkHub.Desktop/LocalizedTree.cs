@@ -25,7 +25,7 @@ public static class LocalizedTree
         }
         foreach(var item in Walk(window))
         {
-            if(item is FrameworkElement element&&new[]{"DnsState","DnsCurrent","DnsPreview","DnsWarning","DnsResult","DnsReason","DnsProfileAddresses","Summary","Selection","ZapretState","TgState","ZapretStrategy","Message","StrategySupport","ModuleStatus","ModuleDiagnostic","StartupStatus"}.Contains(element.Name))continue;
+            if(item is FrameworkElement element&&new[]{"DnsState","DnsCurrent","DnsPreview","DnsWarning","DnsResult","DnsOperationEvidence","DnsProbeEvidence","DnsReason","DnsProfileAddresses","Summary","Selection","ZapretState","TgState","ZapretStrategy","Message","StrategySupport","ModuleStatus","ModuleDiagnostic","StartupStatus"}.Contains(element.Name))continue;
             if(item is TextBlock)Add(item,TextBlock.TextProperty);
             if(item is ContentControl)Add(item,ContentControl.ContentProperty);
             if(item is FrameworkElement){Add(item,FrameworkElement.ToolTipProperty);Add(item,AutomationProperties.NameProperty);}

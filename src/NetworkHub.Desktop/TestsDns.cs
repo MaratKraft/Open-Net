@@ -33,7 +33,7 @@ internal static class TestsDns
     }
     internal sealed class FakeProbes : IDnsProbeRunner
     {
-        public Task<DnsProbeResult> Run(Uri endpoint,CancellationToken token)=>Task.FromResult(new DnsProbeResult(endpoint.Host,true,403,"192.0.2.10","HTTPS endpoint responded. This does not prove that the service or account works."));
+        public Task<DnsProbeResult> Run(Uri endpoint,CancellationToken token,DnsProbeKind kind=DnsProbeKind.Both)=>Task.FromResult(new DnsProbeResult(endpoint.Host,kind!=DnsProbeKind.Https,kind==DnsProbeKind.Names?null:403,"192.0.2.10","HTTPS endpoint responded. This does not prove that the service or account works."){NamesRequested=kind!=DnsProbeKind.Https,HttpsRequested=kind!=DnsProbeKind.Names,FinishedUtc=DateTime.UtcNow.ToString("O")});
     }
     internal static FakeSettings Fixture(string? root=null){var fixture=new FakeSettings();if(root!=null){fixture.PersistPath=Path.Combine(root,"Dns","SimulatedState.json");if(File.Exists(fixture.PersistPath))fixture.State=System.Text.Json.JsonSerializer.Deserialize<DnsSnapshot>(File.ReadAllText(fixture.PersistPath))??throw new InvalidDataException("Invalid simulated DNS state");}return fixture;}
     static DnsSnapshot Initial()=>new(Guid.Parse("39d9b083-f28a-4e98-85ef-15ea30d945b2"),"Fixture Ethernet","fixture-machine",new(DnsMode.Manual,new[]{"192.0.2.53","192.0.2.54"},new[]{"192.0.2.53","192.0.2.54"}),new(DnsMode.Automatic,Array.Empty<string>(),new[]{"2001:db8::53"}),"fixture-dependencies",true,"");
@@ -43,6 +43,7 @@ internal static class TestsDns
     internal static void Run(Action<string,Action> test,Shell shell,AppFiles files)
     {
         TestsDnsSessions.Run(test,shell,files);
+        TestsDnsReapply.Run(test,files);
         test("DNS: saved backup must read back exactly before any write",()=>{var backend=Fixture();var before=backend.State;var store=new FakeStore{ReadOverride=j=>j with{Before=j.Before with{DependencyFingerprint="corrupt-readback"}}};Reject(()=>new DnsTransaction(backend,backend,store,"test").Apply(before,Target(before),new[]{DnsFamily.IPv4}));Assert(backend.Writes==0&&store.Journal!=null,"Write occurred without verified baseline");});
         test("DNS: catalog template alone does not activate adapter encryption",()=>{var before=Initial();var profile=DnsProfiles.All[0];var target=DnsProfiles.ManualPlan(before.IPv4,profile.IPv4,profile);Assert(target.Encryption.Length==0,"Catalog information treated as active DoH");var disabled=before.IPv4 with{Encryption=new[]{new DnsDohSettings(before.IPv4.Servers[0],null,0)}};Assert(DnsProfiles.ManualPlan(disabled,profile.IPv4,profile).Encryption.Length==0,"Disabled rule treated as active DoH");});
         test("DNS: encrypted Xbox to Comss and exact encrypted restoration across restart",()=>{string path=Path.Combine(files.Data,"Dns-doh-restart",Guid.NewGuid().ToString("N"));var backend=Fixture(path);var xbox=DnsProfiles.All.First(p=>p.Id=="xbox");backend.State=backend.State.With(DnsFamily.IPv4,new(DnsMode.Manual,xbox.IPv4,xbox.IPv4){Encryption=xbox.IPv4.Select(s=>new DnsDohSettings(s,xbox.Doh,2)).ToArray()});var before=backend.State;var comss=DnsProfiles.All.First(p=>p.Id=="comss");var target=before.With(DnsFamily.IPv4,DnsProfiles.ManualPlan(before.IPv4,comss.IPv4,comss));var store=new DnsFileJournalStore(path,"test");new DnsTransaction(backend,backend,store,"test").Apply(before,target,new[]{DnsFamily.IPv4},"comss");Assert(backend.State.IPv4.Encryption.All(p=>p.Flags==2&&p.Template==comss.Doh)&&backend.State.IPv6.SameConfiguration(before.IPv6),"Encryption downgraded or IPv6 changed");var restarted=Fixture(path);new DnsTransaction(restarted,restarted,new DnsFileJournalStore(path,"test"),"test").Restore(before.AdapterId,restarted.State.Fingerprint());Assert(restarted.State.SameConfiguration(before)&&restarted.State.IPv4.Encryption.SequenceEqual(before.IPv4.Encryption),"Original encrypted DNS not restored");});
@@ -73,6 +74,7 @@ internal static class TestsDns
     }
     internal static async Task Interactive(Shell shell,AppFiles files,Func<string,Func<Task>,Task> test)
     {
+        await TestsDnsReapplyUi.Run(shell,files,test);
         await TestsDnsSessionUi.Run(shell,files,test);
         await test("DNS encrypted simulation confirms template and restores exact DoH",async()=>{
             var fixture=Fixture(files.Data);var initial=fixture.State;var xbox=DnsProfiles.All.First(p=>p.Id=="xbox");var encrypted=initial with{IPv4=new(DnsMode.Manual,xbox.IPv4,xbox.IPv4){Encryption=xbox.IPv4.Select(s=>new DnsDohSettings(s,xbox.Doh,2)).ToArray()}};
