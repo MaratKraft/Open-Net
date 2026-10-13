@@ -16,7 +16,7 @@ using NetworkHub.Dns;
 
 namespace NetworkHub.Desktop;
 
-internal sealed record DnsRequest(string Token,int ParentPid,long ParentStart,string Owner,string Language,string Action,DnsSnapshot Before,DnsSnapshot Target,DnsFamily[] Families,string ApprovedFingerprint);
+internal sealed record DnsRequest(string Token,int ParentPid,long ParentStart,string Owner,string Language,string Action,DnsSnapshot Before,DnsSnapshot Target,DnsFamily[] Families,string ApprovedFingerprint) { public string ProfileId {get;init;}=""; }
 internal sealed record DnsResponse(bool Success,string Message);
 internal static class DnsElevated
 {
@@ -57,7 +57,8 @@ internal static class DnsElevated
                     // Availability restriction applies to built-in addresses even if a stale UI requests them.
                     if(r.Families.Any(f=>r.Target.Family(f).Servers.Any(s=>DnsProfiles.All.First(p=>p.Id=="xbox").IPv4.Concat(DnsProfiles.All.First(p=>p.Id=="xbox").IPv6).Contains(s))))throw new DnsException("The operator reports that Xbox DNS is unavailable. New application is blocked; existing settings are preserved.");
                     foreach(var f in r.Families)WindowsDnsSettings.ValidateDestination(r.Target.Family(f).Servers);
-                    transaction.Apply(r.Before,r.Target,r.Families);
+                    DnsProfiles.ValidateSelection(r.ProfileId,r.Target,r.Families);
+                    transaction.Apply(r.Before,r.Target,r.Families,r.ProfileId);
                 }else transaction.Restore(r.Before.AdapterId,r.ApprovedFingerprint);
                 Paths.WriteNew(response,JsonSerializer.Serialize(new DnsResponse(true,L.T(r.Action=="apply"?"DNS profile applied. Connection has not been tested.":"The original DNS configuration was restored."))));return 0;
             }finally{if(locked)gate.ReleaseMutex();}

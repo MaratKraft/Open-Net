@@ -30,6 +30,10 @@ jobs:
         run: ./scripts/publish.ps1 -TestBuild
       - name: Run headless safe checks
         run: ./scripts/test-headless.ps1
+      - name: Build direct-launch Safe Preview
+        run: ./scripts/publish.ps1 -SafePreview
+      - name: Verify direct preview isolation
+        run: ./scripts/verify-safe-preview.ps1 -ExePath 'publish/Open Net Safe Preview/Open Net.exe'
       - name: Build Windows x64
         run: ./scripts/publish.ps1
       - name: Package clean test artifacts

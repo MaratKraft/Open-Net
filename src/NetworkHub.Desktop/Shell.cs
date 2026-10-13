@@ -1,4 +1,5 @@
 using System;
+using NetworkHub.Dns;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -98,7 +99,7 @@ public sealed class Shell : IDisposable
         Window.SourceInitialized+=(_,_)=>UpdateIcon();Window.DpiChanged+=(_,_)=>UpdateIcon();
         ThemeManager.StyleTray(Tray.ContextMenuStrip!);ThemeManager.Changed+=ApplyTheme;
         Tray.DoubleClick+=(_,_)=>Window.Dispatcher.Invoke(Restore);
-        void LanguageChanged(){TrayOpen.Text=L.T("Open Open Net");TrayStart.Text=L.T("Start selected");TrayStop.Text=L.T("Stop managed processes");TrayExit.Text=L.T("Exit");ShowMessage(L.T("Close the window — Open Net stays in the tray."));_ =Refresh();Render();}
+        void LanguageChanged(){TrayOpen.Text=L.T("Open Open Net");TrayStart.Text=L.T("Start selected");TrayStop.Text=L.T("Stop managed processes");TrayExit.Text=L.T("Exit");ShowMessage(L.T("Close the window — Open Net stays in the tray."));_ =Refresh();Render();UpdateDnsStatus();}
         L.Changed+=LanguageChanged;Window.Closed+=(_,_)=>L.Changed-=LanguageChanged;
         TrayOpen.Click+=(_,_)=>Restore(); TrayStart.Click+=async(_,_)=>await StartSelected();
         TrayStop.Click+=async(_,_)=>await StopSelected(true); TrayExit.Click+=(_,_)=>Exit();
@@ -302,22 +303,25 @@ public sealed class Shell : IDisposable
     public void Exit() {if(exiting)return;if(Busy||dnsWindow?.IsBusy==true){ShowMessage(L.T("Wait for the current operation to finish before exiting."));return;}exiting=true;timer.Stop();Tray.Visible=false;Window.Close();Application.Current.Shutdown();}
     internal Window OpenDnsSettings()
     {
-        if(dnsWindow!=null){dnsWindow.Window.Activate();return dnsWindow.Window;}
+        if(dnsWindow!=null){dnsWindow.Window.Show();if(dnsWindow.Window.WindowState==WindowState.Minimized)dnsWindow.Window.WindowState=WindowState.Normal;dnsWindow.Window.Activate();dnsWindow.Window.Focus();return dnsWindow.Window;}
         try{dnsWindow=new DnsManagerView(this,files);var view=dnsWindow;view.Window.Closed+=(_,_)=>dnsWindow=null;view.Window.Show();UpdateDnsStatus();return view.Window;}
-        catch(Exception ex){ShowMessage(L.Error(ex));files.Log("DNS window: "+ex);throw;}
+        catch(Exception ex){files.Log("DNS window: "+ex);throw;}
     }
     internal void UpdateDnsStatus()
     {
         if(dnsWindow!=null){Find<TextBlock>("DnsState").Text=L.T(dnsWindow.Status);return;}
-        string text="Open to inspect DNS settings";
+        string text=Runtime.TestMode?"Preview mode":"System DNS";
         if(!Runtime.TestMode)try{
             string owner=DnsRecoveryStore.Owner(),directory=DnsRecoveryStore.DirectoryFor(owner);var store=DnsRecoveryStore.Open(owner,false);
             if(Directory.Exists(directory))foreach(string path in Directory.EnumerateFiles(directory,"*.json").Take(64)){
-                if(Guid.TryParse(Path.GetFileNameWithoutExtension(path),out var id)&&store.Load(id)?.Active==true){text="DNS backup available. Open to review recovery.";break;}
+                if(Guid.TryParse(Path.GetFileNameWithoutExtension(path),out var id)&&store.Load(id) is {Active:true} record){
+                    var observed=new WindowsDnsSettings().Read(id);
+                    text=!DnsTransaction.Recoverable(record,observed)?"Settings changed externally":record.Phase==DnsPhase.Applied?DnsManagerView.ProfileStatus(record):"An unfinished DNS operation needs recovery review.";break;
+                }
             }
         }catch(Exception){text="DNS recovery storage needs review.";}
         Find<TextBlock>("DnsState").Text=L.T(text);
-        // Journal inspection only; never inspect adapters or run probes on dashboard refresh.
+        // Read only adapters with an owned active journal; never run connection probes here.
     }
     public void ApplySettings(UserSettings settings) {files.Save(settings);if(Settings.Language!=settings.Language){moduleMessages.Clear();}Settings=settings;ThemeManager.SetMode(settings.Theme);L.Set(settings.Language);WindowAppearance.Refresh(Window);errors.Clear();_ =Refresh();Render();}
     public void ApplyGeneralSettings(UserSettings settings)

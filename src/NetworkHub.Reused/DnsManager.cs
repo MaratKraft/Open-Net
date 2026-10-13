@@ -29,6 +29,12 @@ public sealed record DnsAdapter(Guid Id,string Name,string Kind,bool Connected,b
 public sealed record DnsProfile(string Id,string Name,string[] IPv4,string[] IPv6,string? Doh,string Source,string CheckedOn,bool Available,string Warning);
 public static class DnsProfiles
 {
+    public static void ValidateSelection(string id,DnsSnapshot target,DnsFamily[] families)
+    {
+        if(id=="")return; // Older recovery records do not contain an owned profile identity.
+        var profile=All.FirstOrDefault(p=>p.Id==id)??throw new DnsException("Invalid DNS profile identity");
+        if(id!="custom"&&families.Any(f=>!target.Family(f).Servers.SequenceEqual(f==DnsFamily.IPv4?profile.IPv4:profile.IPv6)))throw new DnsException("DNS addresses do not match the selected profile.");
+    }
     public static IReadOnlyList<DnsProfile> All {get;}=new[]{
         new DnsProfile("comss","ComssDNS",new[]{"83.220.169.155","212.109.195.93"},Array.Empty<string>(),"https://dns.comss.one/dns-query","https://www.comss.ru/page.php?id=7315","2026-10-12",true,""),
         new DnsProfile("xbox","Xbox DNS",new[]{"111.88.96.54","111.88.96.55"},new[]{"2a00:ab00:1233:26::50","2a00:ab00:1233:26::51"},"https://xbox-dns.ru/dns-query","https://xbox-dns.ru/","2026-10-12",false,"The operator reports that Xbox DNS is unavailable. New application is blocked; existing settings are preserved."),
@@ -54,6 +60,7 @@ public interface IDnsSettingsReader {IReadOnlyList<DnsAdapter> Adapters();DnsSna
 public interface IDnsSettingsWriter {void Write(Guid adapter,DnsFamily family,DnsFamilySettings settings);}
 public sealed record DnsJournal(int Schema,Guid Id,string Owner,DnsSnapshot Before,DnsSnapshot Expected,DnsSnapshot Target,DnsFamily[] Families,DnsPhase Phase,DnsFamily? Pending,string CreatedUtc,string Message)
 {
+    public string ProfileId {get;init;}="";
     public bool Active=>Phase!=DnsPhase.Restored;
 }
 public interface IDnsJournalStore {DnsJournal? Load(Guid adapter);void Save(DnsJournal journal);}
@@ -64,13 +71,14 @@ public sealed class DnsTransaction
 {
     readonly IDnsSettingsReader reader;readonly IDnsSettingsWriter writer;readonly IDnsJournalStore store;readonly string owner;
     public DnsTransaction(IDnsSettingsReader reader,IDnsSettingsWriter writer,IDnsJournalStore store,string owner){this.reader=reader;this.writer=writer;this.store=store;this.owner=owner;}
-    public DnsJournal Apply(DnsSnapshot approved,DnsSnapshot target,DnsFamily[] families)
+    public DnsJournal Apply(DnsSnapshot approved,DnsSnapshot target,DnsFamily[] families,string profileId="")
     {
         Validate(approved,target,families);
+        DnsProfiles.ValidateSelection(profileId,target,families);
         var previous=store.Load(approved.AdapterId);if(previous?.Active==true)throw new DnsException("Restore the existing DNS transaction before applying another profile.");
         var current=reader.Read(approved.AdapterId);
         if(!current.CanChange||!current.SameConfiguration(approved))throw new DnsException("DNS settings changed before application. Refresh and review them again.");
-        var j=new DnsJournal(1,Guid.NewGuid(),owner,current,current,target,families,DnsPhase.Prepared,null,DateTime.UtcNow.ToString("O"),"");
+        var j=new DnsJournal(1,Guid.NewGuid(),owner,current,current,target,families,DnsPhase.Prepared,null,DateTime.UtcNow.ToString("O"),""){ProfileId=profileId};
         store.Save(j); // No system write is allowed if the durable baseline could not be saved.
         try{
             foreach(var family in families){
