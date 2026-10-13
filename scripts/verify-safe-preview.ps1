@@ -20,7 +20,18 @@ function RunPreview([string[]]$Arguments) {
 $before=DnsFingerprint
 if((RunPreview @('--startup-probe')) -ne 0){throw 'Direct preview startup failed'}
 $probe=Get-Content -LiteralPath (Join-Path $root 'test-results/preview/Logs/startup-probe.json') -Raw | ConvertFrom-Json
-if(!$probe.TestMode -or $probe.LaunchCount -ne 0 -or $probe.Data -ne (Join-Path $root 'test-results/preview')){throw 'Direct EXE failed preview isolation'}
+if(!$probe.TestMode){throw 'Direct EXE failed simulation mode'}
+if($probe.LaunchCount -ne 0){throw 'Direct EXE launched a tool'}
+# Hosted Windows can expose TEMP as RUNNER~1 while ProcessPath contains the long name.
+# Compare existing directories after expanding 8.3 aliases and normalizing separators.
+Add-Type -Namespace OpenNet.Checks -Name PreviewPaths -MemberDefinition '[System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet=System.Runtime.InteropServices.CharSet.Unicode, SetLastError=true)] public static extern uint GetLongPathName(string path, System.Text.StringBuilder buffer, uint length);'
+function LongDirectory([string]$Path) {
+    $buffer=[Text.StringBuilder]::new(32768)
+    $length=[OpenNet.Checks.PreviewPaths]::GetLongPathName([IO.Path]::GetFullPath($Path),$buffer,32768)
+    if(!$length -or $length -ge 32768){throw 'Could not resolve preview directory identity'}
+    $buffer.ToString().TrimEnd('\','/')
+}
+if(![StringComparer]::OrdinalIgnoreCase.Equals((LongDirectory $probe.Data),(LongDirectory (Join-Path $root 'test-results/preview')))){throw 'Direct EXE failed preview directory isolation'}
 foreach($entry in @('--dns-elevated','--elevated','--autostart','--self-test','--installer-test')) {
     if((RunPreview @($entry)) -ne 2){throw "Preview did not reject $entry"}
 }
