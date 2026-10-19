@@ -31,6 +31,7 @@ public static class TestsHeadless
    try{foreach(bool dark in new[]{true,false}){ThemeManager.SystemDarkForTests=()=>dark;ThemeManager.SetMode("system");TestsFluent.Geometry(shell);Check(ThemeManager.IsDark==dark,"System palette follows provider including new vectors");}}
    finally{ThemeManager.SystemDarkForTests=provider;ThemeManager.SetMode(mode);}
   });
+  Tests033.Headless(Test,files);
   File.WriteAllText(Path.Combine(files.Data,"headless-tests.json"),JsonSerializer.Serialize(new{Total=results.Count,Failed=failed,NetworkToolsLaunched=false,Results=results},new JsonSerializerOptions{WriteIndented=true}));return failed==0?0:1;
  }
 }

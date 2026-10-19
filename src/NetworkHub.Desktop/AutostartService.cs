@@ -20,7 +20,7 @@ public sealed class IsolatedStartupStore:IStartupStore
     public void Write(string name,string command)=>values[name]=command;
     public void Delete(string name)=>values.Remove(name);
 }
-public sealed record StartupReceipt(string Name,string Command,string Executable,string InstallationId);
+public sealed record StartupReceipt(string Name,string Command,string Executable,string InstallationId){public string Mode {get;init;}="run";}
 public sealed record StartupStatus(bool Registered,bool NeedsRepair,string Message);
 // Registration changes happen only after Save/Repair, never during ordinary startup.
 public sealed class AutostartService(AppFiles files,IStartupStore store,string executable)
@@ -36,6 +36,7 @@ public sealed class AutostartService(AppFiles files,IStartupStore store,string e
         return command;
     }
     StartupReceipt? Receipt()=>File.Exists(ReceiptPath)?JsonSerializer.Deserialize<StartupReceipt>(File.ReadAllText(ReceiptPath)):null;
+    internal bool HasScheduledReceipt=>Receipt()?.Mode=="task";
     string Name(UserSettings settings)
     {
         if(!files.Portable)return EntryName(false,"");
@@ -51,7 +52,8 @@ public sealed class AutostartService(AppFiles files,IStartupStore store,string e
             var receipt=Receipt();string name=Name(settings),value=store.Read(name)??"";
             if(!Ours(receipt,settings,name,value))return new(false,receipt!=null&&value=="",L.T("The startup entry is missing or was changed outside Open Net. Other entries are left unchanged."));
             if(receipt!.Command!=Command)return new(true,true,L.T("Open Net was moved. Repair its startup entry to use this location."));
-            return new(true,false,L.T("Open Net will start in the tray. Network tools stay off."));
+            if(store is WindowsStartupStore&&receipt.Mode!=(settings.AutoStartTools?"task":"run"))return new(true,true,L.T("Save startup settings again to repair the registration mode."));
+            return new(true,false,L.T(settings.AutoStartTools?"Windows will start Open Net and the selected tools. The startup task runs with administrator privileges.":"Open Net will start with Windows. Automatic tool launch is off."));
         }catch(Exception ex){return new(false,false,L.T("Could not check Windows startup: ")+L.Error(ex));}
     }
     public void Configure(UserSettings settings,Action persist)
@@ -65,13 +67,15 @@ public sealed class AutostartService(AppFiles files,IStartupStore store,string e
         // A portable copy at a second still-existing location must not hijack the first copy.
         if(settings.StartWithWindows&&files.Portable&&receipt!=null&&receipt.Executable!=Path.GetFullPath(executable)&&File.Exists(receipt.Executable))throw new InvalidOperationException(L.T("Another portable copy still owns this startup entry. Disable startup there before registering this copy."));
         bool changed=false;
+        object? snapshot=name!=""&&store is ITransactionalStartupStore transaction?transaction.Capture(name):null;
         try{
-            if(settings.StartWithWindows){store.Write(name,Command);changed=true;WriteReceipt(JsonSerializer.Serialize(new StartupReceipt(name,Command,Path.GetFullPath(executable),files.Portable?settings.StartupInstallationId:"")));}
+            if(settings.StartWithWindows){changed=true;store.Write(name,Command);WriteReceipt(JsonSerializer.Serialize(new StartupReceipt(name,Command,Path.GetFullPath(executable),files.Portable?settings.StartupInstallationId:""){Mode=store is ITransactionalStartupStore backend?backend.Mode:"run"}));}
             else{if(previous!=null){store.Delete(name);changed=true;}if(File.Exists(ReceiptPath))File.Delete(ReceiptPath);}
             persist();
         }catch{
             try{
-                if(changed){string? current=store.Read(name);if(current==(settings.StartWithWindows?Command:null)){if(previous==null)store.Delete(name);else store.Write(name,previous);}}
+                if(snapshot!=null&&store is ITransactionalStartupStore transactional)transactional.Rollback(name,snapshot);
+                else if(changed){string? current=store.Read(name);if(current==(settings.StartWithWindows?Command:null)){if(previous==null)store.Delete(name);else store.Write(name,previous);}}
                 if(oldReceipt==null){if(File.Exists(ReceiptPath))File.Delete(ReceiptPath);}else WriteReceipt(oldReceipt);
             }catch(Exception ex){files.Log("Startup rollback: "+ex);}
             throw;

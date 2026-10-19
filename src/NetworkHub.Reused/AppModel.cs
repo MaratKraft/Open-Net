@@ -25,6 +25,8 @@ public sealed class UserSettings
     public bool CloseToTray { get; set; } = true;
     public bool ConfirmStartStop { get; set; } = true;
     public bool StartWithWindows { get; set; } = false;
+    public bool AutoStartTools { get; set; } = false;
+    public bool StartupInTray { get; set; } = true;
     public string StartupInstallationId { get; set; } = "";
     public UserSettings Copy()=>JsonSerializer.Deserialize<UserSettings>(JsonSerializer.Serialize(this))!;
     public ModulePreferences ForModule(string id)=>id switch {

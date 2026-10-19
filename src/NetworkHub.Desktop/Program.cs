@@ -14,6 +14,7 @@ internal static class Program
         try
         {
             if(args.Length>0&&args[0]=="--elevated")return ElevatedActions.Run(args);
+            if(args.Length>0&&args[0]=="--startup-register")return StartupRegistration.Run(args);
 #if OPENNET_TESTING
             if(args.Length>0&&args[0]=="--safe-stub")return SafeStub.Run(args.Skip(1).ToArray());
             bool test=args.Contains("--test-mode"),selfTest=args.Contains("--self-test");
@@ -38,7 +39,7 @@ internal static class Program
             SelfTests.NetworkRequested=args.Contains("--installer-test");
             if(data!=null&&(!test||!NetworkHub.Core.Paths.Within(data,Path.Combine(root,"test-results"))))throw new ArgumentException(L.T("Test data must be in test-results next to the EXE."));
 #endif
-            var files=PortableStartup.Open(root,data);files.Log("Startup 0.3.2; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+            var files=PortableStartup.Open(root,data);files.Log("Startup 0.3.3; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
             AppIdentity.Apply(files.Log);
             using var instance=new SingleInstance(files.Data,files.Log);
             if(!instance.Primary)
@@ -67,7 +68,7 @@ internal static class Program
             if(args.Contains("--startup-probe")&&!autostart)shell.Window.ContentRendered+=async(_,_)=>await Probe();
             try
             {
-                if(autostart){app.MainWindow=shell.Window;shell.StartHidden();if(args.Contains("--startup-probe"))app.Dispatcher.BeginInvoke(new Action(async()=>await Probe()));app.Run();}
+                if(autostart){app.MainWindow=shell.Window;if(shell.Settings.StartupInTray)shell.StartHidden();else shell.Window.Show();app.Dispatcher.BeginInvoke(new Action(async()=>await shell.RunWindowsStartup(args.Contains("--startup-probe"))));if(args.Contains("--startup-probe"))app.Dispatcher.BeginInvoke(new Action(async()=>await Probe()));app.Run();}
                 else app.Run(shell.Window);
                 return shell.ExitCode;
             }
@@ -80,7 +81,7 @@ internal static class Program
 #endif
             string details="",diagnosticRoot=Path.GetDirectoryName(Environment.ProcessPath!)!;
             if(!File.Exists(Path.Combine(diagnosticRoot,"portable.flag")))try{string diagnostic=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net","Startup-errors");Directory.CreateDirectory(diagnostic);File.WriteAllText(Path.Combine(diagnostic,DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")+".log"),ex.ToString());details=L.T("\nDetails: ")+diagnostic;}catch(IOException){}catch(UnauthorizedAccessException){}
-            MessageBox.Show(NetworkHub.Core.LogSafety.Redact(L.Error(ex))+details,L.T("Open Net — error"),MessageBoxButton.OK,MessageBoxImage.Error);return 1;
+            if(!args.Contains("--autostart"))MessageBox.Show(NetworkHub.Core.LogSafety.Redact(L.Error(ex))+details,L.T("Open Net — error"),MessageBoxButton.OK,MessageBoxImage.Error);return 1;
         }
     }
 }

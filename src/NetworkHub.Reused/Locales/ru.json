@@ -330,5 +330,19 @@
   "Cancel": "Отмена",
   "OK": "ОК",
   "Open Open Net on GitHub": "Открыть GitHub Open Net",
-  "Could not open the browser. Open github.com/MaratKraft/Open-Net manually.": "Не удалось открыть браузер. Откройте github.com/MaratKraft/Open-Net вручную."
+  "Could not open the browser. Open github.com/MaratKraft/Open-Net manually.": "Не удалось открыть браузер. Откройте github.com/MaratKraft/Open-Net вручную.",
+  "Apply with Save. Automatic tools require separate approval.": "Применяется кнопкой «Сохранить». Автозапуск инструментов требует отдельного согласия.",
+  "Automatically start selected tools": "Автоматически запускать выбранные инструменты",
+  "Start in the tray at Windows logon": "При входе в Windows запускать в трее",
+  "Uses Task Scheduler with administrator privileges. Windows asks for permission when registering, not at every logon.": "Использует Планировщик с правами администратора. Windows запрашивает разрешение при регистрации, а не при каждом входе.",
+  "Manual launch still opens the main window. Windows controls notification icon placement.": "Ручной запуск открывает главное окно. Расположением значка в области уведомлений управляет Windows.",
+  "Windows will start Open Net and the selected tools. The startup task runs with administrator privileges.": "Windows запустит Open Net и выбранные инструменты. Задача автозапуска работает с правами администратора.",
+  "Open Net will start with Windows. Automatic tool launch is off.": "Open Net запустится с Windows. Автозапуск инструментов выключен.",
+  "Save startup settings again to repair the registration mode.": "Сохраните настройки автозапуска ещё раз для исправления регистрации.",
+  "The startup task was changed outside Open Net. It was left unchanged.": "Задача автозапуска изменена вне Open Net. Она оставлена без изменений.",
+  "Duplicate startup registrations require review. No registration was changed.": "Обнаружено несколько записей автозапуска. Нужна проверка; записи не изменены.",
+  "Open Net — automatic tools": "Open Net — автозапуск инструментов",
+  "Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons.": "Разрешить автоматический запуск выбранных инструментов? Регистрация видимой задачи в Планировщике запросит UAC. После входа Open Net и выбранные инструменты будут работать с правами администратора. Храните приложение в доверенной папке. Пароль не сохраняется. Выбор инструментов сохраняется и действует при следующих входах.",
+  "The startup helper did not start.": "Помощник настройки автозапуска не запустился.",
+  "Windows startup registration failed.": "Не удалось зарегистрировать автозапуск Windows."
 }

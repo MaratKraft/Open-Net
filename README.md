@@ -34,7 +34,7 @@ Zapret and TG WS Proxy are not included; install them through Open Net. [Release
 - Mica, Acrylic and Solid materials, with a solid fallback where needed.
 - Official component installation and compatible updates independently of the shell.
 - Verified release import, component rollback and separate module settings.
-- Standard/Portable storage, system tray and optional shell-only Windows startup.
+- Standard/Portable storage, system tray and separately approved Windows startup for selected tools.
 - English and Russian interface.
 
 There is no VPN or DNS manager in this version. Future incompatible upstream executable or strategy formats can require an adapter update; version numbers alone do not require a new Open Net release.
@@ -48,7 +48,7 @@ There is no VPN or DNS manager in this version. Future incompatible upstream exe
 
 The **refresh arrow** checks for component updates. Compatible official updates can be installed without updating Open Net itself. External processes are left unchanged. Before forced TG termination, unsaved-settings protection can require confirmation.
 
-Closing the main window hides it in the tray by default; choose **Exit** in the tray menu to close the shell. Exiting does not automatically stop running network tools. Windows startup is off by default and, when enabled, starts only Open Net.
+Closing the main window hides it in the tray by default; choose **Exit** in the tray menu to close the shell. Exiting does not automatically stop running network tools. Windows startup and automatic tool launch are off by default. Shell-only startup retains Run; explicitly approved automatic tools use one interactive logon task with administrator privileges.
 
 ## Requirements
 
@@ -83,10 +83,14 @@ On Windows x64 with PowerShell 7 and **.NET SDK 10.0.100**, run from the reposit
 ./scripts/publish.ps1
 ```
 
-Output: `publish/Open Net 0.3.2/Open Net.exe`. The Release build is self-contained, compressed single-file, win-x64, runtime 10.0.12, without trimming or debug symbols. [BUILD.md](docs/BUILD.md) covers caches, safe tests, packaging and checksum differences between environments.
+Output: `publish/Open Net 0.3.3/Open Net.exe`. The Release build is self-contained, compressed single-file, win-x64, runtime 10.0.12, without trimming or debug symbols. [BUILD.md](docs/BUILD.md) covers caches, safe tests, packaging and checksum differences between environments.
 
 ## Credits and License
 
 Thanks to [Flowseal / Zapret](https://github.com/Flowseal/zapret-discord-youtube), [Flowseal / TG WS Proxy](https://github.com/Flowseal/tg-ws-proxy), [bol-van](https://github.com/bol-van/zapret), [WinDivert](https://github.com/basil00/WinDivert), [Cygwin](https://cygwin.com/), the [.NET](https://github.com/dotnet/runtime), [WPF](https://github.com/dotnet/wpf), [Windows Forms](https://github.com/dotnet/winforms) and [Fluent](https://github.com/microsoft/fluentui-system-icons) contributors.
 
 Original Open Net code and documentation: [MIT](LICENSE), copyright 2026 MaratKraft. Third-party dependencies and brand symbols retain their separate terms; project artwork is not given a separate trademark license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and **Settings → About and licenses**. Download the release's `LICENSE.txt` alongside Standard; Portable already includes it. Open Net is independent and does not imply upstream endorsement.
+
+## v0.3.3 development
+
+This branch adds separately approved automatic tool startup and an optional logon task, with tray launch enabled by default. Existing users remain opted out of automatic tool launch. See [setup, privileges, Portable repair and manual logon trial](docs/AUTOSTART_033_RU.md). Stable v0.3.2 and the separate DNS Manager alpha are unchanged.

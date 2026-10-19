@@ -32,6 +32,8 @@ public sealed class Shell : IDisposable
     private Task? refreshTask;
     private bool stopping;
     private bool configuring;
+    private bool startupHandled;
+    private readonly WindowsStartupLaunch startupLaunch=new();
     private Window? settingsWindow;
     private readonly Dictionary<string,Window> moduleWindows=new();
     private readonly Dictionary<string,string> moduleMessages=new();
@@ -71,7 +73,7 @@ public sealed class Shell : IDisposable
         try{Settings=Installer.ApplyManaged(Settings);}catch(Exception ex){errors["settings"]=ex.Message;files.Log("Module manifest: "+ex.Message);}
         if(!File.Exists(files.SettingsPath))files.Save(Settings);
         Runtime=new ToolRuntime(files,testMode);
-        Autostart=new AutostartService(files,testMode?new IsolatedStartupStore():new RegistryStartupStore(),Environment.ProcessPath!);
+        Autostart=new AutostartService(files,testMode?new IsolatedStartupStore():new WindowsStartupStore(false),Environment.ProcessPath!);
         icon=IconFactory.TrayIcon(96);Window.Icon=IconFactory.WindowIcon();FocusCues.Attach(Window);
         updatingChecks=true; Find<CheckBox>("ZapretCheck").IsChecked=Settings.ZapretSelected; Find<CheckBox>("TgCheck").IsChecked=Settings.TgSelected;updatingChecks=false;
         Find<CheckBox>("ZapretCheck").Checked+=ChoiceChanged; Find<CheckBox>("ZapretCheck").Unchecked+=ChoiceChanged;
@@ -303,8 +305,35 @@ public sealed class Shell : IDisposable
         if(settings.StartWithWindows!=Settings.StartWithWindows)Autostart.Configure(settings,()=>ApplySettings(settings));
         else ApplySettings(settings);
     }
+    internal async Task ApplyGeneralSettingsAsync(UserSettings settings,bool repair=false)
+    {
+        if(settings.AutoStartTools&&!Settings.AutoStartTools&&!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return;
+        bool registration=repair||settings.StartWithWindows!=Settings.StartWithWindows||settings.AutoStartTools!=Settings.AutoStartTools;
+        if(registration&&!Runtime.TestMode&&(settings.StartWithWindows&&settings.AutoStartTools||Autostart.HasScheduledReceipt)){
+            Busy=true;Render();try{await StartupRegistration.Configure(files,settings);ApplySettings(files.Load());}finally{Busy=false;Render();}
+        }else if(registration)Autostart.Configure(settings,()=>ApplySettings(settings));
+        else ApplySettings(settings);
+    }
     public void RepairStartup(){var next=Settings.Copy();next.StartWithWindows=true;Autostart.Configure(next,()=>ApplySettings(next));}
     public void StartHidden(){Window.ShowInTaskbar=false;new WindowInteropHelper(Window).EnsureHandle();_ =Refresh();}
+    internal async Task RunWindowsStartup(bool probe=false)
+    {
+        if(startupHandled)return;startupHandled=true;
+        if(probe||!WindowsStartupLaunch.Allowed(Settings))return;
+        // One bounded grace period for logon; never wait for Internet availability.
+        await Task.Delay(Runtime.TestMode?1:5000);
+        if(exiting||Busy||!WindowsStartupLaunch.Allowed(Settings))return;
+        if(errors.ContainsKey("settings")){files.Log("Windows startup blocked: settings could not be loaded safely.");return;}
+        var registration=Autostart.Inspect(Settings);
+        if(!registration.Registered||registration.NeedsRepair){files.Log("Windows startup blocked: "+registration.Message);ShowMessage(registration.Message);return;}
+        await Refresh();if(exiting||Busy)return;
+        var approved=Settings.Copy();Busy=true;var messages=new List<string>();Render();
+        try{await startupLaunch.Run(approved,id=>Runtime.Observe(id,approved),id=>Runtime.Start(id,approved,true),(id,message,failed)=>{
+            if(failed)errors[id]=message;else errors.Remove(id);
+            string line=(id=="zapret"?"Zapret: ":"TG: ")+message;messages.Add(line);files.Log("Windows startup: "+line);
+        });}
+        finally{Busy=false;await Refresh();if(messages.Count>0)ShowMessage(string.Join("\n",messages));}
+    }
     public static string StateLabel(ObservedState state)=>Label(state);
     public ModuleDetails DescribeModule(string id)
     {
