@@ -16,7 +16,7 @@ public static class Tests031
  {
   await test("031 defaults and general Save preserve module settings and persist confirmation preference",()=>{
    var saved=shell.Settings.Copy();try{
-    Check(new UserSettings().ConfirmStartStop&&!new UserSettings().StartWithWindows,"Safe defaults");
+    Check(!new UserSettings().ConfirmStartStop&&!new UserSettings().StartWithWindows,"Fresh-install defaults");
     var next=saved.Copy();next.Strategy="general (ALT13).bat";next.LastWorkingStrategy="general.bat";shell.ApplySettings(next);
     var view=shell.OpenSettings();Check(view.FindName("Strategy")==null&&view.FindName("TgPath")==null,"No module paths in general settings");
     ((CheckBox)view.FindName("ConfirmStartStop")).IsChecked=false;((Button)view.FindName("SaveSettings")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

@@ -23,7 +23,9 @@ internal static class Tests033
     {
         test("033 migration: existing startup never opts into automatic tools; selection round-trips",()=>{
             var legacy=JsonSerializer.Deserialize<UserSettings>("{\"StartWithWindows\":true,\"ZapretSelected\":true,\"TgSelected\":false,\"Strategy\":\"general.bat\"}")!;
-            Check(!legacy.AutoStartTools&&legacy.StartupInTray,"Legacy opt-in/default changed");var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"033-settings"));isolated.Save(legacy);var actual=isolated.Load();Check(actual.ZapretSelected&&!actual.TgSelected&&actual.Strategy=="general.bat"&&!actual.AutoStartTools,"Choice lost");
+            Check(!legacy.AutoStartTools&&legacy.StartupInTray,"Legacy opt-in/default changed");var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"033-settings"));Check(!isolated.Load().ConfirmStartStop,"Fresh install has routine prompts");isolated.Save(legacy);var actual=isolated.Load();Check(actual.ZapretSelected&&!actual.TgSelected&&actual.Strategy=="general.bat"&&!actual.AutoStartTools,"Choice lost");
+            foreach(bool enabled in new[]{true,false}){actual.ConfirmStartStop=enabled;isolated.Save(actual);Check(isolated.Load().ConfirmStartStop==enabled,"Existing confirmation choice lost");}
+            File.WriteAllText(isolated.SettingsPath,"{\"Language\":\"ru\"}");Check(isolated.Load().ConfirmStartStop,"Old profile without preference changed unexpectedly");
         });
         test("033 task XML: interactive user only, highest, one action, no password, bounded logon delay",()=>{
             string exe=Path.Combine(files.Root,"Кириллица с пробелами","Open Net.exe"),command=AutostartService.CommandFor(exe),sid="S-1-5-21-1-2-3-1001";
