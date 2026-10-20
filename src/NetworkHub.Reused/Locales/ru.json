@@ -377,5 +377,10 @@
   "Settings saved:": "Настройки сохранены:",
   "Current command:": "Текущая команда:",
   "has not run": "ещё не выполнялась",
-  "No Windows startup registration exists yet. Save settings to complete setup.": "Автозапуск Windows ещё не настроен. Сохраните настройки, чтобы завершить настройку."
+  "No Windows startup registration exists yet. Save settings to complete setup.": "Автозапуск Windows ещё не настроен. Сохраните настройки, чтобы завершить настройку.",
+  "General preferences. Tool settings are in the main window.": "Общие параметры. Настройки инструментов — в главном окне.",
+  "Startup details": "Подробности автозапуска",
+  "Windows startup is configured. Selected tools will start at logon.": "Автозапуск настроен · выбранные инструменты будут запускаться при входе",
+  "Windows startup is configured for Open Net only.": "Автозапуск настроен только для Open Net.",
+  "Startup setup needs attention. Open details.": "Настройка автозапуска требует внимания. Откройте подробности."
 }
