@@ -30,7 +30,7 @@ Recommended startup switches are preselected on a fresh install. First launch as
 Native .NET libraries can be extracted to Windows temporary storage.
 Zapret needs UAC approval; TG WS Proxy has its own native UI and tray.
 Exiting Open Net does not automatically stop network tools.
-Real Windows 10, live network/UAC and physical DPI validation remain pending.
+Reboot, settings, automatic tools and tray were confirmed by the owner on their PC. Physical Windows 10 and multi-monitor/DPI remain unverified.
 Original code: MIT, see LICENSE.txt. Third-party notices: Notices/ and About in the app.
 Documentation: https://github.com/MaratKraft/Open-Net
 
@@ -40,7 +40,7 @@ Zapret и TG WS Proxy устанавливаются отдельно через
 Устанавливать .NET/Python отдельно не нужно. Нативные библиотеки .NET могут извлекаться во временную папку Windows.
 Zapret требует UAC; TG WS Proxy сохраняет собственный интерфейс и трей.
 Выход из Open Net не останавливает сетевые инструменты автоматически.
-Реальная Windows 10, сетевая работа/UAC и физические DPI-конфигурации ещё требуют проверки.
+Перезагрузка, настройки, автозапуск инструментов и трей подтверждены владельцем на его ПК. Физическая Windows 10 и разные мониторы/DPI не проверены.
 Собственный код: MIT, см. LICENSE.txt. Сторонние лицензии: Notices/ и раздел «О программе».
 '@
     }

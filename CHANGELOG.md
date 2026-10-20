@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.3 — 2026-10-21
+
+- Explicitly approved Windows logon startup of selected tools and optional tray launch; existing preferences are retained.
+- Correct normalized Task Scheduler readback, preserve startup intent, and offer explicit registration recovery.
+- Compact Settings layout with grouped behavior switches, concise diagnostics and pinned Import/Save actions.
+- Rounded scrollbars retain minimum thumb geometry for long license and log text.
+- Updated Solid screenshots, early Standard/Portable downloads and startup documentation.
+
 ## v0.3.2 Stable — 2026-10-12
 
 - Approved compact variant A: original 1.4 DIP rounded Refresh/Download contours, a short straight download bar, 15.8 DIP Settings and 16 DIP Select. Gear centering stays fixed across action/loading states. The owner's second rounded Zapret SVG replaces the preceding SVG after staged visual approval.

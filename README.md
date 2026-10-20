@@ -3,7 +3,7 @@
 <p align="center">A minimal Windows manager for Zapret and TG WS Proxy.</p>
 <p align="center">
 <img alt="Windows 10 / 11 x64" src="https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-0078D4">
-<img alt="0.3.2 Stable" src="https://img.shields.io/badge/version-0.3.2%20Stable-369B59">
+<img alt="0.3.3 Stable" src="https://img.shields.io/badge/version-0.3.3%20Stable-369B59">
 <a href="LICENSE"><img alt="MIT — Open Net code" src="https://img.shields.io/badge/license-MIT-369B59"></a>
 </p>
 
@@ -11,21 +11,21 @@
 
 Install supported network tools, choose their settings and manage them from one small window. Open Net is an independent project; the tools retain their own behavior and licenses.
 
-## Screenshots
-
-[![Open Net main window and settings](assets/screenshots/v0.3.2/overview.png)](assets/screenshots/v0.3.2/overview.png)
-
-Real Open Net 0.3.2 windows with **Solid** material, placed on a dark neutral background. The main-window captures use the verified safe test state; the settings capture uses the approved production EXE and an isolated profile. Shown tools are not bundled. Click an image for its original size. [Settings screenshot](assets/screenshots/v0.3.2/settings.png).
-
 ## Download
 
-**[Standard — recommended](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.2/Open-Net-0.3.2-Windows-x64.exe)**<br>
+**[Standard — recommended](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/Open-Net-0.3.3-Windows-x64.exe)**<br>
 Download the EXE and run it. Data stays in `%LOCALAPPDATA%\Open Net`.
 
-**[Portable ZIP](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.2/Open-Net-0.3.2-Windows-x64-Portable.zip)**<br>
+**[Portable ZIP](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/Open-Net-0.3.3-Windows-x64-Portable.zip)**<br>
 Extract into a separate folder and run `Open Net.exe`. Data stays beside the application.
 
-Zapret and TG WS Proxy are not included; install them through Open Net. [Releases](https://github.com/MaratKraft/Open-Net/releases) · [Latest stable release](https://github.com/MaratKraft/Open-Net/releases/latest).
+[SHA-256](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/SHA256SUMS.txt) · Zapret and TG WS Proxy are not included; install them through Open Net. [Releases](https://github.com/MaratKraft/Open-Net/releases) · [Latest stable release](https://github.com/MaratKraft/Open-Net/releases/latest).
+
+## Screenshots
+
+[![Open Net main window and settings](assets/screenshots/v0.3.3/overview.png)](assets/screenshots/v0.3.3/overview.png)
+
+Real Open Net 0.3.3 windows with **Solid** material, without enlarging the captures. Components are installed separately. Click for the original size. [Settings](assets/screenshots/v0.3.3/settings.png).
 
 ## Features
 
@@ -48,13 +48,23 @@ There is no VPN or DNS manager in this version. Future incompatible upstream exe
 
 The **refresh arrow** checks for component updates. Compatible official updates can be installed without updating Open Net itself. External processes are left unchanged. Before forced TG termination, unsaved-settings protection can require confirmation.
 
-Closing the main window hides it in the tray by default; choose **Exit** in the tray menu to close the shell. Exiting does not automatically stop running network tools. A fresh installation preselects Windows startup, automatic selected tools and startup in tray, with routine start/stop prompts off. First launch offers registration with explicit approval and UAC; checked preferences alone do not register a task or launch tools. Existing preferences are preserved. Shell-only startup retains Run; approved automatic tools use one interactive logon task with administrator privileges.
+Closing the main window hides it in the tray by default. Choose **Exit** in the tray menu to close Open Net; this does not automatically stop running tools.
+
+## Windows Startup
+
+- **Start with Windows** starts Open Net after you sign in.
+- **Automatically start selected tools** separately permits the installed, selected Zapret/TG tools to start at logon.
+- **Start in the tray at Windows logon** keeps the main window closed; manual launch still opens it. Windows controls notification icon placement.
+
+Fresh installations preselect the recommended startup options, but activation requires your explicit approval and UAC. Existing preferences are preserved; upgrading does not silently enable automatic tools. Routine start/stop prompts are off by default for new profiles.
+
+Save your choices in **Settings**. Automatic tools use one visible per-user Task Scheduler entry with administrator privileges; Open Net and its tools then run elevated. No password is stored. Keep the application and modules in a trusted folder. Shell-only startup uses the existing Windows Run entry. [Setup and Portable relocation](docs/AUTOSTART_033_RU.md).
 
 ## Requirements
 
 Windows 10/11 **x64**, writable data storage and access to official GitHub releases for first-time component installation. Administrator approval is required for Zapret operations involving WinDivert. The shell includes .NET 10.0.12; a separate .NET or Python installation is unnecessary.
 
-Current checks cover Windows 11. Real Windows 10, physical multi-monitor/DPI combinations, actual Windows sign-in startup and live network/UAC behavior still require target-machine checks. Stable is a release designation, not a guarantee of zero bugs or universal provider compatibility. See [validation](docs/VALIDATION_v0.3.2_RELEASE.md).
+The owner confirmed R8 reboot/logon startup, saved settings, selected tools, tray and UI on their PC. Physical Windows 10 and multi-monitor/DPI configurations remain unverified. See [validation](docs/VALIDATION_v0.3.3_RELEASE.md).
 
 ## Storage and Troubleshooting
 
@@ -66,11 +76,11 @@ Current checks cover Windows 11. Real Windows 10, physical multi-monitor/DPI com
 
 **Unsigned application:** the EXE is not Authenticode-signed, so SmartScreen may warn about an unknown publisher. Check the repository, version tag and checksums before running it. Do not disable Windows protections. A matching hash establishes integrity, not a guarantee of safety.
 
-Compare with the release's [SHA256SUMS.txt](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.2/SHA256SUMS.txt):
+Compare with the release's [SHA256SUMS.txt](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/SHA256SUMS.txt):
 
 ```powershell
-Get-FileHash .\Open-Net-0.3.2-Windows-x64.exe -Algorithm SHA256
-Get-FileHash .\Open-Net-0.3.2-Windows-x64-Portable.zip -Algorithm SHA256
+Get-FileHash .\Open-Net-0.3.3-Windows-x64.exe -Algorithm SHA256
+Get-FileHash .\Open-Net-0.3.3-Windows-x64-Portable.zip -Algorithm SHA256
 ```
 
 Use [Issues](https://github.com/MaratKraft/Open-Net/issues) for bugs; include reproduction steps and remove secrets from logs. Follow [SECURITY.md](SECURITY.md) for sensitive reports.
@@ -90,7 +100,3 @@ Output: `publish/Open Net 0.3.3/Open Net.exe`. The Release build is self-contain
 Thanks to [Flowseal / Zapret](https://github.com/Flowseal/zapret-discord-youtube), [Flowseal / TG WS Proxy](https://github.com/Flowseal/tg-ws-proxy), [bol-van](https://github.com/bol-van/zapret), [WinDivert](https://github.com/basil00/WinDivert), [Cygwin](https://cygwin.com/), the [.NET](https://github.com/dotnet/runtime), [WPF](https://github.com/dotnet/wpf), [Windows Forms](https://github.com/dotnet/winforms) and [Fluent](https://github.com/microsoft/fluentui-system-icons) contributors.
 
 Original Open Net code and documentation: [MIT](LICENSE), copyright 2026 MaratKraft. Third-party dependencies and brand symbols retain their separate terms; project artwork is not given a separate trademark license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and **Settings → About and licenses**. Download the release's `LICENSE.txt` alongside Standard; Portable already includes it. Open Net is independent and does not imply upstream endorsement.
-
-## v0.3.3 development
-
-This branch adds separately approved automatic tool startup and an optional logon task, with tray launch enabled by default. Existing users remain opted out of automatic tool launch. See [setup, privileges, Portable repair and manual logon trial](docs/AUTOSTART_033_RU.md). Stable v0.3.2 and the separate DNS Manager alpha are unchanged.
