@@ -382,5 +382,6 @@
   "Startup details": "Подробности автозапуска",
   "Windows startup is configured. Selected tools will start at logon.": "Автозапуск настроен · выбранные инструменты будут запускаться при входе",
   "Windows startup is configured for Open Net only.": "Автозапуск настроен только для Open Net.",
-  "Startup setup needs attention. Open details.": "Настройка автозапуска требует внимания. Откройте подробности."
+  "Startup setup needs attention. Open details.": "Настройка автозапуска требует внимания. Откройте подробности.",
+  "Application behavior": "Поведение приложения"
 }
