@@ -49,6 +49,7 @@ internal static class Program
                 files.Log("Activation failed: "+instance.LastError);if(test)return 1;
                 MessageBox.Show(L.T("Open Net is already open but did not respond. Check its tray icon."),"Open Net");return 1;
             }
+            bool firstRun=!File.Exists(files.SettingsPath);
             var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};var shell=new Shell(files,test,instance);
 #if OPENNET_TESTING
             if(args.Contains("--headless-tests")){try{return TestsHeadless.Run(shell,files);}finally{shell.Exit();shell.Runtime.CloseShell();shell.Dispose();}}
@@ -67,6 +68,9 @@ internal static class Program
                 if(args.Contains("--close-probe"))shell.Window.Close();else shell.Exit();
             }
             if(args.Contains("--startup-probe")&&!autostart)shell.Window.ContentRendered+=async(_,_)=>await Probe();
+            if(firstRun&&!test&&!autostart&&!args.Contains("--startup-probe")){
+                bool offered=false;shell.Window.ContentRendered+=async(_,_)=>{if(offered)return;offered=true;await shell.SetupRecommendedStartup();};
+            }
             try
             {
                 if(autostart){app.MainWindow=shell.Window;if(shell.Settings.StartupInTray)shell.StartHidden();else shell.Window.Show();app.Dispatcher.BeginInvoke(new Action(async()=>await shell.RunWindowsStartup(args.Contains("--startup-probe"))));if(args.Contains("--startup-probe"))app.Dispatcher.BeginInvoke(new Action(async()=>await Probe()));app.Run();}

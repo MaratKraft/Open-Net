@@ -23,9 +23,9 @@ internal static class Tests033
     {
         test("033 migration: existing startup never opts into automatic tools; selection round-trips",()=>{
             var legacy=JsonSerializer.Deserialize<UserSettings>("{\"StartWithWindows\":true,\"ZapretSelected\":true,\"TgSelected\":false,\"Strategy\":\"general.bat\"}")!;
-            Check(!legacy.AutoStartTools&&legacy.StartupInTray,"Legacy opt-in/default changed");var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"033-settings"));Check(!isolated.Load().ConfirmStartStop,"Fresh install has routine prompts");isolated.Save(legacy);var actual=isolated.Load();Check(actual.ZapretSelected&&!actual.TgSelected&&actual.Strategy=="general.bat"&&!actual.AutoStartTools,"Choice lost");
+            Check(!legacy.AutoStartTools&&legacy.StartupInTray,"Legacy opt-in/default changed");var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"033-settings"));var fresh=isolated.Load();Check(!fresh.ConfirmStartStop&&fresh.CloseToTray&&fresh.StartWithWindows&&fresh.AutoStartTools&&fresh.StartupInTray&&fresh.Backdrop=="mica","Recommended fresh preferences differ");isolated.Save(legacy);var actual=isolated.Load();Check(actual.ZapretSelected&&!actual.TgSelected&&actual.Strategy=="general.bat"&&!actual.AutoStartTools,"Choice lost");
             foreach(bool enabled in new[]{true,false}){actual.ConfirmStartStop=enabled;isolated.Save(actual);Check(isolated.Load().ConfirmStartStop==enabled,"Existing confirmation choice lost");}
-            File.WriteAllText(isolated.SettingsPath,"{\"Language\":\"ru\"}");Check(isolated.Load().ConfirmStartStop,"Old profile without preference changed unexpectedly");
+            File.WriteAllText(isolated.SettingsPath,"{\"Language\":\"ru\"}");Check(isolated.Load().ConfirmStartStop&&!isolated.Load().StartWithWindows&&!isolated.Load().AutoStartTools,"Old profile without preference changed unexpectedly");
         });
         test("033 task XML: interactive user only, highest, one action, no password, bounded logon delay",()=>{
             string exe=Path.Combine(files.Root,"Кириллица с пробелами","Open Net.exe"),command=AutostartService.CommandFor(exe),sid="S-1-5-21-1-2-3-1001";
@@ -67,7 +67,7 @@ internal static class Tests033
     {
         await test("033 settings explicit approval, tray default, selection and themes",async()=>{
             var saved=shell.Settings.Copy();try{
-                var next=saved.Copy();next.Language="ru";next.StartWithWindows=true;next.AutoStartTools=true;next.ZapretSelected=next.TgSelected=true;shell.RoutineConfirmationForTests=_=>false;await shell.ApplyGeneralSettingsAsync(next);Check(!shell.Settings.AutoStartTools,"Cancelled approval persisted");
+                var next=saved.Copy();next.Language="ru";next.StartWithWindows=true;next.AutoStartTools=true;next.ZapretSelected=next.TgSelected=true;shell.RoutineConfirmationForTests=_=>false;bool accepted=await shell.ApplyGeneralSettingsAsync(next);Check(!accepted&&!shell.Autostart.Inspect(shell.Settings).Registered,"Cancelled approval registered startup");
                 shell.RoutineConfirmationForTests=_=>true;await shell.ApplyGeneralSettingsAsync(next);Check(files.Load().AutoStartTools&&files.Load().StartupInTray,"Opt-in lost");
                 var view=shell.OpenSettings();Check(view.FindName("AutoStartTools") is CheckBox&&view.FindName("StartupInTray") is CheckBox,"Controls missing");foreach(string theme in new[]{"light","dark"}){ThemeManager.SetMode(theme);view.UpdateLayout();SelfTests.Capture(view,Path.Combine(files.Data,"033-settings-"+theme+".png"));}view.Close();
                 await shell.RunWindowsStartup();await shell.Refresh();Check(shell.Observations.All(o=>o.State==ObservedState.Running),"Safe stubs not started");int count=shell.Runtime.LaunchCount;await shell.RunWindowsStartup();Check(shell.Runtime.LaunchCount==count,"Repeated startup duplicated stubs");await shell.StopSelected(true);

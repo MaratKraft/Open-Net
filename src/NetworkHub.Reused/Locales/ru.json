@@ -376,5 +376,6 @@
   "No confirmed registration receipt exists. Review and repair startup explicitly.": "Нет подтверждения завершённой регистрации. Проверьте и явно восстановите автозапуск.",
   "Settings saved:": "Настройки сохранены:",
   "Current command:": "Текущая команда:",
-  "has not run": "ещё не выполнялась"
+  "has not run": "ещё не выполнялась",
+  "No Windows startup registration exists yet. Save settings to complete setup.": "Автозапуск Windows ещё не настроен. Сохраните настройки, чтобы завершить настройку."
 }

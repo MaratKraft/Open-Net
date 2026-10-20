@@ -26,7 +26,7 @@ Open Net 0.3.3 Stable / Windows x64
 Extract the entire Open Net folder into a writable location. Keep portable.flag.
 Data and Modules stay beside the EXE. Stop tools and exit before moving the folder.
 Zapret and TG WS Proxy are not bundled: install official components in the app.
-Automatic tool launch is off until explicitly enabled in Settings. No separate .NET/Python installation is needed.
+Recommended startup switches are preselected on a fresh install. First launch asks for approval and UAC to register startup; preferences alone do not start tools. No separate .NET/Python installation is needed.
 Native .NET libraries can be extracted to Windows temporary storage.
 Zapret needs UAC approval; TG WS Proxy has its own native UI and tray.
 Exiting Open Net does not automatically stop network tools.
@@ -36,7 +36,7 @@ Documentation: https://github.com/MaratKraft/Open-Net
 
 Распакуйте всю папку Open Net в доступное для записи место. Сохраните portable.flag.
 Data и Modules находятся рядом с EXE. Перед переносом остановите инструменты и выйдите.
-Zapret и TG WS Proxy устанавливаются отдельно через приложение; автозапуск включается отдельно в настройках.
+Zapret и TG WS Proxy устанавливаются отдельно через приложение. В новой установке опции автозапуска выбраны заранее; регистрация требует согласия при первом запуске и UAC.
 Устанавливать .NET/Python отдельно не нужно. Нативные библиотеки .NET могут извлекаться во временную папку Windows.
 Zapret требует UAC; TG WS Proxy сохраняет собственный интерфейс и трей.
 Выход из Open Net не останавливает сетевые инструменты автоматически.

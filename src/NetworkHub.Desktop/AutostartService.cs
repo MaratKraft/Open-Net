@@ -58,7 +58,7 @@ public sealed class AutostartService(AppFiles files,IStartupStore store,string e
             bool owned=Ours(receipt,settings,name,actual.Command),registered=actual.Exists&&owned&&actual.ConfigurationValid;
             bool modeMatches=store is not WindowsStartupStore||actual.Mode==(settings.AutoStartTools?"task":"run");bool pathMatches=string.Equals(actual.Command,Command,StringComparison.OrdinalIgnoreCase);
             bool ready=settings.StartWithWindows&&registered&&actual.Enabled&&modeMatches&&pathMatches;
-            string reason=!actual.ConfigurationValid?actual.Reason:actual.Exists&&!owned?L.T("No confirmed registration receipt exists. Review and repair startup explicitly."):actual.Exists&&!actual.Enabled?L.T("Startup task is disabled. Review and repair the registration explicitly."):actual.Exists&&owned&&!pathMatches?L.T("Open Net was moved. Repair its startup entry to use this location."):actual.Exists&&!modeMatches?L.T("Save startup settings again to repair the registration mode."):!settings.StartWithWindows?L.T(actual.Exists?"Startup preference is off, but a Windows registration still exists.":"Windows startup is off. Network tools never start automatically."):!actual.Exists?L.T("The startup entry is missing or was changed outside Open Net. Other entries are left unchanged."):L.T("Startup registration is ready. Actual logon and tool launch are reported separately.");
+            string reason=!actual.ConfigurationValid?actual.Reason:actual.Exists&&!owned?L.T("No confirmed registration receipt exists. Review and repair startup explicitly."):actual.Exists&&!actual.Enabled?L.T("Startup task is disabled. Review and repair the registration explicitly."):actual.Exists&&owned&&!pathMatches?L.T("Open Net was moved. Repair its startup entry to use this location."):actual.Exists&&!modeMatches?L.T("Save startup settings again to repair the registration mode."):!settings.StartWithWindows?L.T(actual.Exists?"Startup preference is off, but a Windows registration still exists.":"Windows startup is off. Network tools never start automatically."):!actual.Exists?L.T("No Windows startup registration exists yet. Save settings to complete setup."):L.T("Startup registration is ready. Actual logon and tool launch are reported separately.");
             bool repair=actual.Exists&&(!owned||!actual.ConfigurationValid||!actual.Enabled||!pathMatches||!modeMatches||!settings.StartWithWindows)||settings.StartWithWindows&&!actual.Exists;
             return new(registered,repair,reason){Requested=settings.StartWithWindows,SettingsSaved=saved,Exists=actual.Exists,Enabled=actual.Enabled,Owned=owned,ConfigurationValid=actual.ConfigurationValid,Ready=ready,RepairAllowed=actual.Mode=="task"?actual.IdentityMatches&&!actual.Duplicate:owned||!actual.Exists,Mode=actual.Mode,Command=actual.Command??"",TaskHash=actual.TaskHash,TaskName=actual.Runtime?.TaskName??"",LastRunUtc=actual.Runtime?.LastRunUtc,LastTaskResult=actual.Runtime?.LastResult,TaskState=actual.Runtime?.State,HistoryEnabled=actual.Runtime?.HistoryEnabled};
         }catch(Exception ex){return new(false,true,L.T("Could not check Windows startup: ")+L.Error(ex)){Requested=settings.StartWithWindows,SettingsSaved=saved};}
@@ -88,6 +88,11 @@ public sealed class AutostartService(AppFiles files,IStartupStore store,string e
             }catch(Exception ex){files.Log("Startup rollback: "+ex);}
             throw;
         }
+    }
+    internal void ConfigureApproved(UserSettings settings,Action persist,string hash)
+    {
+        if(store is not WindowsStartupStore windows)throw new InvalidOperationException("Task approval requires a task store.");
+        new AutostartService(files,windows.WithApproval(hash),executable).Configure(settings,persist,hash);
     }
     void WriteReceipt(string content){Paths.NoReparseAncestors(ReceiptPath);Directory.CreateDirectory(Path.GetDirectoryName(ReceiptPath)!);string temp=ReceiptPath+"."+Guid.NewGuid().ToString("N")+".tmp";try{File.WriteAllText(temp,content);File.Move(temp,ReceiptPath,true);}finally{if(File.Exists(temp))File.Delete(temp);}}
 }

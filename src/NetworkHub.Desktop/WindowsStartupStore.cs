@@ -23,6 +23,7 @@ internal sealed class WindowsStartupStore(bool scheduled,IStartupStore? runStore
     readonly IScheduledStartupStore tasks=taskStore??new NativeScheduledStartupStore();
     string Sid=>owner??WindowsIdentity.GetCurrent().User!.Value;
     public string Mode=>scheduled?"task":"run";
+    internal WindowsStartupStore WithApproval(string hash)=>new(scheduled,run,tasks,owner,hash);
     internal static string ValidateXml(string xml,string name,string sid)=>StartupTaskContract.Validate(xml,name,sid);
     internal static string XmlFor(string name,string command,string sid)
     {

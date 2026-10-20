@@ -54,6 +54,27 @@ internal static class TestsStartupReadback
     }
     internal static async Task Ui(AppFiles files,Func<string,Func<Task>,Task> test)
     {
+        await test("033 first install: recommended switches require approval and never launch tools",async()=>{
+            var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"startup-ui-first"));var tasks=new Tasks();using var instance=new SingleInstance(isolated.Data,isolated.Log);var shell=new Shell(isolated,true,instance,null,null,new WindowsStartupStore(true,new IsolatedStartupStore(),tasks,Sid));
+            try{
+                int approvals=0;shell.RoutineConfirmationForTests=kind=>{Check(kind=="startup","Unexpected first-run approval");approvals++;return false;};
+                Check(!await shell.ApplyGeneralSettingsAsync(shell.Settings.Copy())&&tasks.Writes==0&&shell.Runtime.LaunchCount==0,"Declining setup changed Windows or launched tools");
+                Check(shell.Settings.StartWithWindows&&shell.Settings.AutoStartTools&&!shell.Settings.ConfirmStartStop,"Declining destroyed recommended choices");
+                shell.RoutineConfirmationForTests=kind=>{approvals++;return true;};Check(await shell.ApplyGeneralSettingsAsync(shell.Settings.Copy())&&shell.Autostart.Inspect(shell.Settings).Ready&&approvals==2,"Approved first setup failed");
+                int writes=tasks.Writes;await shell.ApplyGeneralSettingsAsync(shell.Settings.Copy());Check(tasks.Writes==writes&&approvals==2&&shell.Runtime.LaunchCount==0,"Ordinary save repeated registration or approval");
+            }finally{shell.Dispose();shell.Window.Close();}
+        });
+        await test("033 Save: orphan recovery is offered directly and cancelled repair changes nothing",async()=>{
+            var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"startup-ui-orphan"));var settings=isolated.Defaults();settings.StartupInstallationId=Guid.NewGuid().ToString("N");isolated.Save(settings);string name=AutostartService.EntryName(isolated.Portable,settings.StartupInstallationId);var tasks=new Tasks{Xml=Normalize(WindowsStartupStore.XmlFor(name,AutostartService.CommandFor(Environment.ProcessPath!),Sid))};using var instance=new SingleInstance(isolated.Data,isolated.Log);var shell=new Shell(isolated,true,instance,null,null,new WindowsStartupStore(true,new IsolatedStartupStore(),tasks,Sid));
+            try{
+                int approvals=0;string original=tasks.Xml;shell.RoutineConfirmationForTests=kind=>{Check(kind=="startup-repair","Expected direct repair, not generic startup approval");approvals++;return false;};
+                Check(!await shell.ApplyGeneralSettingsAsync(shell.Settings.Copy())&&tasks.Xml==original&&tasks.Writes==0,"Cancelled repair changed task");
+                shell.RoutineConfirmationForTests=kind=>{Check(kind=="startup-repair","Wrong repair approval");approvals++;return true;};
+                Check(await shell.ApplyGeneralSettingsAsync(shell.Settings.Copy())&&shell.Autostart.Inspect(shell.Settings).Ready&&approvals==2,"Save did not recover orphan directly");
+                int writes=tasks.Writes;await shell.ApplyGeneralSettingsAsync(shell.Settings.Copy());Check(tasks.Writes==writes&&approvals==2,"Recovered task needed another repair");
+                tasks.Xml=tasks.Xml!.Replace("Open Net startup:","Foreign:");bool refused=false;try{await shell.ApplyGeneralSettingsAsync(shell.Settings.Copy());}catch(IOException){refused=true;}Check(refused&&tasks.Writes==writes&&approvals==2,"Foreign source was offered for automatic replacement");
+            }finally{shell.Dispose();shell.Window.Close();}
+        });
         await test("033 UI: registration failure preserves saved intent and same-value retry succeeds",async()=>{
             var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"startup-ui-failure"));var tasks=new Tasks{Denied=true};using var instance=new SingleInstance(isolated.Data,isolated.Log);var shell=new Shell(isolated,true,instance,null,null,new WindowsStartupStore(true,new IsolatedStartupStore(),tasks,Sid));
             try{

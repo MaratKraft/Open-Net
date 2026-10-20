@@ -60,7 +60,9 @@ public sealed class AppFiles
     }
     public UserSettings Defaults()
     {
-        return new();
+        // Recommended first-install preferences; existing JSON keeps its own values.
+        // Registration still requires explicit approval and Windows UAC.
+        return new(){StartWithWindows=true,AutoStartTools=true};
     }
     public UserSettings Load()
     {

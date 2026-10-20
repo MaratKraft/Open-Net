@@ -305,24 +305,35 @@ public sealed class Shell : IDisposable
         if(settings.StartWithWindows!=Settings.StartWithWindows)Autostart.Configure(settings,()=>ApplySettings(settings));
         else ApplySettings(settings);
     }
-    internal async Task ApplyGeneralSettingsAsync(UserSettings settings,bool repair=false)
+    internal async Task<bool> ApplyGeneralSettingsAsync(UserSettings settings,bool repair=false)
     {
-        if(settings.AutoStartTools&&!Settings.AutoStartTools&&!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return;
         var state=Autostart.Inspect(Settings);string? approvedHash=null;
         bool registration=repair||settings.StartWithWindows!=Settings.StartWithWindows||settings.AutoStartTools!=Settings.AutoStartTools||settings.StartWithWindows&&!state.Ready||!settings.StartWithWindows&&state.Exists==true;
+        // Save can offer the same explicit recovery directly, without a preceding error.
+        bool reviewExisting=registration&&state.Exists==true&&(!state.ConfigurationValid||state.Owned!=true||state.Enabled!=true||!string.Equals(state.Command,Autostart.Command,StringComparison.OrdinalIgnoreCase));
+        if(reviewExisting)repair=true;
+        if(settings.StartWithWindows&&settings.AutoStartTools&&(!Settings.AutoStartTools||!state.Registered)&&!reviewExisting&&!repair&&!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return false;
         if(repair&&state.Exists==true){
             if(!state.RepairAllowed)throw new IOException(state.Message);
             string message=L.T("Repair only this Open Net startup registration? The previous task XML will be backed up. Windows will request UAC. Running tools will be left unchanged.")+"\n\n"+state.Message+"\n\n"+L.T("Current command:")+"\n"+state.Command+"\n\n"+L.T("Requested command:")+"\n"+(settings.StartWithWindows?Autostart.Command:L.T("Remove this registration"));
-            if(!AskRoutine("startup-repair",message,L.T("Repair startup entry")))return;approvedHash=state.TaskHash;
+            if(!AskRoutine("startup-repair",message,L.T("Repair startup entry")))return false;approvedHash=state.TaskHash;
         }
         bool hadScheduled=state.Mode=="task"||Autostart.HasScheduledReceipt;
         if(files.Portable&&settings.StartWithWindows&&!Guid.TryParseExact(settings.StartupInstallationId,"N",out _))settings.StartupInstallationId=Guid.NewGuid().ToString("N");
         // Persist user intent independently of the Windows registration transaction.
         ApplySettings(settings);
-        if(registration&&!repair&&state.Exists==true&&(!state.ConfigurationValid||state.Owned!=true||state.Enabled!=true))throw new IOException(state.Message+"\n"+L.T("Use Repair startup entry to review and confirm replacement."));
         if(registration&&!Runtime.TestMode&&(settings.StartWithWindows&&settings.AutoStartTools||hadScheduled)){
             Busy=true;Render();try{await StartupRegistration.Configure(files,settings,approvedHash);ApplySettings(files.Load());}finally{Busy=false;Render();}
-        }else if(registration)Autostart.Configure(settings,()=>ApplySettings(settings));
+        }else if(registration){
+            if(approvedHash!=null&&Runtime.TestMode)Autostart.ConfigureApproved(settings,()=>ApplySettings(settings),approvedHash);
+            else Autostart.Configure(settings,()=>ApplySettings(settings));
+        }
+        return true;
+    }
+    internal async Task SetupRecommendedStartup()
+    {
+        try{if(await ApplyGeneralSettingsAsync(Settings.Copy()))ShowMessage(L.T("Settings saved."));}
+        catch(Exception ex){files.Log("First-run startup setup: "+ex);ShowMessage(L.Error(ex));OpenSettings();}
     }
     public void RepairStartup(){var next=Settings.Copy();next.StartWithWindows=true;Autostart.Configure(next,()=>ApplySettings(next));}
     public void StartHidden(){Window.ShowInTaskbar=false;new WindowInteropHelper(Window).EnsureHandle();_ =Refresh();}

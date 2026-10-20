@@ -48,7 +48,7 @@ There is no VPN or DNS manager in this version. Future incompatible upstream exe
 
 The **refresh arrow** checks for component updates. Compatible official updates can be installed without updating Open Net itself. External processes are left unchanged. Before forced TG termination, unsaved-settings protection can require confirmation.
 
-Closing the main window hides it in the tray by default; choose **Exit** in the tray menu to close the shell. Exiting does not automatically stop running network tools. Windows startup and automatic tool launch are off by default. Shell-only startup retains Run; explicitly approved automatic tools use one interactive logon task with administrator privileges.
+Closing the main window hides it in the tray by default; choose **Exit** in the tray menu to close the shell. Exiting does not automatically stop running network tools. A fresh installation preselects Windows startup, automatic selected tools and startup in tray, with routine start/stop prompts off. First launch offers registration with explicit approval and UAC; checked preferences alone do not register a task or launch tools. Existing preferences are preserved. Shell-only startup retains Run; approved automatic tools use one interactive logon task with administrator privileges.
 
 ## Requirements
 
