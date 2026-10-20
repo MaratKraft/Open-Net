@@ -32,6 +32,7 @@ public static class TestsHeadless
    finally{ThemeManager.SystemDarkForTests=provider;ThemeManager.SetMode(mode);}
   });
   Tests033.Headless(Test,files);
+  TestsStartupReadback.Headless(Test,files);
   File.WriteAllText(Path.Combine(files.Data,"headless-tests.json"),JsonSerializer.Serialize(new{Total=results.Count,Failed=failed,NetworkToolsLaunched=false,Results=results},new JsonSerializerOptions{WriteIndented=true}));return failed==0?0:1;
  }
 }

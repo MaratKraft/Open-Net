@@ -29,7 +29,7 @@ The existing harness is an interactive Windows test executable, not a `dotnet te
 ./scripts/test.ps1 -FixtureDirectory 'C:/Fixtures/zapret-discord-youtube-1.10.3'
 ```
 
-`-InstallFiles` additionally downloads upstream release binaries for installation validation; it does not launch them. It is optional and is not enabled in CI. CI runs the separate seventeen-check `test-headless.ps1` suite without fixture downloads or screenshots. Existing historical installation test results are summarized in [VALIDATION.md](VALIDATION.md). Do not mistake skipped network-installation checks for new live network testing.
+`-InstallFiles` additionally downloads upstream release binaries for installation validation; it does not launch them. It is optional and is not enabled in CI. CI runs the separate twenty-one-check `test-headless.ps1` suite without fixture downloads or screenshots. Existing historical installation test results are summarized in [VALIDATION.md](VALIDATION.md). Do not mistake skipped network-installation checks for new live network testing.
 
 ## Packaging
 
@@ -42,7 +42,7 @@ The packaging script copies the production EXE, constructs a clean Portable ZIP 
 
 ## CI and reproducibility
 
-The GitHub Actions workflow checks tracked public files, builds the production application and a separate test executable, runs seventeen safe headless checks, and uploads a Windows artifact. It has read-only repository permissions. It does not launch the production application, network utilities, WinDivert or system-changing tests. Interactive tests are left to a Windows desktop session; no formatter configuration existed to enforce in CI. The public-file guard checks selected secret patterns and forbidden outputs; it is not a full credential scanner.
+The GitHub Actions workflow checks tracked public files, builds the production application and a separate test executable, runs twenty-one safe headless checks, and uploads a Windows artifact. It has read-only repository permissions. It does not launch the production application, network utilities, WinDivert or system-changing tests. Interactive tests are left to a Windows desktop session; no formatter configuration existed to enforce in CI. The public-file guard checks selected secret patterns and forbidden outputs; it is not a full credential scanner.
 
 The prepared source rebuilt locally with SDK 10.0.100 and runtime 10.0.12 to an EXE **byte-identical to the supplied release candidate**. This is a measured result for that environment, not a universal reproducible-build guarantee. SDK patches, package contents or build paths may change results. CI artifacts must be independently compared before replacing the reviewed release EXE.
 

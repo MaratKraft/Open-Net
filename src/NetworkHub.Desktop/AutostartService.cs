@@ -21,7 +21,11 @@ public sealed class IsolatedStartupStore:IStartupStore
     public void Delete(string name)=>values.Remove(name);
 }
 public sealed record StartupReceipt(string Name,string Command,string Executable,string InstallationId){public string Mode {get;init;}="run";}
-public sealed record StartupStatus(bool Registered,bool NeedsRepair,string Message);
+public sealed record StartupStatus(bool Registered,bool NeedsRepair,string Message)
+{
+    public bool Requested {get;init;}public bool SettingsSaved {get;init;}public bool? Exists {get;init;}public bool? Enabled {get;init;}public bool? Owned {get;init;}public bool ConfigurationValid {get;init;}public bool Ready {get;init;}public bool RepairAllowed {get;init;}
+    public string Mode {get;init;}="";public string Command {get;init;}="";public string? TaskHash {get;init;}public string TaskName {get;init;}="";public string? LastRunUtc {get;init;}public int? LastTaskResult {get;init;}public int? TaskState {get;init;}public bool? HistoryEnabled {get;init;}
+}
 // Registration changes happen only after Save/Repair, never during ordinary startup.
 public sealed class AutostartService(AppFiles files,IStartupStore store,string executable)
 {
@@ -44,26 +48,30 @@ public sealed class AutostartService(AppFiles files,IStartupStore store,string e
         return EntryName(true,settings.StartupInstallationId);
     }
     public static string EntryName(bool portable,string identity)=>portable?"OpenNet.Portable."+identity:"OpenNet";
-    bool Ours(StartupReceipt? receipt,UserSettings settings,string name,string? command)=>receipt!=null&&receipt.Name==name&&receipt.InstallationId==(files.Portable?settings.StartupInstallationId:"")&&receipt.Command==command;
+    bool Ours(StartupReceipt? receipt,UserSettings settings,string name,string? command)=>receipt!=null&&receipt.Name==name&&receipt.InstallationId==(files.Portable?settings.StartupInstallationId:"")&&string.Equals(receipt.Command,command,StringComparison.OrdinalIgnoreCase);
     public StartupStatus Inspect(UserSettings settings)
     {
-        if(!settings.StartWithWindows)return new(false,false,L.T("Windows startup is off. Network tools never start automatically."));
+        bool saved=false;try{var stored=files.Load();saved=File.Exists(files.SettingsPath)&&stored.StartWithWindows==settings.StartWithWindows&&stored.AutoStartTools==settings.AutoStartTools&&stored.StartupInTray==settings.StartupInTray&&stored.StartupInstallationId==settings.StartupInstallationId&&stored.ZapretSelected==settings.ZapretSelected&&stored.TgSelected==settings.TgSelected;}catch(Exception){}
         try{
-            var receipt=Receipt();string name=Name(settings),value=store.Read(name)??"";
-            if(!Ours(receipt,settings,name,value))return new(false,receipt!=null&&value=="",L.T("The startup entry is missing or was changed outside Open Net. Other entries are left unchanged."));
-            if(receipt!.Command!=Command)return new(true,true,L.T("Open Net was moved. Repair its startup entry to use this location."));
-            if(store is WindowsStartupStore&&receipt.Mode!=(settings.AutoStartTools?"task":"run"))return new(true,true,L.T("Save startup settings again to repair the registration mode."));
-            return new(true,false,L.T(settings.AutoStartTools?"Windows will start Open Net and the selected tools. The startup task runs with administrator privileges.":"Open Net will start with Windows. Automatic tool launch is off."));
-        }catch(Exception ex){return new(false,false,L.T("Could not check Windows startup: ")+L.Error(ex));}
+            if(files.Portable&&settings.StartupInstallationId==""&&!settings.StartWithWindows)return new(false,false,L.T("Windows startup is off. Network tools never start automatically.")){Requested=false,SettingsSaved=saved,Exists=false,Enabled=false,Owned=false};
+            var receipt=Receipt();string name=Name(settings);var actual=store is WindowsStartupStore windows?windows.Observe(name):new StartupRegistrationObservation(store.Read(name)!=null,true,true,store.Read(name),"run","",false,false,null,null);
+            bool owned=Ours(receipt,settings,name,actual.Command),registered=actual.Exists&&owned&&actual.ConfigurationValid;
+            bool modeMatches=store is not WindowsStartupStore||actual.Mode==(settings.AutoStartTools?"task":"run");bool pathMatches=string.Equals(actual.Command,Command,StringComparison.OrdinalIgnoreCase);
+            bool ready=settings.StartWithWindows&&registered&&actual.Enabled&&modeMatches&&pathMatches;
+            string reason=!actual.ConfigurationValid?actual.Reason:actual.Exists&&!owned?L.T("No confirmed registration receipt exists. Review and repair startup explicitly."):actual.Exists&&!actual.Enabled?L.T("Startup task is disabled. Review and repair the registration explicitly."):actual.Exists&&owned&&!pathMatches?L.T("Open Net was moved. Repair its startup entry to use this location."):actual.Exists&&!modeMatches?L.T("Save startup settings again to repair the registration mode."):!settings.StartWithWindows?L.T(actual.Exists?"Startup preference is off, but a Windows registration still exists.":"Windows startup is off. Network tools never start automatically."):!actual.Exists?L.T("The startup entry is missing or was changed outside Open Net. Other entries are left unchanged."):L.T("Startup registration is ready. Actual logon and tool launch are reported separately.");
+            bool repair=actual.Exists&&(!owned||!actual.ConfigurationValid||!actual.Enabled||!pathMatches||!modeMatches||!settings.StartWithWindows)||settings.StartWithWindows&&!actual.Exists;
+            return new(registered,repair,reason){Requested=settings.StartWithWindows,SettingsSaved=saved,Exists=actual.Exists,Enabled=actual.Enabled,Owned=owned,ConfigurationValid=actual.ConfigurationValid,Ready=ready,RepairAllowed=actual.Mode=="task"?actual.IdentityMatches&&!actual.Duplicate:owned||!actual.Exists,Mode=actual.Mode,Command=actual.Command??"",TaskHash=actual.TaskHash,TaskName=actual.Runtime?.TaskName??"",LastRunUtc=actual.Runtime?.LastRunUtc,LastTaskResult=actual.Runtime?.LastResult,TaskState=actual.Runtime?.State,HistoryEnabled=actual.Runtime?.HistoryEnabled};
+        }catch(Exception ex){return new(false,true,L.T("Could not check Windows startup: ")+L.Error(ex)){Requested=settings.StartWithWindows,SettingsSaved=saved};}
     }
-    public void Configure(UserSettings settings,Action persist)
+    public void Configure(UserSettings settings,Action persist,string? approvedTaskHash=null)
     {
         string? oldReceipt=File.Exists(ReceiptPath)?File.ReadAllText(ReceiptPath):null;
         var receipt=oldReceipt==null?null:JsonSerializer.Deserialize<StartupReceipt>(oldReceipt);
         if(files.Portable&&settings.StartWithWindows&&!Guid.TryParseExact(settings.StartupInstallationId,"N",out _))settings.StartupInstallationId=Guid.NewGuid().ToString("N");
         string name=files.Portable&&settings.StartupInstallationId==""?"":Name(settings);
         string? previous=name==""?null:store.Read(name);
-        if(previous!=null&&!Ours(receipt,settings,name,previous))throw new InvalidOperationException(L.T("The startup entry belongs to another registration. It was not changed."));
+        bool approvedRepair=store is WindowsStartupStore windows&&windows.ApprovedRepair(name,approvedTaskHash);
+        if(previous!=null&&!Ours(receipt,settings,name,previous)&&!approvedRepair)throw new InvalidOperationException(L.T("The startup entry belongs to another registration. It was not changed."));
         // A portable copy at a second still-existing location must not hijack the first copy.
         if(settings.StartWithWindows&&files.Portable&&receipt!=null&&receipt.Executable!=Path.GetFullPath(executable)&&File.Exists(receipt.Executable))throw new InvalidOperationException(L.T("Another portable copy still owns this startup entry. Disable startup there before registering this copy."));
         bool changed=false;

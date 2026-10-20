@@ -54,7 +54,7 @@ public sealed class Shell : IDisposable
     public ToolObservation[] Observations {get;private set;}=Array.Empty<ToolObservation>();
     public Button Primary => Find<Button>("Primary");
     public Shell(AppFiles files,bool testMode,SingleInstance instance):this(files,testMode,instance,null) {}
-    internal Shell(AppFiles files,bool testMode,SingleInstance instance,System.Net.Http.HttpMessageHandler? installerHandler,Func<string,bool>? runningProbe=null)
+    internal Shell(AppFiles files,bool testMode,SingleInstance instance,System.Net.Http.HttpMessageHandler? installerHandler,Func<string,bool>? runningProbe=null,IStartupStore? startupStore=null)
     {
         this.files=files;readiness=new ModuleReadiness(files);ThemeManager.SetMode("system");
         using var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("NetworkHub.MainView.xaml")!;
@@ -68,12 +68,12 @@ public sealed class Shell : IDisposable
             if(File.Exists(files.SettingsPath)){string backup=Paths.Owned(files.Data,"Backups/corrupt-settings-"+DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")+".json");Directory.CreateDirectory(Path.GetDirectoryName(backup)!);File.Copy(files.SettingsPath,backup);}
         }
         ThemeManager.SetMode(Settings.Theme);L.Set(Settings.Language);LocalizedTree.Bind(Window);Find<Image>("Logo").Source=IconFactory.Logo();
-        if(!testMode&&(installerHandler!=null||runningProbe!=null))throw new InvalidOperationException("Test installer overrides require safe mode.");
+        if(!testMode&&(installerHandler!=null||runningProbe!=null||startupStore!=null))throw new InvalidOperationException("Test installer overrides require safe mode.");
         Installer=new ModuleInstaller(files,installerHandler,runningProbe);Installer.RecoverInterruptedDownloads();
         try{Settings=Installer.ApplyManaged(Settings);}catch(Exception ex){errors["settings"]=ex.Message;files.Log("Module manifest: "+ex.Message);}
         if(!File.Exists(files.SettingsPath))files.Save(Settings);
         Runtime=new ToolRuntime(files,testMode);
-        Autostart=new AutostartService(files,testMode?new IsolatedStartupStore():new WindowsStartupStore(false),Environment.ProcessPath!);
+        Autostart=new AutostartService(files,startupStore??(testMode?new IsolatedStartupStore():new WindowsStartupStore(false)),Environment.ProcessPath!);
         icon=IconFactory.TrayIcon(96);Window.Icon=IconFactory.WindowIcon();FocusCues.Attach(Window);
         updatingChecks=true; Find<CheckBox>("ZapretCheck").IsChecked=Settings.ZapretSelected; Find<CheckBox>("TgCheck").IsChecked=Settings.TgSelected;updatingChecks=false;
         Find<CheckBox>("ZapretCheck").Checked+=ChoiceChanged; Find<CheckBox>("ZapretCheck").Unchecked+=ChoiceChanged;
@@ -308,31 +308,42 @@ public sealed class Shell : IDisposable
     internal async Task ApplyGeneralSettingsAsync(UserSettings settings,bool repair=false)
     {
         if(settings.AutoStartTools&&!Settings.AutoStartTools&&!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return;
-        bool registration=repair||settings.StartWithWindows!=Settings.StartWithWindows||settings.AutoStartTools!=Settings.AutoStartTools;
-        if(registration&&!Runtime.TestMode&&(settings.StartWithWindows&&settings.AutoStartTools||Autostart.HasScheduledReceipt)){
-            Busy=true;Render();try{await StartupRegistration.Configure(files,settings);ApplySettings(files.Load());}finally{Busy=false;Render();}
+        var state=Autostart.Inspect(Settings);string? approvedHash=null;
+        bool registration=repair||settings.StartWithWindows!=Settings.StartWithWindows||settings.AutoStartTools!=Settings.AutoStartTools||settings.StartWithWindows&&!state.Ready||!settings.StartWithWindows&&state.Exists==true;
+        if(repair&&state.Exists==true){
+            if(!state.RepairAllowed)throw new IOException(state.Message);
+            string message=L.T("Repair only this Open Net startup registration? The previous task XML will be backed up. Windows will request UAC. Running tools will be left unchanged.")+"\n\n"+state.Message+"\n\n"+L.T("Current command:")+"\n"+state.Command+"\n\n"+L.T("Requested command:")+"\n"+(settings.StartWithWindows?Autostart.Command:L.T("Remove this registration"));
+            if(!AskRoutine("startup-repair",message,L.T("Repair startup entry")))return;approvedHash=state.TaskHash;
+        }
+        bool hadScheduled=state.Mode=="task"||Autostart.HasScheduledReceipt;
+        if(files.Portable&&settings.StartWithWindows&&!Guid.TryParseExact(settings.StartupInstallationId,"N",out _))settings.StartupInstallationId=Guid.NewGuid().ToString("N");
+        // Persist user intent independently of the Windows registration transaction.
+        ApplySettings(settings);
+        if(registration&&!repair&&state.Exists==true&&(!state.ConfigurationValid||state.Owned!=true||state.Enabled!=true))throw new IOException(state.Message+"\n"+L.T("Use Repair startup entry to review and confirm replacement."));
+        if(registration&&!Runtime.TestMode&&(settings.StartWithWindows&&settings.AutoStartTools||hadScheduled)){
+            Busy=true;Render();try{await StartupRegistration.Configure(files,settings,approvedHash);ApplySettings(files.Load());}finally{Busy=false;Render();}
         }else if(registration)Autostart.Configure(settings,()=>ApplySettings(settings));
-        else ApplySettings(settings);
     }
     public void RepairStartup(){var next=Settings.Copy();next.StartWithWindows=true;Autostart.Configure(next,()=>ApplySettings(next));}
     public void StartHidden(){Window.ShowInTaskbar=false;new WindowInteropHelper(Window).EnsureHandle();_ =Refresh();}
     internal async Task RunWindowsStartup(bool probe=false)
     {
         if(startupHandled)return;startupHandled=true;
-        if(probe||!WindowsStartupLaunch.Allowed(Settings))return;
+        if(probe)return;
+        if(!WindowsStartupLaunch.Allowed(Settings)){StartupAttempt.Write(files,"not requested","Saved startup or automatic tools preference is off.",Settings,Runtime);return;}
         // One bounded grace period for logon; never wait for Internet availability.
         await Task.Delay(Runtime.TestMode?1:5000);
         if(exiting||Busy||!WindowsStartupLaunch.Allowed(Settings))return;
         if(errors.ContainsKey("settings")){files.Log("Windows startup blocked: settings could not be loaded safely.");return;}
         var registration=Autostart.Inspect(Settings);
-        if(!registration.Registered||registration.NeedsRepair){files.Log("Windows startup blocked: "+registration.Message);ShowMessage(registration.Message);return;}
+        if(!registration.Ready){files.Log("Windows startup blocked: "+registration.Message);ShowMessage(registration.Message);StartupAttempt.Write(files,"blocked",registration.Message,Settings,Runtime);return;}
         await Refresh();if(exiting||Busy)return;
-        var approved=Settings.Copy();Busy=true;var messages=new List<string>();Render();
+        var approved=Settings.Copy();int previousLaunchCount=Runtime.LaunchCount;Busy=true;var messages=new List<string>();Render();
         try{await startupLaunch.Run(approved,id=>Runtime.Observe(id,approved),id=>Runtime.Start(id,approved,true),(id,message,failed)=>{
             if(failed)errors[id]=message;else errors.Remove(id);
             string line=(id=="zapret"?"Zapret: ":"TG: ")+message;messages.Add(line);files.Log("Windows startup: "+line);
         });}
-        finally{Busy=false;await Refresh();if(messages.Count>0)ShowMessage(string.Join("\n",messages));}
+        finally{Busy=false;await Refresh();if(messages.Count>0)ShowMessage(string.Join("\n",messages));StartupAttempt.Write(files,"completed",string.Join("\n",messages),approved,Runtime,Runtime.LaunchCount-previousLaunchCount);}
     }
     public static string StateLabel(ObservedState state)=>Label(state);
     public ModuleDetails DescribeModule(string id)
@@ -355,7 +366,7 @@ public sealed class Shell : IDisposable
         var view=new ModuleSettingsView(this,files,id);moduleWindows[id]=view.Window;view.Window.Closed+=(_,_)=>moduleWindows.Remove(id);view.Window.Show();return view.Window;
     }
     private void ApplyTheme(){WindowAppearance.Refresh(Window);ThemeManager.StyleTray(Tray.ContextMenuStrip!);Render();}
-    public void Dispose() {ThemeManager.Changed-=ApplyTheme;timer.Stop();Tray.Visible=false;Tray.ContextMenuStrip?.Dispose();Tray.Dispose();icon.Dispose();Installer.Dispose();}
+    public void Dispose() {exiting=true;ThemeManager.Changed-=ApplyTheme;timer.Stop();Tray.Visible=false;Tray.ContextMenuStrip?.Dispose();Tray.Dispose();icon.Dispose();Installer.Dispose();}
 }
 
 

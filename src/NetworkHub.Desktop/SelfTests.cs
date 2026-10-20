@@ -166,6 +166,7 @@ public static class SelfTests
         await Tests032Final.Run(shell,files,Test);
         await TestsFluent.Run(shell,files,Test);
         await Tests033.Ui(shell,files,Test);
+        await TestsStartupReadback.Ui(files,Test);
         await Test("Tray Exit terminates shell and removes icon",()=>Sync(()=>{shell.TrayExit.PerformClick();Require(!shell.Tray.Visible);}));
         File.WriteAllText(Path.Combine(files.Data,"ui-tests.json"),JsonSerializer.Serialize(new{Total=results.Count,Failed=failures,ExecutableSHA256=Metadata.Hash(Environment.ProcessPath!),NetworkInstallation=NetworkRequested,Results=results},new JsonSerializerOptions{WriteIndented=true}));shell.ExitCode=failures==0?0:1;
     }

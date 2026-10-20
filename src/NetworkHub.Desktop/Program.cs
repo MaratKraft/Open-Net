@@ -44,7 +44,8 @@ internal static class Program
             using var instance=new SingleInstance(files.Data,files.Log);
             if(!instance.Primary)
             {
-                if(autostart||instance.ActivateExisting())return 0;
+                if(autostart){files.Log("Windows startup skipped: an instance already owns this data folder.");StartupAttempt.Write(files,"existing instance","An existing shell owns this data folder; no new tool launch was requested.",files.Load(),null);return 0;}
+                if(instance.ActivateExisting())return 0;
                 files.Log("Activation failed: "+instance.LastError);if(test)return 1;
                 MessageBox.Show(L.T("Open Net is already open but did not respond. Check its tray icon."),"Open Net");return 1;
             }
