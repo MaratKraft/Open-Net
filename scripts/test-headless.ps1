@@ -1,10 +1,12 @@
+param([string]$StartupReadbackFixture='')
 $ErrorActionPreference='Stop'
 $appRoot=Split-Path $PSScriptRoot -Parent
 $root=Join-Path ([IO.Path]::GetTempPath()) ('Open-Net-headless-'+[guid]::NewGuid().ToString('N'))
 $run=Join-Path $root 'test-results/ci'
 New-Item -ItemType Directory $run -Force|Out-Null
+if($StartupReadbackFixture){Copy-Item -LiteralPath $StartupReadbackFixture -Destination (Join-Path $run 'startup-live-readback.xml')}
 Set-Content (Join-Path $root 'portable.flag') 'Open Net portable'
-$exe=Join-Path $root 'Open Net.exe';Copy-Item -LiteralPath (Join-Path $appRoot 'publish/Open Net 0.3.2 Test/Open Net.exe') -Destination $exe
+$exe=Join-Path $root 'Open Net.exe';Copy-Item -LiteralPath (Join-Path $appRoot 'publish/Open Net 0.3.3 Test/Open Net.exe') -Destination $exe
 $info=[Diagnostics.ProcessStartInfo]::new($exe);$info.UseShellExecute=$false;$info.CreateNoWindow=$true
 foreach($arg in @('--test-mode','--headless-tests','--data-dir',$run)){$info.ArgumentList.Add($arg)}
 $process=[Diagnostics.Process]::Start($info)
