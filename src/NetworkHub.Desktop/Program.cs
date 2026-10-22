@@ -11,7 +11,7 @@ internal static class Program
     private static int Main(string[] args)
     {
         #if OPENNET_SAFE_PREVIEW
-        if(args.Any(a=>a is "--elevated" or "--dns-elevated" or "--dns-diagnostic" or "--dns-recovery" or "--installer-test" or "--self-test" or "--headless-tests" or "--autostart"))return 2;
+        if(args.Any(a=>a is "--elevated" or "--startup-register" or "--dns-elevated" or "--dns-diagnostic" or "--dns-recovery" or "--installer-test" or "--self-test" or "--headless-tests" or "--autostart"))return 2;
 #endif
         long startupTicks=System.Diagnostics.Stopwatch.GetTimestamp();
         try
@@ -49,8 +49,10 @@ internal static class Program
             SelfTests.NetworkRequested=args.Contains("--installer-test");
             if(data!=null&&(!test||!NetworkHub.Core.Paths.Within(data,Path.Combine(root,"test-results"))))throw new ArgumentException(L.T("Test data must be in test-results next to the EXE."));
 #endif
-            #endif
-            var files=PortableStartup.Open(root,data);files.Log("Startup 0.3.3; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+#if OPENNET_SAFE_PREVIEW
+            data ??=Path.Combine(root,"test-results","preview");
+#endif
+            var files=PortableStartup.Open(root,data);files.Log("Startup 0.4.0-alpha.1; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
             AppIdentity.Apply(files.Log);
             using var instance=new SingleInstance(files.Data,files.Log);
             if(!instance.Primary)

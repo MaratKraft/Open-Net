@@ -102,6 +102,7 @@ public sealed record DnsJournal(int Schema,Guid Id,string Owner,DnsSnapshot Befo
 }
 public sealed record DnsHistory(string Utc,string Action,string ProfileName,DnsSnapshot Before,DnsSnapshot After,string Result);
 public interface IDnsJournalStore {DnsJournal? Load(Guid adapter);void Save(DnsJournal journal);}
+public interface IDnsArchiveStore : IDnsJournalStore {void Archive(DnsJournal journal);}
 
 // Only this controller writes settings; its reader/writer/store are injected for isolated tests.
 // Persistent intent precedes every write, including compensating writes.
@@ -109,6 +110,18 @@ public sealed class DnsTransaction
 {
     readonly IDnsSettingsReader reader;readonly IDnsSettingsWriter writer;readonly IDnsJournalStore store;readonly string owner;readonly DnsOperationEvidence evidence;
     public DnsTransaction(IDnsSettingsReader reader,IDnsSettingsWriter writer,IDnsJournalStore store,string owner,DnsOperationEvidence? evidence=null){this.reader=reader;this.writer=writer;this.store=store;this.owner=owner;this.evidence=evidence??new();}
+    public DnsJournal AcceptCurrent(DnsSnapshot approved)
+    {
+        if(store is not IDnsArchiveStore archive)throw new DnsException("Recovery archival is unavailable.");
+        var current=reader.Read(approved.AdapterId);
+        if(!current.CanChange||!current.SameConfiguration(approved))throw new DnsException("DNS settings changed before application. Refresh and review them again.");
+        var old=store.Load(current.AdapterId);
+        if(old!=null){if(old.Owner!=owner||old.Before.MachineId!=current.MachineId||old.Before.AdapterId!=current.AdapterId)throw new DnsException("The recovery record does not belong to this user or adapter.");archive.Archive(old);}
+        if(!reader.Read(current.AdapterId).SameConfiguration(current))throw new DnsException("DNS settings changed before application. Refresh and review them again.");
+        var next=new DnsJournal(1,Guid.NewGuid(),owner,current,current,current,new[]{DnsFamily.IPv4},DnsPhase.Restored,null,DateTime.UtcNow.ToString("O"),"Current settings accepted; previous recovery record archived."){Action="adopt"};
+        store.Save(next);var saved=store.Load(current.AdapterId);
+        if(saved==null||saved.Id!=next.Id||!saved.Before.SameConfiguration(current))throw new DnsException("The recovery record could not be verified.");return saved;
+    }
     public DnsJournal Apply(DnsSnapshot approved,DnsSnapshot target,DnsFamily[] families,string profileId="",bool encryptionChangeApproved=false,string profileName="")=>Change(approved,target,families,profileId,profileName,"apply",encryptionChangeApproved);
     public DnsJournal Reapply(DnsSnapshot approved,DnsSnapshot target,DnsFamily[] families,string profileId,string profileName="")=>Change(approved,target,families,profileId,profileName,"reapply",true);
     public static void ValidateReapply(DnsSnapshot before,DnsSnapshot target,DnsFamily[] families){Validate(before,target,families,false,true);if(!before.SameConfiguration(target)||families.Any(f=>before.Family(f).Mode!=DnsMode.Manual))throw new DnsException("Repeat requires the selected manual DNS and DoH to match the current configuration exactly.");}
@@ -134,6 +147,7 @@ public sealed class DnsTransaction
         var j=continuing?previous! with{Expected=current,Target=target,Families=previous!.Families.Union(families).ToArray(),Phase=DnsPhase.Prepared,Pending=null}:new DnsJournal(1,Guid.NewGuid(),owner,current,current,target,families,DnsPhase.Prepared,null,DateTime.UtcNow.ToString("O"),"");
         j=j with{ProfileId=profileId,ProfileName=profileName,Action=action,RollbackTarget=current,ContinuedSession=continuing,OperationFamilies=families};
         if(j.History.Length>=128)throw new DnsException("Restore the current DNS session before starting another change.");
+        if(!continuing&&previous!=null&&store is IDnsArchiveStore archive)archive.Archive(previous);
         store.Save(j); // No system write is allowed if the durable baseline could not be saved.
         var verified=store.Load(current.AdapterId);
         if(verified==null||JsonSerializer.Serialize(verified)!=JsonSerializer.Serialize(j))throw new DnsException("The saved DNS backup did not pass verification. No settings were changed.");
@@ -229,9 +243,16 @@ public sealed class DnsTransaction
 }
 
 // File persistence is used only under a protected, fixed recovery root in production.
-public sealed class DnsFileJournalStore : IDnsJournalStore
+public sealed class DnsFileJournalStore : IDnsArchiveStore
 {
     readonly string root;readonly string owner;readonly Action<string>? protect;readonly Action<Guid>? validateRead;
+    public void Archive(DnsJournal journal)
+    {
+        string directory=Path.Combine(root,"Archives",journal.Id.ToString("N")+"-"+Guid.NewGuid().ToString("N"));NetworkHub.Core.Paths.NoReparseAncestors(directory);Directory.CreateDirectory(directory);
+        string path=Path.Combine(directory,journal.Before.AdapterId.ToString("D")+".json");byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(journal);
+        using(var file=new FileStream(path,FileMode.CreateNew,FileAccess.Write,FileShare.None,4096,FileOptions.WriteThrough)){protect?.Invoke(path);file.Write(bytes);file.Flush(true);}
+        if(!File.ReadAllBytes(path).SequenceEqual(bytes))throw new IOException("Recovery archive verification failed.");
+    }
     public DnsFileJournalStore(string root,string owner,Action<string>? protect=null,Action<Guid>? validateRead=null){this.root=root;this.owner=owner;this.protect=protect;this.validateRead=validateRead;}
     public DnsJournal? Load(Guid adapter)
     {

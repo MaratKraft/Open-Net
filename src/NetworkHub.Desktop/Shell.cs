@@ -35,6 +35,7 @@ public sealed class Shell : IDisposable
     private bool configuring;
     private bool startupHandled;
     private readonly WindowsStartupLaunch startupLaunch=new();
+    internal WorkspaceController Workspace {get;private set;}=null!;
     private Window? settingsWindow;
     private DnsManagerView? dnsWindow;
     private readonly Dictionary<string,Window> moduleWindows=new();
@@ -69,6 +70,7 @@ public sealed class Shell : IDisposable
             Settings=files.Defaults();errors["settings"]=ex.Message;files.Log("Settings load: "+ex.Message);
             if(File.Exists(files.SettingsPath)){string backup=Paths.Owned(files.Data,"Backups/corrupt-settings-"+DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")+".json");Directory.CreateDirectory(Path.GetDirectoryName(backup)!);File.Copy(files.SettingsPath,backup);}
         }
+        Settings.StartupZapret??=Settings.ZapretSelected;Settings.StartupTg??=Settings.TgSelected;
         ThemeManager.SetMode(Settings.Theme);L.Set(Settings.Language);LocalizedTree.Bind(Window);Find<Image>("Logo").Source=IconFactory.Logo();
         if(!testMode&&(installerHandler!=null||runningProbe!=null||startupStore!=null))throw new InvalidOperationException("Test installer overrides require safe mode.");
         Installer=new ModuleInstaller(files,installerHandler,runningProbe);Installer.RecoverInterruptedDownloads();
@@ -88,7 +90,8 @@ public sealed class Shell : IDisposable
         Find<Button>("TgSettings").Click+=(_,_)=>OpenModuleSettings("tg");
         Find<Button>("DnsSettings").Click+=(_,_)=>OpenDnsSettings();
         UpdateDnsStatus();
-        Primary.Click+=async(_,_)=> {await Refresh();if(PrimaryAction.Stop(Observations,Selected())) await StopSelected(false);else await StartSelected();};
+        Workspace=new WorkspaceController(this,files);
+        Primary.Click+=async(_,_)=>await Workspace.Execute();
         Find<Button>("ZapretInstall").Click+=async(_,_)=>await InstallOrCheck("zapret");
         Find<Button>("TgInstall").Click+=async(_,_)=>await InstallOrCheck("tg");
         foreach(string prefix in new[]{"Zapret","Tg"})ModuleIconAlignment.Attach(Find<Button>(prefix+"Install"),Find<Button>(prefix+"Settings"),Find<CheckBox>(prefix+"Check"));
@@ -138,7 +141,7 @@ public sealed class Shell : IDisposable
     }
     private async Task RefreshCore()
     {
-        try {var snapshot=Settings.Copy();var result=await Task.Run(()=>{var observations=ModuleCatalog.All.Select(module=>Runtime.Observe(module.Id,snapshot)).ToArray();var health=ModuleCatalog.All.ToDictionary(module=>module.Id,module=>readiness.Read(module.Id,snapshot));return (observations,health);});Observations=result.observations;HealthStates=result.health;Render();}
+        try {var snapshot=Settings.Copy();var result=await Task.Run(()=>{var observations=ModuleCatalog.All.Select(module=>Runtime.Observe(module.Id,snapshot)).ToArray();var health=ModuleCatalog.All.ToDictionary(module=>module.Id,module=>readiness.Read(module.Id,snapshot));return (observations,health);});Observations=result.observations;HealthStates=result.health;UpdateDnsStatus();Render();}
         finally {refreshTask=null;}
     }
     private static string Label(ObservedState s)=>s switch {ObservedState.Stopped=>L.T("Stopped"),ObservedState.Starting=>L.T("Starting"),ObservedState.Running=>L.T("Running"),ObservedState.Error=>L.T("Error"),ObservedState.External=>L.T("External instance"),ObservedState.CleanupRequired=>L.T("WinDivert is still loaded"),ObservedState.NotInstalled=>L.T("Not installed"),_=>L.T("Unknown state")};
@@ -178,11 +181,11 @@ public sealed class Shell : IDisposable
         if(settingsWindow!=null)settingsWindow.IsEnabled=!Busy||installing!=null;
         Find<CheckBox>("ZapretCheck").IsEnabled=!Busy||installing!=null;Find<CheckBox>("TgCheck").IsEnabled=!Busy||installing!=null;Find<Button>("Settings").IsEnabled=!Busy||installing!=null;
         if(files.LogFailure!=null)ShowMessage(L.T("Could not write the log: ")+files.LogFailure);
-        StateChanged?.Invoke();
+        Workspace?.Render();StateChanged?.Invoke();
     }
-    public async Task StartSelected()
+    public async Task StartSelected(string[]? targets=null)
     {
-        if(Busy) return;await Refresh();if(Busy)return;string[] ids=Selected();if(ids.Length==0){ShowMessage(L.T("Select at least one tool."));return;}
+        if(Busy||Workspace?.Editing==true) return;await Refresh();if(Busy)return;string[] ids=targets??Selected();if(ids.Length==0){ShowMessage(L.T("Select at least one tool."));return;}
         bool authorized=Runtime.TestMode;
         if(Runtime.TestMode&&RoutineConfirmationForTests!=null&&!ConfirmLaunch(ids))return;
         if(!Runtime.TestMode)
@@ -193,6 +196,7 @@ public sealed class Shell : IDisposable
             if(!ConfirmLaunch(available)) return;
             authorized=true;
         }
+        if(ids.Contains("zapret")&&!IsActive("zapret")&&!string.IsNullOrEmpty(Settings.PendingStrategy)){Settings.Strategy=Settings.PendingStrategy;Settings.PendingStrategy="";files.Save(Settings);}
         Busy=true;Render();var messages=new List<string>();
         try
         {
@@ -216,10 +220,10 @@ public sealed class Shell : IDisposable
     }
     internal Func<string,bool>? RoutineConfirmationForTests {get;set;}
     private bool AskRoutine(string kind,string message,string title)=>Runtime.TestMode?RoutineConfirmationForTests?.Invoke(kind)??true:AppDialog.Show(Window,message,title,MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)==MessageBoxResult.Yes;
-    public async Task StopSelected(bool allManaged)
+    public async Task StopSelected(bool allManaged,string[]? targets=null)
     {
-        if(Busy)return;await Refresh();if(Busy)return;
-        string[] ids=allManaged?ModuleCatalog.All.Select(x=>x.Id).ToArray():Selected();
+        if(Busy||Workspace?.Editing==true)return;await Refresh();if(Busy)return;
+        string[] ids=targets??(allManaged?ModuleCatalog.All.Select(x=>x.Id).ToArray():Selected());
         if(ids.Length==0){ShowMessage(L.T("Select at least one tool."));return;}
         if(!Observations.Any(x=>ids.Contains(x.Id)&&PrimaryAction.CanStop(x))){ShowMessage(Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.External)?L.T("Close external tools using their own window or tray. Open Net manages only processes it launched."):L.T("The process is not running."));return;}
         bool ownRunning=Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.Running);
@@ -309,15 +313,24 @@ public sealed class Shell : IDisposable
         try{dnsWindow=new DnsManagerView(this,files);var view=dnsWindow;view.Window.Closed+=(_,_)=>dnsWindow=null;view.Window.Show();UpdateDnsStatus();return view.Window;}
         catch(Exception ex){files.Log("DNS window: "+ex);throw;}
     }
+    bool dnsApplied;
+    internal bool DnsBusy=>dnsWindow?.IsBusy==true;
+    internal bool DnsApplied=>dnsWindow?.Applied??dnsApplied;
+    internal void SelectDnsProfile(string id){dnsWindow?.SelectProfile(id);}
+    internal async Task<bool> DnsAction(bool? restore=null){OpenDnsSettings();return await dnsWindow!.Power(restore);}
     internal void UpdateDnsStatus()
     {
-        if(dnsWindow!=null){Find<TextBlock>("DnsState").Text=L.T(dnsWindow.Status);return;}
+        if(dnsWindow!=null){dnsWindow.RefreshStatus();dnsApplied=dnsWindow.Applied;Find<TextBlock>("DnsState").Text=L.T(dnsWindow.Status);return;}
+        dnsApplied=false;
+#if OPENNET_TESTING
+        if(Runtime.TestMode){try{var fake=TestsDns.Fixture(files.Data);var record=new DnsFileJournalStore(Paths.Owned(files.Data,"Dns/IsolatedRecovery"),"safe-test").Load(fake.State.AdapterId);dnsApplied=record?.Active==true&&record.Phase==DnsPhase.Applied&&record.Expected.SameConfiguration(fake.State);Find<TextBlock>("DnsState").Text=L.T("Preview mode")+" · "+L.T(dnsApplied?DnsManagerView.ProfileStatus(record!):record?.Active==true?"Settings changed externally":"System DNS");}catch(Exception ex){Find<TextBlock>("DnsState").Text=L.T("DNS recovery storage needs review.");files.Log("Preview DNS status: "+ex.Message);}return;}
+#endif
         string text=Runtime.TestMode?"Preview mode":"System DNS";
         if(!Runtime.TestMode)try{
             string owner=DnsRecoveryStore.Owner(),directory=DnsRecoveryStore.DirectoryFor(owner);var store=DnsRecoveryStore.Open(owner,false);
             if(Directory.Exists(directory))foreach(string path in Directory.EnumerateFiles(directory,"*.json").Take(64)){
-                if(Guid.TryParse(Path.GetFileNameWithoutExtension(path),out var id)&&store.Load(id) is {Active:true} record){
-                    var observed=new WindowsDnsSettings().Read(id);
+                if(Guid.TryParse(Path.GetFileNameWithoutExtension(path),out var id)&&(Settings.DnsAdapterId==""||Settings.DnsAdapterId==id.ToString("D"))&&store.Load(id) is {Active:true} record){
+                    var observed=new WindowsDnsSettings().Read(id);dnsApplied=record.Phase==DnsPhase.Applied&&record.Expected.SameConfiguration(observed);
                     text=!DnsTransaction.Recoverable(record,observed)?"Settings changed externally":record.Phase==DnsPhase.Applied?DnsManagerView.ProfileStatus(record):"An unfinished DNS operation needs recovery review.";break;
                 }
             }
@@ -325,7 +338,7 @@ public sealed class Shell : IDisposable
         Find<TextBlock>("DnsState").Text=L.T(text);
         // Read only adapters with an owned active journal; never run connection probes here.
     }
-    public void ApplySettings(UserSettings settings) {files.Save(settings);if(Settings.Language!=settings.Language){moduleMessages.Clear();}Settings=settings;ThemeManager.SetMode(settings.Theme);L.Set(settings.Language);WindowAppearance.Refresh(Window);errors.Clear();_ =Refresh();Render();}
+    public void ApplySettings(UserSettings settings) {settings.Workspace??=new();settings.Workspace.Normalize();settings.StartupZapret??=settings.ZapretSelected;settings.StartupTg??=settings.TgSelected;files.Save(settings);if(Settings.Language!=settings.Language){moduleMessages.Clear();}Settings=settings;ThemeManager.SetMode(settings.Theme);L.Set(settings.Language);WindowAppearance.Refresh(Window);Workspace?.Reload();errors.Clear();_ =Refresh();Render();}
     public void ApplyGeneralSettings(UserSettings settings)
     {
         if(settings.StartWithWindows!=Settings.StartWithWindows)Autostart.Configure(settings,()=>ApplySettings(settings));

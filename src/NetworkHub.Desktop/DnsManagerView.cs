@@ -17,16 +17,22 @@ internal sealed class DnsManagerView
     readonly Shell shell;readonly AppFiles files;readonly IDnsSettingsReader reader;readonly IDnsJournalStore store;readonly IDnsProbeRunner probes;
     readonly Window window;readonly StackPanel panel;readonly ComboBox adapters,profiles,endpoint,probeMode;readonly CheckBox ipv4,ipv6;readonly TextBox addresses4,addresses6;
     readonly TextBlock current,preview,warning,result,reason,profileAddresses;readonly StackPanel customFields;readonly ComboBox ipv6Mode;readonly TextBox profileName,alternate4,dohEndpoint;readonly CheckBox useDoh,fallback,clearCache;readonly Button automatic,flush,saveProfile,reapply,more;readonly MenuItem reapplyItem,automaticItem,flushItem;readonly TextBlock operationEvidence,probeEvidence;DnsOperationEvidence? lastEvidence;readonly DnsProfileStore profileStore;readonly Button apply,restore,refresh,probe;readonly CancellationTokenSource cancellation=new();
+    Button? power,resolve;TextBlock? simpleStatus;bool refreshing;
     DnsSnapshot? snapshot,operationBefore,operationTarget;DnsJournal? journal;bool busy;
     internal Window Window=>window;
     internal bool IsBusy=>busy;
+    internal bool Applied=>snapshot!=null&&journal?.Active==true&&journal.Phase==DnsPhase.Applied&&journal.Expected.SameConfiguration(snapshot);
+    internal void RefreshStatus(){if(busy||refreshing)return;refreshing=true;try{Read();}finally{refreshing=false;}}
+    internal void SelectProfile(string id){foreach(ComboBoxItem item in profiles.Items)if(item.Tag is DnsProfile profile&&profile.Id==id||item.Tag is SavedDnsProfile saved&&"saved:"+saved.Id==id){profiles.SelectedItem=item;break;}}
+    internal async Task<bool> Power(bool? restore=null){RefreshStatus();bool off=restore??Applied;if(off&&!Applied)return journal?.Active!=true;await Operation(off,repeat:!off&&apply.IsEnabled==false&&reapply.IsEnabled);RefreshStatus();if(off)return journal?.Phase==DnsPhase.Restored&&snapshot!=null&&journal.Before.SameConfiguration(snapshot);try{return Applied&&Plan().Target.SameConfiguration(snapshot!);}catch(DnsException){return false;}}
 #if OPENNET_TESTING
     internal Func<string,bool>? ConfirmationForTests {get;set;}
     internal static IDnsSettingsReader? ReaderForTests {get;set;}
     internal Task OperationForTests(bool restoring,bool automaticMode=false,bool cacheOnly=false,bool repeat=false){if(!shell.Runtime.TestMode)throw new InvalidOperationException();return Operation(restoring,automaticMode,cacheOnly,repeat);}
     internal Task ProbeForTests(){if(!shell.Runtime.TestMode)throw new InvalidOperationException();return Probe();}
 #endif
-    internal string Status=>shell.Runtime.TestMode?"Preview mode":snapshot==null?"DNS settings could not be read safely.":journal?.Active!=true?snapshot.IPv4.Mode==DnsMode.Automatic?"DNS automatically":"Manual DNS":!DnsTransaction.Recoverable(journal,snapshot)?"Settings changed externally":journal.Phase==DnsPhase.Applied?ProfileStatus(journal):"An unfinished DNS operation needs recovery review.";
+    internal string Status=>(shell.Runtime.TestMode?L.T("Preview mode")+" · ":"")+L.T(StateStatus);
+    string StateStatus=>snapshot==null?"DNS settings could not be read safely.":journal?.Active!=true?"System DNS":!DnsTransaction.Recoverable(journal,snapshot)?"Settings changed externally":journal.Phase==DnsPhase.Applied?ProfileStatus(journal):"An unfinished DNS operation needs recovery review.";
     internal static string ProfileStatus(DnsJournal record)=>record.Action=="automatic"?"DNS automatically":record.ProfileId=="custom"&&record.ProfileName.Length>0?L.T("Profile")+" "+record.ProfileName:record.ProfileId switch {"comss"=>"Profile ComssDNS","xbox"=>"Profile Xbox DNS","custom"=>"Profile Custom DNS",_=>"A DNS profile is applied by Open Net."};
     // Delay protected-store access until inspection, so errors are visible inside the window.
     sealed class ReadOnlyRecovery : IDnsJournalStore {
@@ -59,7 +65,7 @@ internal sealed class DnsManagerView
         ipv6=new CheckBox{IsChecked=false};window.RegisterName("DnsIPv6",ipv6);
         Label("IPv6 DNS");ipv6Mode=Combo("DnsIPv6Mode");ipv6Mode.Items.Add(new ComboBoxItem{Content=L.T("Keep current settings")});ipv6Mode.Items.Add(new ComboBoxItem{Content=L.T("Use profile addresses")});ipv6Mode.SelectedIndex=0;ipv6Mode.SelectionChanged+=(_,_)=>ipv6.IsChecked=ipv6Mode.SelectedIndex==1;
         addresses4.TextChanged+=(_,_)=>UpdatePlan();addresses6.TextChanged+=(_,_)=>UpdatePlan();ipv4.Checked+=(_,_)=>UpdatePlan();ipv4.Unchecked+=(_,_)=>UpdatePlan();ipv6.Checked+=(_,_)=>UpdatePlan();ipv6.Unchecked+=(_,_)=>UpdatePlan();
-        useDoh=SettingsLayout.Toggle(window,panel,shell,"DnsUseDoh","Use DNS over HTTPS",false);fallback=SettingsLayout.Toggle(window,panel,shell,"DnsFallback","Allow plaintext fallback",false);clearCache=SettingsLayout.Toggle(window,panel,shell,"DnsClearCache","Clear system DNS cache after a verified change",true);
+        useDoh=SettingsLayout.Toggle(window,panel,shell,"DnsUseDoh","Use DNS over HTTPS",false);fallback=SettingsLayout.Toggle(window,panel,shell,"DnsFallback","Allow plaintext fallback",false);clearCache=SettingsLayout.Toggle(window,panel,shell,"DnsClearCache","Clear system DNS cache after a verified change",false);
         profileName=Input("DnsCustomName","Profile name");panel.Children.Remove(profileName);var nameLabel=panel.Children[panel.Children.Count-1];panel.Children.Remove(nameLabel);customFields.Children.Insert(0,nameLabel);customFields.Children.Insert(1,profileName);
         alternate4=Input("DnsAlternate4","Alternative IPv4 DNS (optional)");panel.Children.Remove(alternate4);var alternateLabel=panel.Children[panel.Children.Count-1];panel.Children.Remove(alternateLabel);customFields.Children.Insert(4,alternateLabel);customFields.Children.Insert(5,alternate4);
         dohEndpoint=Input("DnsDohEndpoint","HTTPS DoH endpoint (optional)");panel.Children.Remove(dohEndpoint);var dohLabel=panel.Children[panel.Children.Count-1];panel.Children.Remove(dohLabel);customFields.Children.Add(dohLabel);customFields.Children.Add(dohEndpoint);
@@ -93,14 +99,46 @@ internal sealed class DnsManagerView
         try{foreach(var item in reader.Adapters())adapters.Items.Add(new ComboBoxItem{Content=item.Name+" · "+L.T(item.Kind)+(item.Virtual?" · "+L.T("read-only"):""),Tag=item});}
         catch(Exception ex){files.Log("DNS adapter inspection: "+ex);current.Text=L.T("DNS settings could not be read safely.")+" "+Error(ex);}
         window.Closing+=(_,e)=>{if(busy)e.Cancel=true;};window.Closed+=(_,_)=>{cancellation.Cancel();cancellation.Dispose();shell.UpdateDnsStatus();};
-        var preferred=adapters.Items.Cast<ComboBoxItem>().FirstOrDefault(x=>x.Tag is DnsAdapter d&&d.Connected&&!d.Virtual);if(preferred!=null)adapters.SelectedItem=preferred;else if(adapters.Items.Count>0)adapters.SelectedIndex=0;
+        var preferred=adapters.Items.Cast<ComboBoxItem>().FirstOrDefault(x=>x.Tag is DnsAdapter d&&d.Connected&&!d.Virtual);var remembered=adapters.Items.Cast<ComboBoxItem>().FirstOrDefault(x=>x.Tag is DnsAdapter d&&d.Id.ToString("D")==shell.Settings.DnsAdapterId);if(remembered!=null)adapters.SelectedItem=remembered;else if(preferred!=null)adapters.SelectedItem=preferred;else if(adapters.Items.Count>0)adapters.SelectedIndex=0;
         if(adapters.Items.Count==0){warning.Text=L.T("No supported network adapters were found.");SetEnabled();}
         try{foreach(var saved in profileStore.Load())profiles.Items.Add(new ComboBoxItem{Content=saved.Name,Tag=saved});}catch(Exception ex){result.Text=L.T("Custom profiles could not be loaded. The original file was preserved.")+" "+Error(ex);}
 #if OPENNET_TESTING
         if(shell.Runtime.TestMode){var failures=new ComboBox{Height=32,Margin=new Thickness(0,8,0,0)};window.RegisterName("DnsSimulatedFailure",failures);foreach(string value in new[]{"No injected failure","UAC denied","Apply failure","Restore failure","Verification failure","Cache failure"})failures.Items.Add(new ComboBoxItem{Content=L.T(value)});failures.SelectedIndex=0;diagnostics.Children.Add(new TextBlock{Text=L.T("Simulate an operation failure")});diagnostics.Children.Add(failures);}
 #endif
+        SelectProfile(shell.Settings.DnsProfileId);Compact();
         ThemeManager.BindTree(window);LocalizedTree.Bind(window);
         void LanguageChanged(){Read();UpdatePlan();}L.Changed+=LanguageChanged;window.Closed+=(_,_)=>L.Changed-=LanguageChanged;
+    }
+    void Compact()
+    {
+        window.Height=540;var main=new StackPanel{Margin=new Thickness(26)};var advanced=new StackPanel();
+        var keep=new System.Collections.Generic.HashSet<UIElement>{panel.Children[0],panel.Children[1],adapters,profiles,profileAddresses,result};
+        foreach(var box in new[]{adapters,profiles}){int index=panel.Children.IndexOf(box);if(index>0)keep.Add(panel.Children[index-1]);}
+        foreach(UIElement item in panel.Children.Cast<UIElement>().ToArray()){panel.Children.Remove(item);if(keep.Contains(item))main.Children.Add(item);else advanced.Children.Add(item);}
+        simpleStatus=new TextBlock{FontSize=13,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,14,0,0)};ThemeManager.Bind(simpleStatus,TextBlock.ForegroundProperty,"Text");main.Children.Add(simpleStatus);
+        resolve=SettingsLayout.Button(window,"DnsResolve","Review current settings…");resolve.Margin=new Thickness(0,10,0,0);resolve.Click+=async(_,_)=>await AcceptCurrent();main.Children.Add(resolve);
+        var details=new Expander{Header=L.T("Advanced"),Content=advanced,Margin=new Thickness(0,18,0,0)};main.Children.Add(details);
+        var layout=new Grid();layout.RowDefinitions.Add(new());layout.RowDefinitions.Add(new(){Height=GridLength.Auto});var compactScroll=new ScrollViewer{Content=main,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};window.UnregisterName("DnsScroll");window.RegisterName("DnsScroll",compactScroll);layout.Children.Add(compactScroll);
+        // Keep the original action controls for accessible advanced actions and test coverage.
+        var oldLayout=(Grid)window.Content;var oldFooter=(Border)oldLayout.Children[1];var oldContent=(StackPanel)oldFooter.Child;oldFooter.Child=null;oldContent.Children.Remove(reason);advanced.Children.Add(reason);advanced.Children.Add(oldContent);
+        power=SettingsLayout.Button(window,"DnsPower","Turn on");power.Height=40;ThemeManager.Bind(power,Control.BackgroundProperty,"PrimaryBackground");ThemeManager.Bind(power,Control.ForegroundProperty,"PrimaryText");power.Click+=async(_,_)=>await Power();var footer=new Border{Padding=new Thickness(26,12,26,18),Child=power};ThemeManager.Bind(footer,Border.BackgroundProperty,"Surface");Grid.SetRow(footer,1);layout.Children.Add(footer);window.Content=layout;SetEnabled();
+    }
+    async Task AcceptCurrent()
+    {
+        if(busy||snapshot?.CanChange!=true)return;Read();if(snapshot?.CanChange!=true)return;var approved=snapshot;
+        string message=L.T("Accept the current adapter settings as a new baseline? The previous recovery record will be archived. No DNS settings will be written.")+"\n\n"+approved.AdapterName+"\nIPv4: "+FamilyText(approved.IPv4)+"\nIPv6: "+FamilyText(approved.IPv6);
+        bool confirmed;
+#if OPENNET_TESTING
+        if(shell.Runtime.TestMode&&ConfirmationForTests!=null)confirmed=ConfirmationForTests(message);else
+#endif
+        confirmed=AppDialog.Show(window,message,L.T("DNS recovery review"),MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)==MessageBoxResult.Yes;if(!confirmed)return;
+        try{busy=true;SetEnabled();
+#if OPENNET_TESTING
+            if(shell.Runtime.TestMode)new DnsTransaction(reader,(IDnsSettingsWriter)reader,store,"safe-test").AcceptCurrent(approved);else
+#endif
+            {using var process=System.Diagnostics.Process.GetCurrentProcess();var identity=ProcessIdentity.Read(process.Id);var request=new DnsRequest(Guid.NewGuid().ToString("N"),process.Id,identity.StartFileTime,DnsRecoveryStore.Owner(),shell.Settings.Language,"adopt",approved,approved,Array.Empty<DnsFamily>(),approved.Fingerprint()){ClearCache=false};var response=await DnsElevated.Execute(files,request,false);if(!response.Success)throw new DnsException(response.Message);}
+            result.Text=L.T("Current settings accepted; previous recovery record archived.");
+        }catch(Exception ex){result.Text=Error(ex);files.Log("DNS acceptance: "+ex);}finally{busy=false;Read();shell.UpdateDnsStatus();}
     }
     StackPanel Disclosure(string caption)
     {
@@ -121,13 +159,14 @@ internal sealed class DnsManagerView
     void Read()
     {
         if(current==null)return;
-        try{snapshot=reader.Read(Adapter);journal=store.Load(Adapter);current.Text=L.T("Scope: selected adapter; not an individual Wi-Fi profile.")+"\n"+"IPv4 · "+FamilyText(snapshot.IPv4)+"\nIPv6 · "+FamilyText(snapshot.IPv6)+"\n"+L.T(snapshot.CanChange?snapshot.IPv4.Encryption.Any(p=>(p.Flags&3)!=0)?"Adapter DoH captured; backup is created before applying.":"No active adapter DoH settings detected.":snapshot.Limitation);if(journal?.Active==true){current.Text+="\n"+L.T(DnsTransaction.Recoverable(journal,snapshot)?journal.Phase==DnsPhase.Applied?"A DNS profile is applied by Open Net.":"An unfinished DNS operation needs recovery review.":"DNS settings were changed outside Open Net.");}}
+        try{snapshot=reader.Read(Adapter);journal=store.Load(Adapter);shell.Settings.DnsAdapterId=Adapter.ToString("D");current.Text=L.T("Scope: selected adapter; not an individual Wi-Fi profile.")+"\n"+"IPv4 · "+FamilyText(snapshot.IPv4)+"\nIPv6 · "+FamilyText(snapshot.IPv6)+"\n"+L.T(snapshot.CanChange?snapshot.IPv4.Encryption.Any(p=>(p.Flags&3)!=0)?"Adapter DoH captured; backup is created before applying.":"No active adapter DoH settings detected.":snapshot.Limitation);if(journal?.Active==true){current.Text+="\n"+L.T(DnsTransaction.Recoverable(journal,snapshot)?journal.Phase==DnsPhase.Applied?"A DNS profile is applied by Open Net.":"An unfinished DNS operation needs recovery review.":"DNS settings were changed outside Open Net.");}}
         catch(Exception ex){snapshot=null;journal=null;files.Log("DNS inspection: "+ex);current.Text=L.T("DNS settings could not be read safely.")+" "+Error(ex);}
-        UpdatePlan();shell.UpdateDnsStatus();
+        UpdatePlan();
     }
     static string FamilyText(DnsFamilySettings settings)=>L.T(settings.Mode==DnsMode.Manual?"Manual":settings.Mode==DnsMode.Automatic?"Automatic":"Unknown")+" · "+string.Join(", ",settings.Mode==DnsMode.Manual?settings.Servers:settings.EffectiveServers)+(settings.Encryption.Length==0?"":"\n"+string.Join("\n",settings.Encryption.Select(p=>p.Server+" · "+((p.Flags&3)==0?L.T("DoH disabled"):"DoH · "+(p.Template??L.T("Automatic template"))+" · "+L.T((p.Flags&4)==0?"No plaintext fallback":"Plaintext fallback permitted"))+" · flags="+p.Flags)));
     void ProfileChanged()
     {
+        if(Profile is {} selected){shell.Settings.DnsProfileId=(profiles.SelectedItem as ComboBoxItem)?.Tag is SavedDnsProfile savedChoice?"saved:"+savedChoice.Id:selected.Id;shell.Settings.DnsProfileName=L.T(selected.Name);try{files.Save(shell.Settings);}catch(Exception ex){files.Log("DNS profile choice: "+ex.Message);}}
         if(addresses4==null)return;var profile=Profile;bool custom=profile?.Id=="custom";
         addresses4.Text=profile==null?"":custom?profile.IPv4.FirstOrDefault()??"":string.Join(", ",profile.IPv4);addresses6.Text=profile==null?"":string.Join(", ",profile.IPv6);alternate4.Text=custom&&profile!.IPv4.Length>1?profile.IPv4[1]:"";profileName.Text=profile?.Name??"Custom DNS";dohEndpoint.Text=profile?.Doh??"";
         addresses4.IsReadOnly=addresses6.IsReadOnly=!custom;ipv6.IsChecked=false;ipv6Mode.SelectedIndex=0;customFields.Visibility=custom?Visibility.Visible:Visibility.Collapsed;
@@ -166,6 +205,7 @@ internal sealed class DnsManagerView
         useDoh.IsEnabled=!busy;fallback.IsEnabled=!busy&&useDoh.IsChecked==true;clearCache.IsEnabled=profileName.IsEnabled=alternate4.IsEnabled=dohEndpoint.IsEnabled=saveProfile.IsEnabled=!busy;
         automatic.ToolTip=automatic.IsEnabled?L.T("Return IPv4 DNS assignment to automatic; preserve IP addressing and IPv6."):L.T(snapshot?.Limitation??"DNS settings could not be read safely.");
         reapplyItem.IsEnabled=reapply.IsEnabled;automaticItem.IsEnabled=automatic.IsEnabled;flushItem.IsEnabled=flush.IsEnabled;more.IsEnabled=!busy;reapplyItem.ToolTip=reapply.IsEnabled?L.T("Repeat writes the same DNS and DoH without DHCP or cache clearing."):L.T("Repeat requires the selected manual DNS and DoH to match the current configuration exactly.");
+        if(power!=null){resolve!.IsEnabled=!busy&&snapshot?.CanChange==true;power.Content=L.T(Applied?"Turn off":"Turn on");power.IsEnabled=!busy&&(Applied?restore.IsEnabled:apply.IsEnabled||reapply.IsEnabled);simpleStatus!.Text=Status+(!power.IsEnabled&&snapshot?.CanChange==false?"\n"+L.T(snapshot.Limitation):"");resolve!.Visibility=journal?.Active==true&&!SessionReady?Visibility.Visible:Visibility.Collapsed;}
         reason.Text=(busy?L.T("DNS operation in progress."):(!apply.IsEnabled&&applyReason.Length>0?applyReason+"\n":"")+L.T(restoreReason));apply.ToolTip=apply.IsEnabled?null:applyReason;restore.ToolTip=L.T(restoreReason);
     }
     async Task Operation(bool restoring,bool automaticMode=false,bool cacheOnly=false,bool repeat=false)
