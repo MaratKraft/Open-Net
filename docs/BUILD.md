@@ -8,7 +8,7 @@ Use Windows x64, PowerShell 7 and .NET SDK **10.0.100** (`global.json` permits S
 ./scripts/publish.ps1 -SdkPath 'C:/SDK/dotnet.exe' -NugetCache 'C:/NuGetCache'
 ```
 
-Current development output: `publish/Open Net 0.4.0-alpha.1/Open Net.exe`; safe host: `publish/Open Net 0.4.0-alpha.1 Test/Open Net.exe`. Production compilation excludes the test harness and safe stub classes. Options: Release, win-x64, self-contained, single-file compression, native extraction, no trimming, no debug symbols. No network component is bundled or launched by the build. Published Stable v0.3.2 remains unchanged. See [DNS Manager alpha](DNS_MANAGER_ALPHA.md) for capability restrictions and manual-test gates.
+Current development output: `publish/Open Net 0.4.0-alpha.1/Open Net.exe`; safe host: `publish/Open Net 0.4.0-alpha.1 Test/Open Net.exe`. Production compilation excludes the test harness and safe stub classes. Options: Release, win-x64, self-contained, single-file compression, native extraction, no trimming, no debug symbols. No network component is bundled or launched by the build. Published Stable v0.3.3 remains unchanged. See [DNS Manager alpha](DNS_MANAGER_ALPHA.md) for capability restrictions and manual-test gates.
 
 ## Repository layout
 
@@ -29,7 +29,7 @@ The existing harness is an interactive Windows test executable, not a `dotnet te
 ./scripts/test.ps1 -FixtureDirectory 'C:/Fixtures/zapret-discord-youtube-1.10.3'
 ```
 
-`-InstallFiles` additionally downloads upstream release binaries for installation validation; it does not launch them. It is optional and is not enabled in CI. CI runs the separate twelve-check `test-headless.ps1` suite without fixture downloads or screenshots. Existing historical installation test results are summarized in [VALIDATION.md](VALIDATION.md). Do not mistake skipped network-installation checks for new live network testing.
+`-InstallFiles` additionally downloads upstream release binaries for installation validation; it does not launch them. It is optional and is not enabled in CI. CI runs the separate twenty-one-check `test-headless.ps1` suite without fixture downloads or screenshots. Existing historical installation test results are summarized in [VALIDATION.md](VALIDATION.md). Do not mistake skipped network-installation checks for new live network testing.
 
 ## Packaging
 
@@ -42,7 +42,7 @@ The packaging script copies the production EXE, constructs a clean Portable ZIP 
 
 ## CI and reproducibility
 
-The GitHub Actions workflow checks tracked public files, builds the production application and a separate test executable, runs twelve safe headless checks, and uploads a Windows artifact. It has read-only repository permissions. It does not launch the production application, network utilities, WinDivert or system-changing tests. Interactive tests are left to a Windows desktop session; no formatter configuration existed to enforce in CI. The public-file guard checks selected secret patterns and forbidden outputs; it is not a full credential scanner.
+The GitHub Actions workflow checks tracked public files, builds the production application and a separate test executable, runs twenty-one safe headless checks, and uploads a Windows artifact. It has read-only repository permissions. It does not launch the production application, network utilities, WinDivert or system-changing tests. Interactive tests are left to a Windows desktop session; no formatter configuration existed to enforce in CI. The public-file guard checks selected secret patterns and forbidden outputs; it is not a full credential scanner.
 
 The prepared source rebuilt locally with SDK 10.0.100 and runtime 10.0.12 to an EXE **byte-identical to the supplied release candidate**. This is a measured result for that environment, not a universal reproducible-build guarantee. SDK patches, package contents or build paths may change results. CI artifacts must be independently compared before replacing the reviewed release EXE.
 
@@ -61,3 +61,7 @@ After building with -TestBuild, run ./scripts/test-headless.ps1 for palette/layo
 R5 adds thirteen headless session/profile/cache checks and three interactive scenarios for automatic assignment, profile switches, custom-profile persistence and simulated UAC/write/verification/restore/cache failures. `--dns-recovery --verify-only` opens the independent emergency window and produces a local read-only probe without applying DNS. Safe Preview rejects that entry point. A real Windows DNS trial is still separately gated; fake tests and inspection cannot certify real setters or physical Windows 10.
 
 R6 adds eight headless checks and two interactive scenarios for explicit same-value repeat, immutable originals, Google/foreign-adapter handling, error evidence, UAC denial, independent diagnostic modes and restart recovery. Repeat always excludes automatic assignment and cache clearing. These checks use mocks; no real DNS setter, flush or active probes run in development tests.
+
+## v0.3.3 startup checks
+
+See [automatic startup](AUTOSTART_033_RU.md). New headless checks use fake Run/task stores and fake module launch delegates; they do not register a real task or launch network tools. Interactive checks use owned stub processes and the existing isolated HKCU fixture. Task XML can be checked with TASK_VALIDATE_ONLY; it validates the schema without persisting or running a task. Live UAC, real registration/removal and logon validation require separate owner approval.

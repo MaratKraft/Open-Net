@@ -23,8 +23,10 @@ public sealed class UserSettings
     public bool ZapretSelected { get; set; } = true;
     public bool TgSelected { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
-    public bool ConfirmStartStop { get; set; } = true;
+    public bool ConfirmStartStop { get; set; } = false;
     public bool StartWithWindows { get; set; } = false;
+    public bool AutoStartTools { get; set; } = false;
+    public bool StartupInTray { get; set; } = true;
     public string StartupInstallationId { get; set; } = "";
     public UserSettings Copy()=>JsonSerializer.Deserialize<UserSettings>(JsonSerializer.Serialize(this))!;
     public ModulePreferences ForModule(string id)=>id switch {
@@ -58,7 +60,9 @@ public sealed class AppFiles
     }
     public UserSettings Defaults()
     {
-        return new();
+        // Recommended first-install preferences; existing JSON keeps its own values.
+        // Registration still requires explicit approval and Windows UAC.
+        return new(){StartWithWindows=true,AutoStartTools=true};
     }
     public UserSettings Load()
     {
@@ -67,6 +71,8 @@ public sealed class AppFiles
         using var document=JsonDocument.Parse(json);
         var settings=JsonSerializer.Deserialize<UserSettings>(json) ?? throw new InvalidDataException(L.T("Settings are empty. Save them again or restore a backup."));
         if(!document.RootElement.EnumerateObject().Any(x=>string.Equals(x.Name,"Theme",StringComparison.OrdinalIgnoreCase)))settings.Theme="dark";
+        // Older saved profiles without this preference retain their previous behavior.
+        if(!document.RootElement.TryGetProperty("ConfirmStartStop",out _))settings.ConfirmStartStop=true;
         if(settings.Theme is not ("system" or "light" or "dark"))settings.Theme="system";
         settings.ZapretDirectory=Resolve(settings.ZapretDirectory);settings.TgExe=Resolve(settings.TgExe);return settings;
     }

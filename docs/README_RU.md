@@ -3,7 +3,7 @@
 <p align="center">Минималистичный Windows-менеджер Zapret и TG WS Proxy.</p>
 <p align="center">
 <img alt="Windows 10 / 11 x64" src="https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-0078D4">
-<img alt="0.3.2 Stable" src="https://img.shields.io/badge/version-0.3.2%20Stable-369B59">
+<img alt="0.3.3 Stable" src="https://img.shields.io/badge/version-0.3.3%20Stable-369B59">
 <a href="../LICENSE"><img alt="MIT — код Open Net" src="https://img.shields.io/badge/license-MIT-369B59"></a>
 </p>
 
@@ -11,21 +11,21 @@
 
 Устанавливайте поддерживаемые сетевые инструменты, выбирайте настройки и управляйте ими из одного небольшого окна. Open Net — независимый проект; инструменты сохраняют собственное поведение и лицензии.
 
-## Скриншоты
-
-[![Главное окно Open Net и настройки](../assets/screenshots/v0.3.2/overview.png)](../assets/screenshots/v0.3.2/overview.png)
-
-Реальные окна Open Net 0.3.2 с материалом **Solid / Сплошная** на тёмном нейтральном фоне. Главное окно снято в проверенном безопасном тестовом состоянии; настройки — в утверждённом production EXE с изолированным профилем. Показанные инструменты не входят в комплект. Нажмите изображение для просмотра в исходном размере. [Снимок настроек](../assets/screenshots/v0.3.2/settings.png).
-
 ## Скачать
 
-**[Standard — рекомендуется](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.2/Open-Net-0.3.2-Windows-x64.exe)**<br>
+**[Standard — рекомендуется](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/Open-Net-0.3.3-Windows-x64.exe)**<br>
 Скачайте EXE и запустите. Данные хранятся в `%LOCALAPPDATA%\Open Net`.
 
-**[Portable ZIP](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.2/Open-Net-0.3.2-Windows-x64-Portable.zip)**<br>
+**[Portable ZIP](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/Open-Net-0.3.3-Windows-x64-Portable.zip)**<br>
 Распакуйте архив в отдельную папку и запустите `Open Net.exe`. Данные хранятся рядом с приложением.
 
-Zapret и TG WS Proxy не входят в комплект — их можно установить через Open Net. [Все релизы](https://github.com/MaratKraft/Open-Net/releases) · [Последний стабильный релиз](https://github.com/MaratKraft/Open-Net/releases/latest).
+[SHA-256](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/SHA256SUMS.txt) · Zapret и TG WS Proxy не входят в комплект — их можно установить через Open Net. [Все релизы](https://github.com/MaratKraft/Open-Net/releases) · [Последний стабильный релиз](https://github.com/MaratKraft/Open-Net/releases/latest).
+
+## Скриншоты
+
+[![Главное окно Open Net и настройки](../assets/screenshots/v0.3.3/overview.png)](../assets/screenshots/v0.3.3/overview.png)
+
+Настоящие окна Open Net 0.3.3 с подложкой **Сплошная / Solid**, без увеличения исходных снимков. Компоненты устанавливаются отдельно. Нажмите изображение для полного размера. [Настройки](../assets/screenshots/v0.3.3/settings.png).
 
 ## Возможности
 
@@ -48,13 +48,23 @@ VPN и управление DNS в этой версии отсутствуют.
 
 **Круговая стрелка** проверяет обновления компонентов. Совместимые официальные версии устанавливаются без обязательного обновления Open Net. Чужие процессы не изменяются. Перед принудительной остановкой TG может потребоваться подтверждение для защиты несохранённых настроек.
 
-По умолчанию закрытие главного окна скрывает его в трее; для завершения оболочки выберите **Выход** в меню трея. Выход не останавливает работающие сетевые инструменты автоматически. Автозапуск Windows выключен по умолчанию и запускает только Open Net.
+По умолчанию закрытие главного окна скрывает его в трее. Для выхода выберите **Выход** в меню трея; работающие инструменты при этом автоматически не останавливаются.
+
+## Автозапуск Windows
+
+- **Запускать с Windows** — открывать Open Net после входа в учётную запись.
+- **Автоматически запускать выбранные инструменты** — отдельное разрешение на запуск установленных и выбранных Zapret/TG при входе.
+- **При входе в Windows запускать в трее** — оставлять главное окно закрытым. Ручной запуск открывает окно; положение значка задаёт сама Windows.
+
+В новой установке рекомендуемые опции выбраны заранее, но для активации нужны ваше отдельное согласие и UAC. Существующие настройки сохраняются; обновление не включает автозапуск инструментов неожиданно. Обычные подтверждения запуска и остановки в новых профилях выключены.
+
+Сохраните выбор в **Настройках**. Для автоматических инструментов регистрируется одна видимая задача Планировщика от текущего пользователя с административными правами; Open Net и инструменты затем работают с повышенными правами. Пароль не сохраняется. Храните приложение и модули в доверенной папке. Для одной оболочки остаётся обычная запись автозапуска Windows. [Настройка и перенос Portable](AUTOSTART_033_RU.md).
 
 ## Требования
 
 Windows 10/11 **x64**, доступная для записи папка данных и доступ к официальным релизам GitHub для первоначальной установки компонентов. Операции Zapret с WinDivert требуют подтверждения администратора. Оболочка включает .NET 10.0.12; отдельно устанавливать .NET или Python не нужно.
 
-Текущие проверки выполнялись на Windows 11. Реальная Windows 10, физические мониторы/DPI, автозапуск после входа и реальная работа сети/UAC требуют проверки на целевых машинах. Stable обозначает статус выпуска и не гарантирует отсутствие ошибок или работу у любого провайдера. См. [результаты проверок](VALIDATION_v0.3.2_RELEASE.md).
+Владелец подтвердил на своём ПК работу R8 после перезагрузки: сохранение настроек, запуск выбранных инструментов, трей и интерфейс. Физическая Windows 10 и разные мониторы/DPI остаются непроверенными. [Подробности](VALIDATION_v0.3.3_RELEASE.md).
 
 ## Хранение данных и решение проблем
 
@@ -66,11 +76,11 @@ Windows 10/11 **x64**, доступная для записи папка дан�
 
 **Неподписанное приложение:** EXE не подписан Authenticode, поэтому SmartScreen может предупредить о неизвестном издателе. Перед запуском проверьте репозиторий, тег версии и хеши. Не отключайте средства защиты Windows. Совпадение хеша подтверждает целостность, но не гарантирует безопасность.
 
-Сравните с [SHA256SUMS.txt](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.2/SHA256SUMS.txt) релиза:
+Сравните с [SHA256SUMS.txt](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/SHA256SUMS.txt) релиза:
 
 ```powershell
-Get-FileHash .\Open-Net-0.3.2-Windows-x64.exe -Algorithm SHA256
-Get-FileHash .\Open-Net-0.3.2-Windows-x64-Portable.zip -Algorithm SHA256
+Get-FileHash .\Open-Net-0.3.3-Windows-x64.exe -Algorithm SHA256
+Get-FileHash .\Open-Net-0.3.3-Windows-x64-Portable.zip -Algorithm SHA256
 ```
 
 Сообщайте об ошибках в [Issues](https://github.com/MaratKraft/Open-Net/issues): добавьте шаги воспроизведения и удалите секреты из журналов. Для чувствительных сообщений следуйте [SECURITY.md](../SECURITY.md).
@@ -83,7 +93,7 @@ Get-FileHash .\Open-Net-0.3.2-Windows-x64-Portable.zip -Algorithm SHA256
 ./scripts/publish.ps1
 ```
 
-Результат: `publish/Open Net 0.3.2/Open Net.exe`. Сборка Release: self-contained, сжатый single-file, win-x64, runtime 10.0.12, без trimming и отладочных символов. [BUILD.md](BUILD.md) описывает кэши, безопасные тесты, упаковку и различия хешей в разных окружениях.
+Результат: `publish/Open Net 0.3.3/Open Net.exe`. Сборка Release: self-contained, сжатый single-file, win-x64, runtime 10.0.12, без trimming и отладочных символов. [BUILD.md](BUILD.md) описывает кэши, безопасные тесты, упаковку и различия хешей в разных окружениях.
 
 ## Благодарности и лицензия
 
