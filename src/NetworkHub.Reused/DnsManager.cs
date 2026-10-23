@@ -67,9 +67,11 @@ public static class DnsProfiles
         if(id!="custom"&&families.SelectMany(f=>target.Family(f).Encryption).Any(p=>(p.Flags&3)!=0&&(p.Template!=profile.Doh||(p.Flags&2)==0)))throw new DnsException("DoH settings do not match the selected profile.");
     }
     public static IReadOnlyList<DnsProfile> All {get;}=new[]{
-        new DnsProfile("comss","ComssDNS",new[]{"83.220.169.155","212.109.195.93"},Array.Empty<string>(),"https://dns.comss.one/dns-query","https://www.comss.ru/page.php?id=7315","2026-10-12",true,""),
-        new DnsProfile("xbox","Xbox DNS",new[]{"111.88.96.54","111.88.96.55"},new[]{"2a00:ab00:1233:26::50","2a00:ab00:1233:26::51"},"https://xbox-dns.ru/dns-query","https://xbox-dns.ru/","2026-10-13",false,"The operator reports temporary Xbox DNS disruption. This is an availability warning, not a measurement of your connection. Apply only after reviewing the confirmation."),
-        new DnsProfile("custom","Custom DNS",Array.Empty<string>(),Array.Empty<string>(),null,"","",true,"")
+        new DnsProfile("comss","ComssDNS",new[]{"83.220.169.155","212.109.195.93"},Array.Empty<string>(),"https://dns.comss.one/dns-query","https://www.comss.ru/page.php?id=7315","2026-10-24",true,""),
+        new DnsProfile("xbox","Xbox DNS",new[]{"111.88.96.54","111.88.96.55"},new[]{"2a00:ab00:1233:26::50","2a00:ab00:1233:26::51"},"https://xbox-dns.ru/dns-query","https://xbox-dns.ru/","2026-10-24",false,"The operator reports temporary Xbox DNS disruption. This is an availability warning, not a measurement of your connection. Apply only after reviewing the confirmation."),
+        new DnsProfile("custom","Custom DNS",Array.Empty<string>(),Array.Empty<string>(),null,"","",true,""),
+        new DnsProfile("geohide-eu","GeoHide EU",new[]{"143.20.64.192","45.13.237.213"},Array.Empty<string>(),null,"https://geohide.ru/","2026-10-24",true,"Source verification is limited: the operator website was unavailable. Native DoH is unverified. Existing encryption is not disabled automatically."),
+        new DnsProfile("magic","MagicDNS",new[]{"109.120.132.43","94.249.177.102"},Array.Empty<string>(),"https://dns.magicdns.ru/dns-query","https://magicdns.ru/","2026-10-24",true,"")
     };
     public static string[] Validate(string text,DnsFamily family)
     {

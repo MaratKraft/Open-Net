@@ -36,6 +36,7 @@ public sealed class Shell : IDisposable
     private bool startupHandled;
     private readonly WindowsStartupLaunch startupLaunch=new();
     internal WorkspaceController Workspace {get;private set;}=null!;
+    readonly OwnedWindowRestorer ownedWindows;
     private Window? settingsWindow;
     private DnsManagerView? dnsWindow;
     private readonly Dictionary<string,Window> moduleWindows=new();
@@ -61,7 +62,7 @@ public sealed class Shell : IDisposable
     {
         this.files=files;readiness=new ModuleReadiness(files);ThemeManager.SetMode("system");
         using var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("NetworkHub.MainView.xaml")!;
-        Window=(Window)XamlReader.Load(stream);
+        Window=(Window)XamlReader.Load(stream);ownedWindows=new OwnedWindowRestorer(Window);
         Window.SourceInitialized+=(_,_)=>{WindowFrame.Attach(Window);WindowSizing.Fit(Window);WindowAppearance.Apply(Window,files,()=>Settings?.Backdrop??"mica");};
         Window.DpiChanged+=(_,_)=>WindowSizing.Fit(Window);
         Application.Current.Resources.MergedDictionaries.Add(Window.Resources);
@@ -297,14 +298,14 @@ public sealed class Shell : IDisposable
         if(Settings.CloseToTray){e.Cancel=true;HideToTray();}
         else {e.Cancel=true;Window.Dispatcher.BeginInvoke(new Action(Exit));}
     }
-    public void HideToTray(){Window.ShowInTaskbar=false;Window.Hide();}
+    public void HideToTray(){ownedWindows.Hide();Window.ShowInTaskbar=false;Window.Hide();}
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern bool BringWindowToTop(IntPtr hwnd);
     public void Restore()
     {
         FocusCues.SetMode(false);
         Window.ShowInTaskbar=true;Window.Show();Window.WindowState=WindowState.Normal;Window.Activate();
-        var handle=new WindowInteropHelper(Window).Handle;BringWindowToTop(handle);SetForegroundWindow(handle);Window.Focus();
+        var handle=new WindowInteropHelper(Window).Handle;BringWindowToTop(handle);SetForegroundWindow(handle);Window.Focus();ownedWindows.Restore();
     }
     public void Exit() {if(exiting)return;if(Busy||dnsWindow?.IsBusy==true){ShowMessage(L.T("Wait for the current operation to finish before exiting."));return;}exiting=true;timer.Stop();Tray.Visible=false;Window.Close();Application.Current.Shutdown();}
     internal Window OpenDnsSettings()
@@ -323,20 +324,10 @@ public sealed class Shell : IDisposable
         if(dnsWindow!=null){dnsWindow.RefreshStatus();dnsApplied=dnsWindow.Applied;Find<TextBlock>("DnsState").Text=L.T(dnsWindow.Status);return;}
         dnsApplied=false;
 #if OPENNET_TESTING
-        if(Runtime.TestMode){try{var fake=TestsDns.Fixture(files.Data);var record=new DnsFileJournalStore(Paths.Owned(files.Data,"Dns/IsolatedRecovery"),"safe-test").Load(fake.State.AdapterId);dnsApplied=record?.Active==true&&record.Phase==DnsPhase.Applied&&record.Expected.SameConfiguration(fake.State);Find<TextBlock>("DnsState").Text=L.T("Preview mode")+" · "+L.T(dnsApplied?DnsManagerView.ProfileStatus(record!):record?.Active==true?"Settings changed externally":"System DNS");}catch(Exception ex){Find<TextBlock>("DnsState").Text=L.T("DNS recovery storage needs review.");files.Log("Preview DNS status: "+ex.Message);}return;}
+        if(Runtime.TestMode){try{var fake=TestsDns.Fixture(files.Data);var record=new DnsFileJournalStore(Paths.Owned(files.Data,"Dns/IsolatedRecovery"),"safe-test").Load(fake.State.AdapterId);dnsApplied=DnsPresentation.Managed(fake.State,record);Find<TextBlock>("DnsState").Text=L.T("Preview mode")+" · "+DnsPresentation.Status(fake.State,record);}catch(Exception ex){Find<TextBlock>("DnsState").Text=L.T("Error");files.Log("Preview DNS status: "+ex.Message);}return;}
 #endif
-        string text=Runtime.TestMode?"Preview mode":"System DNS";
-        if(!Runtime.TestMode)try{
-            string owner=DnsRecoveryStore.Owner(),directory=DnsRecoveryStore.DirectoryFor(owner);var store=DnsRecoveryStore.Open(owner,false);
-            if(Directory.Exists(directory))foreach(string path in Directory.EnumerateFiles(directory,"*.json").Take(64)){
-                if(Guid.TryParse(Path.GetFileNameWithoutExtension(path),out var id)&&(Settings.DnsAdapterId==""||Settings.DnsAdapterId==id.ToString("D"))&&store.Load(id) is {Active:true} record){
-                    var observed=new WindowsDnsSettings().Read(id);dnsApplied=record.Phase==DnsPhase.Applied&&record.Expected.SameConfiguration(observed);
-                    text=!DnsTransaction.Recoverable(record,observed)?"Settings changed externally":record.Phase==DnsPhase.Applied?DnsManagerView.ProfileStatus(record):"An unfinished DNS operation needs recovery review.";break;
-                }
-            }
-        }catch(Exception){text="DNS recovery storage needs review.";}
-        Find<TextBlock>("DnsState").Text=L.T(text);
-        // Read only adapters with an owned active journal; never run connection probes here.
+        try{var backend=new WindowsDnsSettings();var adapters=backend.Adapters();var adapter=adapters.FirstOrDefault(a=>a.Id.ToString("D")==Settings.DnsAdapterId)??adapters.FirstOrDefault(a=>a.Connected&&!a.Virtual);if(adapter==null){Find<TextBlock>("DnsState").Text=L.T("No connected adapter");return;}var current=backend.Read(adapter.Id);var record=DnsRecoveryStore.Open(DnsRecoveryStore.Owner(),false).Load(adapter.Id);dnsApplied=DnsPresentation.Managed(current,record);Find<TextBlock>("DnsState").Text=DnsPresentation.Status(current,record);}
+        catch(Exception ex){Find<TextBlock>("DnsState").Text=L.T("Error");files.Log("DNS status: "+ex.Message);}
     }
     public void ApplySettings(UserSettings settings) {settings.Workspace??=new();settings.Workspace.Normalize();settings.StartupZapret??=settings.ZapretSelected;settings.StartupTg??=settings.TgSelected;files.Save(settings);if(Settings.Language!=settings.Language){moduleMessages.Clear();}Settings=settings;ThemeManager.SetMode(settings.Theme);L.Set(settings.Language);WindowAppearance.Refresh(Window);Workspace?.Reload();errors.Clear();_ =Refresh();Render();}
     public void ApplyGeneralSettings(UserSettings settings)

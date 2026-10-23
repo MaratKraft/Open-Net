@@ -167,6 +167,7 @@ public static class SelfTests
         await TestsFluent.Run(shell,files,Test);
         await TestsDns.Interactive(shell,files,Test);
         await TestsWorkspace.Ui(shell,files,Test);
+        await TestsR2.Ui(shell,files,Test);
         await Tests033.Ui(shell,files,Test);
         await TestsStartupReadback.Ui(files,Test);await TestsSettingsCompact.Ui(shell,files,Test);await TestsScrollbars.Ui(shell,files,Test);
         await Test("Tray Exit terminates shell and removes icon",()=>Sync(()=>{shell.TrayExit.PerformClick();Require(!shell.Tray.Visible);}));
