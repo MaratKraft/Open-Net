@@ -122,7 +122,7 @@ internal sealed class DnsManagerView
         var layout=new Grid();layout.RowDefinitions.Add(new());layout.RowDefinitions.Add(new(){Height=GridLength.Auto});var compactScroll=new ScrollViewer{Content=main,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};window.UnregisterName("DnsScroll");window.RegisterName("DnsScroll",compactScroll);layout.Children.Add(compactScroll);
         // Controls retain their names/handlers but the old competing Apply/Restore footer is not presented.
         var oldLayout=(Grid)window.Content;var oldFooter=(Border)oldLayout.Children[1];var oldContent=(StackPanel)oldFooter.Child;oldFooter.Child=null;oldContent.Children.Remove(reason);advanced.Children.Add(reason);
-        more.Content=L.T("Other actions");((Panel)more.Parent).Children.Remove(more);advanced.Children.Add(more);main.Children.Remove(result);advanced.Children.Add(result);
+        more.Content=CompactUi.Disclosure(L.T("Other actions"));more.Height=32;more.MinWidth=150;more.Padding=new Thickness(12,4,12,4);more.Margin=new Thickness(0,12,0,8);more.ContextMenu!.Opened+=(_,_)=>more.Content=CompactUi.Disclosure(L.T("Other actions"),true);more.ContextMenu.Closed+=(_,_)=>more.Content=CompactUi.Disclosure(L.T("Other actions"));((Panel)more.Parent).Children.Remove(more);advanced.Children.Add(more);main.Children.Remove(result);advanced.Children.Add(result);
         power=SettingsLayout.Button(window,"DnsPower","Turn on");power.Height=40;ThemeManager.Bind(power,Control.BackgroundProperty,"PrimaryBackground");ThemeManager.Bind(power,Control.ForegroundProperty,"PrimaryText");power.Click+=async(_,_)=>await Power();var footer=new Border{Padding=new Thickness(26,12,26,18),Child=power};ThemeManager.Bind(footer,Border.BackgroundProperty,"Surface");Grid.SetRow(footer,1);layout.Children.Add(footer);window.Content=layout;SetEnabled();
     }
     internal Window OpenAdvanced()
@@ -154,8 +154,8 @@ internal sealed class DnsManagerView
     }
     StackPanel Disclosure(string caption)
     {
-        var content=new StackPanel{Visibility=Visibility.Collapsed,Tag=caption};var header=new Button{Tag=caption,Content="› "+L.T(caption),HorizontalAlignment=HorizontalAlignment.Left,Margin=new Thickness(0,10,0,0),Padding=new Thickness(0,5,0,5),Background=System.Windows.Media.Brushes.Transparent,BorderThickness=new Thickness(0)};
-        void UpdateCaption()=>header.Content=(content.Visibility==Visibility.Visible?"⌄ ":"› ")+L.T(caption);
+        var content=new StackPanel{Visibility=Visibility.Collapsed,Tag=caption};var header=new Button{Tag=caption,HorizontalAlignment=HorizontalAlignment.Left,MinHeight=28,Margin=new Thickness(0,8,0,0),Padding=new Thickness(8,4,8,4),Background=System.Windows.Media.Brushes.Transparent,BorderThickness=new Thickness(0)};
+        void UpdateCaption()=>header.Content=CompactUi.Disclosure(L.T(caption),content.Visibility==Visibility.Visible);UpdateCaption();
         ThemeManager.Bind(header,Control.ForegroundProperty,"SecondaryText");header.Click+=(_,_)=>{content.Visibility=content.Visibility==Visibility.Visible?Visibility.Collapsed:Visibility.Visible;UpdateCaption();};L.Changed+=UpdateCaption;window.Closed+=(_,_)=>L.Changed-=UpdateCaption;panel.Children.Add(header);panel.Children.Add(content);return content;
     }
     void Label(string text)=>SettingsLayout.Label(panel,text);
