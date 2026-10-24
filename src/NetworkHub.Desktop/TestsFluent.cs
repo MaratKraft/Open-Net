@@ -27,7 +27,7 @@ public static class TestsFluent
    var selection=(CheckBox)controls[2];var selected=selection.IsChecked;
    try{selection.IsChecked=false;var circle=(Border)selection.Template.FindName("Box",selection);Check(circle.BorderBrush==ThemeManager.Brush("ActionForeground"),"Unselected circle uses the same contour color");Check(Math.Abs(circle.TransformToAncestor(group).TransformBounds(new Rect(circle.RenderSize)).Width-16)<.01,"Selection ink is reduced without shrinking the hit area");}finally{selection.IsChecked=selected;}
    var marker=shell.Find<System.Windows.Shapes.Path>(prefix+"ModuleIcon");var row=(Grid)((Border)shell.Find<Border>(prefix+"Row")).Child;
-   Check(row.ColumnDefinitions[0].Width.Value==32&&row.ColumnDefinitions[2].Width.Value==92,"Shared marker gap preserves the right action group");
+   Check(row.ColumnDefinitions[0].Width.Value==32&&row.ColumnDefinitions[3].Width.Value==92,"Shared marker gap preserves the right action group");
    var markerBounds=ModuleIconAlignment.Ink(marker,row);var status=shell.Find<TextBlock>(prefix+"State");Check(Math.Abs(status.TranslatePoint(new Point(),row).X-markerBounds.Right-12)<.1,"Both module rows have a twelve DIP visible marker-to-text gap");
    var gear=(System.Windows.Shapes.Path)((Button)controls[1]).Content;var transform=gear.RenderTransform.Value;var visibility=glyph.Visibility;
    try{glyph.Visibility=Visibility.Collapsed;shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],(CheckBox)controls[2]);shell.Window.UpdateLayout();Check(gear.RenderTransform.Value==transform,"Loading keeps neighboring glyphs fixed");}

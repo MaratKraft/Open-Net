@@ -74,7 +74,7 @@ public static class Tests032Final
      button.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,source,Environment.TickCount,key){RoutedEvent=Keyboard.KeyDownEvent});
      button.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,source,Environment.TickCount,key){RoutedEvent=Keyboard.KeyUpEvent});
     }
-    Check(invoked==5,"Enter and Space routed keyboard activation");
+    Check(invoked==5,"Enter and Space routed keyboard activation: invoked="+invoked+", active="+shell.Window.IsActive+", focused="+button.IsKeyboardFocused);
     shell.RepositoryLaunchForTests=_=>throw new InvalidOperationException("simulated unavailable browser");button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Check(shell.Find<TextBlock>("Message").Text==L.T("Could not open the browser. Open github.com/MaratKraft/Open-Net manually."),"Browser failure is readable and nonfatal");
    }finally{shell.RepositoryLaunchForTests=null;L.Set(language);}
   });
