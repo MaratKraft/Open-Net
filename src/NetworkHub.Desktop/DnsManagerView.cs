@@ -22,6 +22,9 @@ internal sealed class DnsManagerView
     internal Window Window=>window;
     internal bool IsBusy=>busy;
     internal bool Applied=>DnsPresentation.Managed(snapshot,journal);
+    internal string LineStatus=>(shell.Runtime.TestMode?L.T("Preview mode")+" · ":"")+(busy?L.T(restoringOperation?"Restoring…":"Applying…"):operationError.Length>0?L.T("Error"):DnsPresentation.LineStatus(snapshot,journal));
+    internal string StatusTone=>operationError.Length>0?"Error":busy?"Muted":DnsPresentation.StatusTone(snapshot,journal);
+    internal string CurrentProfile=>DnsPresentation.CurrentProfile(snapshot,journal);
     internal void RefreshStatus(){if(busy||refreshing)return;refreshing=true;try{Read();}finally{refreshing=false;}}
     internal void SelectProfile(string id){foreach(ComboBoxItem item in profiles.Items)if(item.Tag is DnsProfile profile&&profile.Id==id||item.Tag is SavedDnsProfile saved&&"saved:"+saved.Id==id){profiles.SelectedItem=item;break;}}
     internal async Task<bool> Power(bool? restore=null){RefreshStatus();bool off=restore??OffAction;if(off&&!Applied)return journal?.Active!=true;await Operation(off,repeat:!off&&apply.IsEnabled==false&&reapply.IsEnabled);RefreshStatus();if(off)return journal?.Phase==DnsPhase.Restored&&snapshot!=null&&journal.Before.SameConfiguration(snapshot);try{return Applied&&Plan().Target.SameConfiguration(snapshot!);}catch(DnsException){return false;}}
@@ -31,9 +34,6 @@ internal sealed class DnsManagerView
     internal Task OperationForTests(bool restoring,bool automaticMode=false,bool cacheOnly=false,bool repeat=false){if(!shell.Runtime.TestMode)throw new InvalidOperationException();return Operation(restoring,automaticMode,cacheOnly,repeat);}
     internal Task ProbeForTests(){if(!shell.Runtime.TestMode)throw new InvalidOperationException();return Probe();}
 #endif
-    internal string LineStatus=>(shell.Runtime.TestMode?L.T("Preview mode")+" · ":"")+(busy?L.T(restoringOperation?"Restoring…":"Applying…"):operationError.Length>0?L.T("Error"):DnsPresentation.LineStatus(snapshot,journal));
-    internal string StatusTone=>operationError.Length>0?"Error":busy?"Muted":DnsPresentation.StatusTone(snapshot,journal);
-    internal string CurrentProfile=>DnsPresentation.CurrentProfile(snapshot,journal);
     internal string Status=>(shell.Runtime.TestMode?L.T("Preview mode")+" · ":"")+(busy?L.T(restoringOperation?"Restoring…":"Applying…"):operationError.Length>0?L.T("Error"):DnsPresentation.Status(snapshot,journal));
     bool OffAction {get{if(!Applied)return false;try{return Plan().Target.SameConfiguration(snapshot!);}catch(DnsException){return true;}}}
     internal static string ProfileStatus(DnsJournal record)=>L.T("Running")+" · "+DnsPresentation.ProfileName(record);
@@ -114,7 +114,7 @@ internal sealed class DnsManagerView
     }
     void Compact()
     {
-        window.Height=510;var main=new StackPanel{Margin=new Thickness(26)};
+        window.Height=510;var main=new StackPanel{Margin=new Thickness(24)};
         var keep=new System.Collections.Generic.HashSet<UIElement>{panel.Children[0],panel.Children[1],adapters,profiles,profileAddresses,result};
         foreach(var box in new[]{adapters,profiles}){int index=panel.Children.IndexOf(box);if(index>0)keep.Add(panel.Children[index-1]);}
         foreach(UIElement item in panel.Children.Cast<UIElement>().ToArray()){panel.Children.Remove(item);if(keep.Contains(item))main.Children.Add(item);else advanced.Children.Add(item);}
@@ -126,7 +126,7 @@ internal sealed class DnsManagerView
         // Controls retain their names/handlers but the old competing Apply/Restore footer is not presented.
         var oldLayout=(Grid)window.Content;var oldFooter=(Border)oldLayout.Children[1];var oldContent=(StackPanel)oldFooter.Child;oldFooter.Child=null;oldContent.Children.Remove(reason);advanced.Children.Add(reason);
         more.Content=CompactUi.Disclosure(L.T("Other actions"));more.Height=32;more.MinWidth=150;more.Padding=new Thickness(12,4,12,4);more.Margin=new Thickness(0,12,0,8);more.ContextMenu!.Opened+=(_,_)=>more.Content=CompactUi.Disclosure(L.T("Other actions"),true);more.ContextMenu.Closed+=(_,_)=>more.Content=CompactUi.Disclosure(L.T("Other actions"));((Panel)more.Parent).Children.Remove(more);advanced.Children.Add(more);main.Children.Remove(result);advanced.Children.Add(result);
-        power=SettingsLayout.Button(window,"DnsPower","Turn on");power.Height=40;ThemeManager.Bind(power,Control.BackgroundProperty,"PrimaryBackground");ThemeManager.Bind(power,Control.ForegroundProperty,"PrimaryText");power.Click+=async(_,_)=>await Power();var footer=new Border{Padding=new Thickness(26,12,26,18),Child=power};ThemeManager.Bind(footer,Border.BackgroundProperty,"Surface");Grid.SetRow(footer,1);layout.Children.Add(footer);window.Content=layout;SetEnabled();
+        power=SettingsLayout.Button(window,"DnsPower","Turn on");power.Height=36;ThemeManager.Bind(power,Control.BackgroundProperty,"PrimaryBackground");ThemeManager.Bind(power,Control.ForegroundProperty,"PrimaryText");power.Click+=async(_,_)=>await Power();var footer=new Border{Padding=SettingsLayout.FooterPadding,Child=power};ThemeManager.Bind(footer,Border.BackgroundProperty,"Surface");Grid.SetRow(footer,1);layout.Children.Add(footer);window.Content=layout;SetEnabled();
     }
     internal Window OpenAdvanced()
     {
@@ -135,7 +135,7 @@ internal sealed class DnsManagerView
         // Navigation keeps technical flags out of the everyday profile/power scenario.
         var tabs=new TabControl();var parameters=new StackPanel();var diagnostics=new StackPanel();foreach(UIElement item in advanced.Children.Cast<UIElement>().ToArray()){advanced.Children.Remove(item);if(item==current||item==operationEvidence||item==probeEvidence||item==reason||item is Grid g&&g.Name=="DnsCurrentHeader"||item is FrameworkElement fe&&fe.Tag is string caption&&caption is "Profile details" or "Connection check")diagnostics.Children.Add(item);else parameters.Children.Add(item);}
         tabs.Items.Add(new TabItem{Header=L.T("Parameters"),Content=parameters});tabs.Items.Add(new TabItem{Header=L.T("Diagnostics"),Content=diagnostics});content.Children.Add(tabs);
-        var applyChoice=SettingsLayout.Button(child,"DnsAdvancedDone","Done");applyChoice.Margin=new Thickness(0,14,0,0);applyChoice.Click+=(_,_)=>child.Close();content.Children.Add(applyChoice);
+        var applyChoice=SettingsLayout.Button(child,"DnsAdvancedDone","Done");applyChoice.MinWidth=136;applyChoice.HorizontalAlignment=HorizontalAlignment.Right;applyChoice.Click+=(_,_)=>child.Close();SettingsLayout.PinActions(child,applyChoice);
         child.Closed+=(_,_)=>{foreach(var p in new[]{parameters,diagnostics})foreach(UIElement item in p.Children.Cast<UIElement>().ToArray()){p.Children.Remove(item);advanced.Children.Add(item);}advancedWindow=null;};ThemeManager.BindTree(child);child.Show();return child;
     }
     async Task AcceptCurrent()
