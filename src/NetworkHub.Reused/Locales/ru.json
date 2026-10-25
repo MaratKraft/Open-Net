@@ -696,5 +696,6 @@
   "Read-only inventory. Active modules, rollback copies and user files are not deleted.": "Только просмотр. Активные модули, версии для отката и пользовательские файлы не удаляются.",
   "Current version": "Текущая версия",
   "Saved rollback record": "Сохранённая запись отката",
-  "No saved module versions.": "Сохранённых версий модуля нет."
+  "No saved module versions.": "Сохранённых версий модуля нет.",
+  "Apply these parameters…": "Применить эти параметры…"
 }
