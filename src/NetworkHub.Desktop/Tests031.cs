@@ -37,7 +37,7 @@ public static class Tests031
     foreach(var definition in ModuleCatalog.All){var view=shell.OpenModuleSettings(definition.Id);Check(ReferenceEquals(view,shell.OpenModuleSettings(definition.Id)),"One window per module");
      Check(view.FindName(definition.Id=="zapret"?"ZapretPath":"TgPath") is TextBox,"Correct module path");Check(view.FindName("CheckUpdates") is Button&&view.FindName("RollbackModule") is Button&&view.FindName("ImportRelease") is Button,"Existing actions accessible");
      Check((view.FindName("Strategy")!=null)==(definition.Id=="zapret"),"Strategy belongs only to Zapret");Check(((TextBlock)view.FindName("ModuleDiagnostic")).Text.Length>0,"Diagnostics present");
-     foreach(double scale in new[]{1.0,1.25,1.5,2.0}){view.LayoutTransform=new System.Windows.Media.ScaleTransform(scale,scale);view.UpdateLayout();Check(((ScrollViewer)view.Content).ComputedHorizontalScrollBarVisibility!=Visibility.Visible,"No horizontal overflow");}
+     foreach(double scale in new[]{1.0,1.25,1.5,2.0}){view.LayoutTransform=new System.Windows.Media.ScaleTransform(scale,scale);view.UpdateLayout();Check(LocalizedTree.Walk(view).OfType<ScrollViewer>().First().ComputedHorizontalScrollBarVisibility!=Visibility.Visible,"No horizontal overflow");}
      view.LayoutTransform=System.Windows.Media.Transform.Identity;SelfTests.Capture(view,Path.Combine(files.Data,$"031-{definition.Id}-{language}.png"));view.Close();
     }
    }}finally{shell.ApplySettings(saved);}return Task.CompletedTask;
