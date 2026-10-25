@@ -686,5 +686,15 @@
   "Restore previous settings…": "Вернуть прежние настройки…",
   "Unknown profile": "Профиль неизвестен",
   "Active profile": "Активный профиль",
-  "Selected profile": "Выбранный профиль"
+  "Selected profile": "Выбранный профиль",
+  "Additional": "Дополнительно",
+  "Restore defaults…": "Восстановить по умолчанию…",
+  "DNS parameters and diagnostics…": "Параметры DNS и диагностика…",
+  "Restore default module order and visibility, and select Zapret and TG WS Proxy for Windows startup? Global Windows startup registration, the main button, running tools, DNS profiles, files and recovery backups will remain unchanged.": "Восстановить стандартный порядок и видимость модулей, а также выбрать Zapret и TG WS Proxy для запуска вместе с Windows? Общая регистрация автозапуска, назначение главной кнопки, работающие инструменты, DNS-профиль, файлы и резервные копии не изменятся.",
+  "Discard unsaved custom DNS profile values? Save the profile in additional parameters to keep them. Closing does not change Windows DNS.": "Закрыть окно без сохранения введённых значений своего DNS-профиля? Для их сохранения используйте кнопку сохранения профиля в дополнительных параметрах. Закрытие не меняет DNS Windows.",
+  "Saved module versions": "Сохранённые версии модуля",
+  "Read-only inventory. Active modules, rollback copies and user files are not deleted.": "Только просмотр. Активные модули, версии для отката и пользовательские файлы не удаляются.",
+  "Current version": "Текущая версия",
+  "Saved rollback record": "Сохранённая запись отката",
+  "No saved module versions.": "Сохранённых версий модуля нет."
 }
