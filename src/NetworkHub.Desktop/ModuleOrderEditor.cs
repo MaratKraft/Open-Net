@@ -19,14 +19,17 @@ internal sealed class ModuleOrderEditor : UserControl
     string? dragging;Point origin;double grab;bool moving;DragImage? image;AdornerLayer? layer;string[] start=Array.Empty<string>();
     internal string[] Order=>panel.Children.Cast<FrameworkElement>().Select(r=>(string)r.Tag).ToArray();
     internal event Action? Changed;
-    internal ModuleOrderEditor(Window resources,IEnumerable<string> ids,bool iconHandle=false)
+    internal event Action? Committed;
+    internal bool IsDragging=>dragging!=null;
+    internal void SetOrder(string[] order){panel.Children.Clear();foreach(string id in order)panel.Children.Add(rows[id]);}
+    internal ModuleOrderEditor(Window resources,IEnumerable<string> ids,bool iconHandle=false,Action<string,Grid>? configure=null)
     {
         this.resources=resources;Content=new AdornerDecorator{Child=panel};
         foreach(string id in ids){var grid=new Grid{Height=62};grid.ColumnDefinitions.Add(new(){Width=new GridLength(28)});grid.ColumnDefinitions.Add(new(){Width=new GridLength(28)});grid.ColumnDefinitions.Add(new());
             var marker=Marker(id);var handle=new Button{Style=(Style)resources.FindResource("ModuleAction"),ToolTip=L.T("Drag or use Alt+Up/Down"),Cursor=Cursors.SizeAll};System.Windows.Automation.AutomationProperties.SetName(handle,L.T("Move")+" "+WorkspaceController.Name(id));
             if(iconHandle){handle.Content=marker;Grid.SetColumn(handle,1);}else{handle.Content=Dots();Grid.SetColumn(marker,1);grid.Children.Add(marker);}grid.Children.Add(handle);
             var name=new TextBlock{Text=WorkspaceController.Name(id),FontSize=14,VerticalAlignment=VerticalAlignment.Center};ThemeManager.Bind(name,TextBlock.ForegroundProperty,"Text");Grid.SetColumn(name,2);grid.Children.Add(name);
-            var row=new Border{Tag=id,Child=grid,BorderThickness=new Thickness(0,0,0,1),CornerRadius=new CornerRadius(6),Padding=new Thickness(4,0,4,0)};ThemeManager.Bind(row,Border.BorderBrushProperty,"Line");panel.Children.Add(row);rows[id]=row;
+            var row=new Border{Tag=id,Child=grid,BorderThickness=new Thickness(0,0,0,1),CornerRadius=new CornerRadius(6),Padding=new Thickness(4,0,4,0)};ThemeManager.Bind(row,Border.BorderBrushProperty,"Line");panel.Children.Add(row);rows[id]=row;configure?.Invoke(id,grid);
             handle.PreviewMouseLeftButtonDown+=(_,e)=>{dragging=id;origin=e.GetPosition(panel);grab=e.GetPosition(row).Y;start=Order;handle.CaptureMouse();e.Handled=true;};
             handle.PreviewMouseMove+=(_,e)=>{if(dragging!=id||e.LeftButton!=MouseButtonState.Pressed)return;Point point=e.GetPosition(panel);if(!moving&&Math.Abs(point.Y-origin.Y)<SystemParameters.MinimumVerticalDragDistance&&Math.Abs(point.X-origin.X)<SystemParameters.MinimumHorizontalDragDistance)return;Begin();DragTo(point.Y);e.Handled=true;};
             handle.PreviewMouseLeftButtonUp+=(_,e)=>{if(dragging!=id)return;End(false);handle.ReleaseMouseCapture();e.Handled=true;};handle.LostMouseCapture+=(_,_)=>{if(dragging==id)End(true);};
@@ -43,11 +46,11 @@ internal sealed class ModuleOrderEditor : UserControl
     }
     internal static FrameworkElement Dots(){var grid=new Grid{Width=18,Height=20};foreach(int x in new[]{5,11})foreach(int y in new[]{3,9,15}){var dot=new Ellipse{Width=2,Height=2,HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Top,Margin=new Thickness(x,y,0,0)};ThemeManager.Bind(dot,Shape.FillProperty,"Muted");grid.Children.Add(dot);}return grid;}
     void Begin(){if(moving||dragging==null)return;moving=true;layer=AdornerLayer.GetAdornerLayer(panel);image=new DragImage(panel,rows[dragging],grab);rows[dragging].Opacity=.25;layer?.Add(image);}
-    void DragTo(double y){if(dragging==null)return;image?.Follow(y);var current=Order.ToList();int from=current.IndexOf(dragging),to=Math.Clamp((int)(Math.Max(0,y)/63),0,current.Count-1);if(from!=to)Reorder(dragging,to);}
-    void End(bool cancel){if(dragging==null)return;string id=dragging;double? final=image?.Top;if(image!=null)layer?.Remove(image);image=null;layer=null;rows[id].Opacity=1;dragging=null;moving=false;if(cancel){panel.Children.Clear();foreach(string item in start)panel.Children.Add(rows[item]);}else if(final.HasValue){panel.UpdateLayout();Animate(rows[id],final.Value-rows[id].TranslatePoint(new Point(),panel).Y);}Changed?.Invoke();}
+    void DragTo(double y){if(dragging==null)return;image?.Follow(y);var current=Order.ToList();int from=current.IndexOf(dragging),to=Math.Clamp((int)(Math.Max(0,y)/Math.Max(1,rows[dragging].ActualHeight)),0,current.Count-1);if(from!=to)Reorder(dragging,to);}
+    void End(bool cancel){if(dragging==null)return;string id=dragging;double? final=image?.Top;if(image!=null)layer?.Remove(image);image=null;layer=null;rows[id].Opacity=1;dragging=null;moving=false;if(cancel){panel.Children.Clear();foreach(string item in start)panel.Children.Add(rows[item]);}else if(final.HasValue){panel.UpdateLayout();Animate(rows[id],final.Value-rows[id].TranslatePoint(new Point(),panel).Y);}Changed?.Invoke();if(!cancel)Committed?.Invoke();}
     void Reorder(string id,int to){var positions=rows.ToDictionary(p=>p.Key,p=>p.Value.TranslatePoint(new Point(),panel).Y);var row=rows[id];panel.Children.Remove(row);panel.Children.Insert(to,row);foreach(var item in rows.Values)item.RenderTransform=Transform.Identity;panel.UpdateLayout();foreach(var p in rows.Where(p=>p.Key!=dragging))Animate(p.Value,positions[p.Key]-p.Value.TranslatePoint(new Point(),panel).Y);Changed?.Invoke();}
     void Animate(Border row,double from){row.RenderTransform=new TranslateTransform();if(!SystemParameters.ClientAreaAnimation||Math.Abs(from)<.1)return;((TranslateTransform)row.RenderTransform).BeginAnimation(TranslateTransform.YProperty,new DoubleAnimation(from,0,TimeSpan.FromMilliseconds(140)){DecelerationRatio=.8});}
-    internal void Move(string id,int delta){var ids=Order;int from=Array.IndexOf(ids,id),to=from+delta;if(from>=0&&to>=0&&to<ids.Length)Reorder(id,to);}
+    internal void Move(string id,int delta){var ids=Order;int from=Array.IndexOf(ids,id),to=from+delta;if(from>=0&&to>=0&&to<ids.Length){Reorder(id,to);Committed?.Invoke();}}
 #if OPENNET_TESTING
     internal void DragForTests(string id,double y,bool cancel=false){dragging=id;grab=20;start=Order;Begin();DragTo(y);End(cancel);}
     internal async System.Threading.Tasks.Task Demonstrate()
