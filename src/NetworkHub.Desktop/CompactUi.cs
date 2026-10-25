@@ -19,8 +19,8 @@ internal static class CompactUi
     internal static FrameworkElement Modules(string caption)
     {
         var content=new StackPanel{Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center};
-        var label=new TextBlock{Text=caption,FontSize=12,VerticalAlignment=VerticalAlignment.Center};ThemeManager.Bind(label,TextBlock.ForegroundProperty,"Text");content.Children.Add(label);
+        var label=new TextBlock{Text=caption,FontSize=12,VerticalAlignment=VerticalAlignment.Center};ThemeManager.Bind(label,TextBlock.ForegroundProperty,"Muted");content.Children.Add(label);
         var icon=new Grid{Width=14,Height=14,Margin=new Thickness(8,0,0,0),VerticalAlignment=VerticalAlignment.Center};
-        foreach(int x in new[]{1,8})foreach(int y in new[]{1,8}){var square=new Border{Width=5,Height=5,CornerRadius=new CornerRadius(1.2),HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Top,Margin=new Thickness(x,y,0,0)};ThemeManager.Bind(square,Border.BackgroundProperty,"SecondaryText");icon.Children.Add(square);}content.Children.Add(icon);return content;
+        foreach(int x in new[]{1,8})foreach(int y in new[]{1,8}){var square=new Border{Width=5,Height=5,CornerRadius=new CornerRadius(1.2),HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Top,Margin=new Thickness(x,y,0,0)};ThemeManager.Bind(square,Border.BackgroundProperty,"Muted");icon.Children.Add(square);}content.Children.Add(icon);return content;
     }
 }

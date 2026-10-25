@@ -116,7 +116,10 @@ public sealed class AppFiles
 }
 public enum ObservedState { Stopped, Starting, Running, Error, External, Unknown, CleanupRequired, NotInstalled }
 public sealed record ToolObservation(string Id,ObservedState State,string Detail,int? Pid=null);
-public sealed record OwnedReceipt(string Token,int Pid,long StartFileTime,string Executable,string Module);
+public sealed record OwnedReceipt(string Token,int Pid,long StartFileTime,string Executable,string Module)
+{
+    public string Profile {get;init;}="";
+}
 public sealed record Probe(bool Exists,bool IdentityReadable,long StartFileTime,string? Executable);
 public static class ProcessIdentity
 {

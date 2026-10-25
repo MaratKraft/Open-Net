@@ -31,6 +31,9 @@ internal sealed class DnsManagerView
     internal Task OperationForTests(bool restoring,bool automaticMode=false,bool cacheOnly=false,bool repeat=false){if(!shell.Runtime.TestMode)throw new InvalidOperationException();return Operation(restoring,automaticMode,cacheOnly,repeat);}
     internal Task ProbeForTests(){if(!shell.Runtime.TestMode)throw new InvalidOperationException();return Probe();}
 #endif
+    internal string LineStatus=>(shell.Runtime.TestMode?L.T("Preview mode")+" · ":"")+(busy?L.T(restoringOperation?"Restoring…":"Applying…"):operationError.Length>0?L.T("Error"):DnsPresentation.LineStatus(snapshot,journal));
+    internal string StatusTone=>operationError.Length>0?"Error":busy?"Muted":DnsPresentation.StatusTone(snapshot,journal);
+    internal string CurrentProfile=>DnsPresentation.CurrentProfile(snapshot,journal);
     internal string Status=>(shell.Runtime.TestMode?L.T("Preview mode")+" · ":"")+(busy?L.T(restoringOperation?"Restoring…":"Applying…"):operationError.Length>0?L.T("Error"):DnsPresentation.Status(snapshot,journal));
     bool OffAction {get{if(!Applied)return false;try{return Plan().Target.SameConfiguration(snapshot!);}catch(DnsException){return true;}}}
     internal static string ProfileStatus(DnsJournal record)=>L.T("Running")+" · "+DnsPresentation.ProfileName(record);

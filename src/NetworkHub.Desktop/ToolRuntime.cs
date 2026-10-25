@@ -22,6 +22,8 @@ public sealed class ToolRuntime
     private string? tgValidation;
     public int LaunchCount {get;private set;}
     public bool TestMode=>testMode;
+    string simulatedProfile="";
+    internal string ActiveZapretProfile=>testMode?simulatedProfile:owned.TryGetValue("zapret",out var receipt)?receipt.Profile??"":"";
     public ToolRuntime(AppFiles files,bool testMode)
     {
 #if !OPENNET_TESTING
@@ -84,6 +86,7 @@ public sealed class ToolRuntime
     public async Task<string> Start(string id,UserSettings settings,bool launchAuthorized=false)
     {
         if(!testMode&&!launchAuthorized) throw new InvalidOperationException(L.T("A real launch requires explicit user confirmation."));
+        string launchedStrategy=settings.Strategy;
         var current=Observe(id,settings);
         if(current.State==ObservedState.Running||current.State==ObservedState.External||current.State==ObservedState.Unknown) return current.Detail;
         if(current.State==ObservedState.Error) throw new InvalidDataException(current.Detail);
@@ -93,7 +96,7 @@ public sealed class ToolRuntime
         {
             string host=Environment.ProcessPath!,stub=host;
             supervisor??=new StubSupervisor(host,stub,Metadata.Hash(stub),Paths.Owned(files.Data,"stubs"),true);
-            stubs[id]=await Task.Run(()=>supervisor.Start()); LaunchCount++; return L.T("Test process started.");
+            stubs[id]=await Task.Run(()=>supervisor.Start());if(id=="zapret")simulatedProfile=launchedStrategy; LaunchCount++; return L.T("Test process started.");
         }
 #endif
         if(id=="tg")
@@ -123,7 +126,7 @@ public sealed class ToolRuntime
         }
         var r=JsonSerializer.Deserialize<ZapretResponse>(File.ReadAllText(response)) ?? throw new InvalidDataException(L.T("No launch result was returned. Check the diagnostic log."));
         if(!r.Success||r.Receipt==null) throw new InvalidOperationException(r.Message);
-        Store(r.Receipt); LaunchCount++;
+        Store(r.Receipt with{Profile=launchedStrategy}); LaunchCount++;
         if(ProcessIdentity.ObserveOwned(r.Receipt).State==ObservedState.Running){settings.LastWorkingStrategy=settings.Strategy;files.Save(settings);}
         return L.T("Zapret started without a console window; its process is being checked.");
     }

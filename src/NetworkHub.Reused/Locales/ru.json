@@ -683,5 +683,8 @@
   "Move": "Переместить",
   "Source verification is limited: the operator website was unavailable. Native DoH is unverified. Existing encryption is not disabled automatically.": "Сверка источника ограничена: сайт оператора недоступен. Адрес DoH не подтверждён. Существующее шифрование автоматически не отключается.",
   "The selected profile has not been applied. Previous settings remain saved.": "Выбранный профиль ещё не применён. Исходные настройки остаются сохранены.",
-  "Restore previous settings…": "Вернуть прежние настройки…"
+  "Restore previous settings…": "Вернуть прежние настройки…",
+  "Unknown profile": "Профиль неизвестен",
+  "Active profile": "Активный профиль",
+  "Selected profile": "Выбранный профиль"
 }
