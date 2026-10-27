@@ -66,9 +66,10 @@ public sealed class AppFiles
     public AppFiles(string root,string? data=null)
     {
         Root=Path.GetFullPath(root);Data=Path.GetFullPath(data??Path.Combine(Root,"Data"));
-        if(!Paths.Within(Data,Root)&&!Paths.Overlap(Data,Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net")))throw new InvalidDataException(L.T("The data folder is not allowed. Choose a user folder."));
+        if(!DataAllowed(Root,Data,Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)))throw new InvalidDataException(L.T("The data folder is not allowed. Choose a user folder."));
         Paths.NoReparseAncestors(Data); Directory.CreateDirectory(Data);
     }
+    public static bool DataAllowed(string root,string data,string local){string experiment=Path.Combine(local,"Open Net HB Experiment");return Paths.Within(data,root)||Paths.Overlap(data,Path.Combine(local,"Open Net"))||string.Equals(Path.GetFullPath(data),Path.GetFullPath(experiment),StringComparison.OrdinalIgnoreCase)||Paths.Within(data,experiment);}
     public UserSettings Defaults()
     {
         // Recommended first-install preferences; existing JSON keeps its own values.

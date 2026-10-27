@@ -97,7 +97,7 @@ internal static class Program
 #endif
             string details="",diagnosticRoot=Path.GetDirectoryName(Environment.ProcessPath!)!;
             #if !OPENNET_SAFE_PREVIEW
-            if(!File.Exists(Path.Combine(diagnosticRoot,"portable.flag")))try{string diagnostic=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net","Startup-errors");Directory.CreateDirectory(diagnostic);File.WriteAllText(Path.Combine(diagnostic,DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")+".log"),ex.ToString());details=L.T("\nDetails: ")+diagnostic;}catch(IOException){}catch(UnauthorizedAccessException){}
+            if(!File.Exists(Path.Combine(diagnosticRoot,"portable.flag")))try{string diagnostic=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net HB Experiment","Startup-errors");Directory.CreateDirectory(diagnostic);File.WriteAllText(Path.Combine(diagnostic,DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")+".log"),ex.ToString());details=L.T("\nDetails: ")+diagnostic;}catch(IOException){}catch(UnauthorizedAccessException){}
             #endif
             if(!args.Contains("--autostart"))MessageBox.Show(NetworkHub.Core.LogSafety.Redact(L.Error(ex))+details,L.T("Open Net — error"),MessageBoxButton.OK,MessageBoxImage.Error);return 1;
         }
