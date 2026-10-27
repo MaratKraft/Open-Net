@@ -30,7 +30,7 @@ internal static class SettingsLayout
     }
     internal static Button Additional(Window window,string name,StackPanel content)
     {
-        content.Visibility=Visibility.Collapsed;var button=Button(window,name,"");button.Style=(Style)window.FindResource("QuietLink");button.ClearValue(Control.BackgroundProperty);button.MinWidth=0;button.Height=36;button.Padding=new Thickness(0,0,8,0);button.HorizontalAlignment=HorizontalAlignment.Left;
+        content.Visibility=Visibility.Collapsed;var button=Button(window,name,"");button.Style=(Style)window.FindResource("QuietLink");button.ClearValue(Control.BackgroundProperty);button.MinWidth=0;button.Height=36;button.Padding=new Thickness(10,0,10,0);button.HorizontalAlignment=HorizontalAlignment.Left;
         void Caption()=>button.Content=CompactUi.Disclosure(L.T("Additional"),content.Visibility==Visibility.Visible);Caption();button.Click+=(_,_)=>{content.Visibility=content.Visibility==Visibility.Visible?Visibility.Collapsed:Visibility.Visible;Caption();};L.Changed+=Caption;window.Closed+=(_,_)=>L.Changed-=Caption;return button;
     }
     public static Window Create(Shell shell,string title,double height)

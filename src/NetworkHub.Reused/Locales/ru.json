@@ -697,5 +697,12 @@
   "Current version": "Текущая версия",
   "Saved rollback record": "Сохранённая запись отката",
   "No saved module versions.": "Сохранённых версий модуля нет.",
-  "Apply these parameters…": "Применить эти параметры…"
+  "Apply these parameters…": "Применить эти параметры…",
+  "Drag the six-dot handle to reorder modules.": "Перетащите за шесть точек, чтобы изменить порядок.",
+  "Reorder modules": "Перестановка модулей",
+  "In group": "В группе",
+  "Repair": "Исправить",
+  "Windows startup is off.": "Автозапуск выключен",
+  "Windows startup is configured.": "Автозапуск настроен",
+  "Startup needs repair.": "Требуется исправить автозапуск"
 }

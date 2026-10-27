@@ -55,7 +55,7 @@ public static class SelfTests
             Require(!files.Load().ZapretSelected&&Directory.GetFiles(Path.Combine(files.Data,"Backups","Imports"),"*.json",SearchOption.AllDirectories).Length>=2);files.Save(new UserSettings());
         }));
         await Test("Checkboxes and settings editor save actual events",()=>Sync(()=>{
-            shell.Find<CheckBox>("ZapretCheck").IsChecked=false;Require(!files.Load().ZapretSelected);shell.Find<CheckBox>("ZapretCheck").IsChecked=true;
+            shell.Workspace.OpenManager();var manager=shell.Window.OwnedWindows.Cast<Window>().Single(w=>w.FindName("Groupzapret")!=null);((CheckBox)manager.FindName("Groupzapret")).IsChecked=false;Require(!files.Load().ZapretSelected);((CheckBox)manager.FindName("Groupzapret")).IsChecked=true;manager.Close();
             var window=shell.OpenSettings();((CheckBox)window.FindName("CloseToTray")).IsChecked=true;((Button)window.FindName("SaveSettings")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Require(files.Load().CloseToTray);
         }));
         await Test("Real backend refuses unconfirmed network launch",async()=>{bool rejected=false;try{await new ToolRuntime(files,false).Start("tg",new UserSettings());}catch(InvalidOperationException){rejected=true;}Require(rejected);});
@@ -169,7 +169,7 @@ public static class SelfTests
         await TestsWorkspace.Ui(shell,files,Test);
         await TestsR2.Ui(shell,files,Test);
         await TestsUiPolish.Ui(shell,files,Test);
-        await TestsSecondaryIntegration.Ui(shell,files,Test);await Tests033.Ui(shell,files,Test);
+        await TestsSecondaryIntegration.Ui(shell,files,Test);await TestsR5.Ui(shell,files,Test);await Tests033.Ui(shell,files,Test);
         await TestsStartupReadback.Ui(files,Test);await TestsSettingsCompact.Ui(shell,files,Test);await TestsScrollbars.Ui(shell,files,Test);
         await Test("Tray Exit terminates shell and removes icon",()=>Sync(()=>{shell.TrayExit.PerformClick();Require(!shell.Tray.Visible);}));
         File.WriteAllText(Path.Combine(files.Data,"ui-tests.json"),JsonSerializer.Serialize(new{Total=results.Count,Failed=failures,ExecutableSHA256=Metadata.Hash(Environment.ProcessPath!),NetworkInstallation=NetworkRequested,Results=results},new JsonSerializerOptions{WriteIndented=true}));shell.ExitCode=failures==0?0:1;

@@ -17,6 +17,7 @@ public sealed class ToolRuntime
 #if OPENNET_TESTING
     private readonly Dictionary<string,OwnedIdentity> stubs=new();
     private StubSupervisor? supervisor;
+    internal Func<string,string,Exception?>? FaultForTests {get;set;}
 #endif
     private string tgStamp="";
     private string? tgValidation;
@@ -94,6 +95,7 @@ public sealed class ToolRuntime
 #if OPENNET_TESTING
         if(testMode)
         {
+            if(FaultForTests?.Invoke("start",id) is Exception fault)throw fault;
             string host=Environment.ProcessPath!,stub=host;
             supervisor??=new StubSupervisor(host,stub,Metadata.Hash(stub),Paths.Owned(files.Data,"stubs"),true);
             stubs[id]=await Task.Run(()=>supervisor.Start());if(id=="zapret")simulatedProfile=launchedStrategy; LaunchCount++; return L.T("Test process started.");
@@ -138,7 +140,7 @@ public sealed class ToolRuntime
     public async Task<string> Stop(string id,UserSettings settings)
     {
 #if OPENNET_TESTING
-        if(testMode && stubs.TryGetValue(id,out var stub)) {await Task.Run(()=>supervisor!.Stop(stub.Token));stubs.Remove(id);return L.T("Test process stopped.");}
+        if(testMode && stubs.TryGetValue(id,out var stub)) {if(FaultForTests?.Invoke("stop",id) is Exception fault)throw fault;await Task.Run(()=>supervisor!.Stop(stub.Token));stubs.Remove(id);return L.T("Test process stopped.");}
 #endif
         var state=Observe(id,settings);
         if(state.State==ObservedState.External) return L.T("The external instance was left unchanged.");

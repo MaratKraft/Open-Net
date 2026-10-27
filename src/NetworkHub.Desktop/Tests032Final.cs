@@ -23,10 +23,10 @@ public static class Tests032Final
   {
    var controls=new FrameworkElement[]{shell.Find<Button>(prefix+"Install"),shell.Find<Button>(prefix+"Settings"),shell.Find<CheckBox>(prefix+"Check")};
    var rects=controls.Select(c=>Bounds(c,(Visual)shell.Window.Content)).ToArray();
-   Check(rects.All(r=>Math.Abs(r.Width-rects[0].Width)<.1&&Math.Abs(r.Height-rects[0].Height)<.1),"Equal hit areas");
+   Check(rects[0].Width==28&&rects[1].Width==28&&rects[2].Width==42&&rects.All(r=>Math.Abs(r.Height-28)<.1),"Approved action areas and wider runtime switch");
    Check(Math.Abs((rects[1].Left-rects[0].Right)-(rects[2].Left-rects[1].Right))<.1&&rects[1].Left>=rects[0].Right&&rects[2].Left>=rects[1].Right,"Equal gaps, no overlap");
    Check(rects.All(r=>Math.Abs(r.Top+r.Height/2-rects[0].Top-rects[0].Height/2)<.1),"Vertical alignment");
-   var selection=(CheckBox)controls[2];selection.ApplyTemplate();var box=(Border)selection.Template.FindName("Box",selection);var circle=Bounds(box,(Visual)shell.Window.Content);
+   var selection=(CheckBox)controls[2];selection.ApplyTemplate();var box=(Border)selection.Template.FindName("Track",selection);var circle=Bounds(box,(Visual)shell.Window.Content);
    Check(Math.Abs(circle.Left+circle.Width/2-rects[2].Left-rects[2].Width/2)<.1,"Selection optically centered");
    Check(VisualTreeHelper.HitTest(selection,new Point(1,selection.ActualHeight/2))!=null&&VisualTreeHelper.HitTest(selection,new Point(selection.ActualWidth-1,selection.ActualHeight/2))!=null,"Selection visual hits use the full shared area");
    if(shell.Window.IsVisible)Check(selection.InputHitTest(new Point(1,selection.ActualHeight/2))!=null&&selection.InputHitTest(new Point(selection.ActualWidth-1,selection.ActualHeight/2))!=null,"Selection input hits use the full shared area");

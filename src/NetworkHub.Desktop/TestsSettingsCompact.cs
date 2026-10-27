@@ -29,7 +29,7 @@ internal static class TestsSettingsCompact
                 string good=tasks.Xml!;foreach(string state in new[]{"ready","disabled","foreign"}){
                     tasks.Xml=state=="ready"?good:state=="disabled"?good.Replace("<Enabled>true</Enabled>","<Enabled>false</Enabled>"):good.Replace("Open Net startup:","Foreign:");string before=tasks.Xml;
                     var view=preview.OpenSettings();try{view.UpdateLayout();await Task.Delay(80);string text=((TextBlock)view.FindName("StartupSummary")).Text;var repair=(Button)view.FindName("RepairStartup");
-                        Check(state=="ready"?text.Contains(L.T("Windows startup is configured. Selected tools will start at logon.")):text==service.Inspect(preview.Settings).Message,"Status does not describe observed registration");
+                        Check(text==L.T(state=="ready"?"Windows startup is configured.":"Startup needs repair.")&&((TextBlock)view.FindName("StartupDiagnosticText")).Text.Contains(service.Inspect(preview.Settings).Message),"Status does not describe observed registration");
                         Check(repair.Visibility==(state=="disabled"?Visibility.Visible:Visibility.Collapsed),"Unsafe or missing repair action");
                         Check(tasks.Xml==before&&preview.Runtime.LaunchCount==0,"Opening settings changed task or started tools");
                         SelfTests.Capture(view,Path.Combine(files.Data,"033-behavior-"+state+".png"));

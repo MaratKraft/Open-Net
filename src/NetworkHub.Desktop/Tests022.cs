@@ -43,19 +43,19 @@ public static class Tests022
             Check(!PrimaryAction.Stop(new[]{external},Array.Empty<string>()),"Empty selection");return Task.CompletedTask;
         });
         await test("022 main Stop button really ends selected process, preserves unselected process, resets UI and permits restart",async()=>{
-            shell.Find<CheckBox>("ZapretCheck").IsChecked=true;shell.Find<CheckBox>("TgCheck").IsChecked=true;
+            shell.Settings.ZapretSelected=true;shell.Settings.TgSelected=true;
             await shell.StartSelected();await shell.Refresh();var running=shell.Observations.ToArray();Check(running.All(x=>x.State==ObservedState.Running),"Own stubs running");
-            shell.Find<CheckBox>("ZapretCheck").IsChecked=false;
+            shell.Settings.ZapretSelected=false;
             shell.Primary.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);await Wait(shell);
             Check(!ProcessIdentity.Read(running.Single(x=>x.Id=="tg").Pid!.Value).Exists,"TG stub must actually exit");
             Check(ProcessIdentity.Read(running.Single(x=>x.Id=="zapret").Pid!.Value).Exists,"Unselected stub preserved");
             Check(shell.Primary.Content.ToString()==L.T("Start selected")&&shell.Primary.IsEnabled,"Button refreshed after stop");
             shell.Primary.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);await Wait(shell);Check(shell.Observations.All(x=>x.State==ObservedState.Running),"Restart works");
-            shell.Find<CheckBox>("ZapretCheck").IsChecked=true;shell.Primary.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);await Wait(shell);
+            shell.Settings.ZapretSelected=true;shell.Primary.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);await Wait(shell);
             Check(shell.Observations.All(x=>x.State==ObservedState.Stopped)&&!shell.TrayStop.Enabled,"Both stopped and tray Stop disabled");
             await shell.StopSelected(false);Check(shell.Find<TextBlock>("Message").Text==L.T("The process is not running."),"Repeated stop feedback");
-            shell.Find<CheckBox>("ZapretCheck").IsChecked=false;shell.Find<CheckBox>("TgCheck").IsChecked=false;await shell.StopSelected(false);Check(!shell.Primary.IsEnabled,"Empty selection disabled");
-            shell.Find<CheckBox>("ZapretCheck").IsChecked=true;shell.Find<CheckBox>("TgCheck").IsChecked=true;
+            shell.Settings.ZapretSelected=false;shell.Settings.TgSelected=false;await shell.StopSelected(false);Check(!shell.Primary.IsEnabled,"Empty selection disabled");
+            shell.Settings.ZapretSelected=true;shell.Settings.TgSelected=true;
         });
         await test("022 refresh callers await same observation rather than publishing stale state after Stop",async()=>{
             var first=shell.Refresh();var second=shell.Refresh();Check(ReferenceEquals(first,second),"Concurrent refresh shared");await Task.WhenAll(first,second);
@@ -64,10 +64,10 @@ public static class Tests022
             var property=typeof(Shell).GetProperty(nameof(Shell.Observations))!;var render=typeof(Shell).GetMethod("Render",BindingFlags.Instance|BindingFlags.NonPublic)!;var saved=shell.Observations;
             try{
                 property.SetValue(shell,new[]{new ToolObservation("zapret",ObservedState.Stopped,"ready"),new ToolObservation("tg",ObservedState.External,"external",123)});
-                shell.Find<CheckBox>("ZapretCheck").IsChecked=false;render.Invoke(shell,null);
+                shell.Settings.ZapretSelected=false;render.Invoke(shell,null);
                 Check(!shell.Primary.IsEnabled&&shell.Primary.Content.ToString()==L.T("External instance")&&!shell.TrayStop.Enabled,"External process cannot offer a no-op Stop");
                 Check(shell.Primary.ToolTip?.ToString()==L.T("Close external tools using their own window or tray. Open Net manages only processes it launched."),"Explicit ownership guidance");
-                shell.Find<CheckBox>("ZapretCheck").IsChecked=true;render.Invoke(shell,null);Check(shell.Primary.IsEnabled&&shell.Primary.Content.ToString()==L.T("Start selected"),"Mixed external/stopped offers Start");
+                shell.Settings.ZapretSelected=true;render.Invoke(shell,null);Check(shell.Primary.IsEnabled&&shell.Primary.Content.ToString()==L.T("Start selected"),"Mixed external/stopped offers Start");
             }finally{property.SetValue(shell,saved);await shell.Refresh();}
         });
         await test("022 full client frame, native caption drag hit tests, clickable buttons, aligned header, minimize/restore",async()=>{

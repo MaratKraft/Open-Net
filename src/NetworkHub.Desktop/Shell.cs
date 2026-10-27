@@ -30,7 +30,7 @@ public sealed class Shell : IDisposable
     private readonly Dictionary<string,string> errors=new();
     private readonly Dictionary<string,string> catalogErrors=new();
     private System.Drawing.Icon icon;
-    private bool exiting,updatingChecks;
+    private bool exiting;
     private Task? refreshTask;
     private bool stopping;
     private bool configuring;
@@ -82,9 +82,6 @@ public sealed class Shell : IDisposable
         Runtime=new ToolRuntime(files,testMode);
         Autostart=new AutostartService(files,startupStore??(testMode?new IsolatedStartupStore():new WindowsStartupStore(false)),Environment.ProcessPath!);
         icon=IconFactory.TrayIcon(96);Window.Icon=IconFactory.WindowIcon();FocusCues.Attach(Window);
-        updatingChecks=true; Find<CheckBox>("ZapretCheck").IsChecked=Settings.ZapretSelected; Find<CheckBox>("TgCheck").IsChecked=Settings.TgSelected;updatingChecks=false;
-        Find<CheckBox>("ZapretCheck").Checked+=ChoiceChanged; Find<CheckBox>("ZapretCheck").Unchecked+=ChoiceChanged;
-        Find<CheckBox>("TgCheck").Checked+=ChoiceChanged; Find<CheckBox>("TgCheck").Unchecked+=ChoiceChanged;
         Find<Button>("Minimize").Click+=(_,_)=>Window.WindowState=WindowState.Minimized;
         Find<Button>("Close").Click+=(_,_)=>HideToTray();
         Find<Button>("LogoLink").Click+=(_,_)=>OpenRepository();
@@ -128,12 +125,6 @@ public sealed class Shell : IDisposable
             RepositoryLink.Open();
         }
         catch(Exception ex){files.Log("Open repository: "+ex);ShowMessage(L.T("Could not open the browser. Open github.com/MaratKraft/Open-Net manually."));}
-    }
-    private void ChoiceChanged(object sender,RoutedEventArgs e)
-    {
-        if(updatingChecks) return;
-        Settings.ZapretSelected=Find<CheckBox>("ZapretCheck").IsChecked==true;Settings.TgSelected=Find<CheckBox>("TgCheck").IsChecked==true;
-        try {files.Save(Settings);} catch(Exception ex) {ShowMessage(L.T("Could not save the selection: ")+ex.Message);} Render();
     }
     private string[] Selected()=>new[]{Settings.ZapretSelected?"zapret":"",Settings.TgSelected?"tg":""}.Where(x=>x!="").ToArray();
     private bool IsActive(string id)=>Observations.Any(x=>x.Id==id&&(x.State==ObservedState.Running||x.State==ObservedState.External||x.State==ObservedState.CleanupRequired));
@@ -182,7 +173,7 @@ public sealed class Shell : IDisposable
         var brush=ThemeManager.Brush(active>0?"Success":"Muted");Find<System.Windows.Shapes.Path>("PowerArc").Stroke=brush;Find<System.Windows.Shapes.Path>("PowerLine").Stroke=brush;
         Tray.Text="Open Net · "+(active>0?active+L.T(" processes"):L.T("ready")); TrayStart.Enabled=!Busy&&selected.Length>0&&!externalOnly;TrayStop.Enabled=!Busy&&Observations.Any(PrimaryAction.CanStop);
         if(settingsWindow!=null)settingsWindow.IsEnabled=!Busy||installing!=null;
-        Find<CheckBox>("ZapretCheck").IsEnabled=!Busy||installing!=null;Find<CheckBox>("TgCheck").IsEnabled=!Busy||installing!=null;Find<Button>("Settings").IsEnabled=!Busy||installing!=null;
+        Find<Button>("Settings").IsEnabled=!Busy||installing!=null;
         if(files.LogFailure!=null)ShowMessage(L.T("Could not write the log: ")+files.LogFailure);
         Workspace?.Render();StateChanged?.Invoke();
     }
