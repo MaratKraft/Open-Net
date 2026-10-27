@@ -31,7 +31,7 @@ public static class TestsHeadless
    try{foreach(bool dark in new[]{true,false}){ThemeManager.SystemDarkForTests=()=>dark;ThemeManager.SetMode("system");TestsFluent.Geometry(shell);Check(ThemeManager.IsDark==dark,"System palette follows provider including new vectors");}}
    finally{ThemeManager.SystemDarkForTests=provider;ThemeManager.SetMode(mode);}
   });
-  TestsDns.Run(Test,shell,files);
+  TestsDns.Run(Test,shell,files);TestsHb.Headless(Test,files);
   TestsWorkspace.Run(Test,shell,files);
   TestsR2.Headless(Test);TestsSecondaryIntegration.Headless(Test);
   Tests033.Headless(Test,files);

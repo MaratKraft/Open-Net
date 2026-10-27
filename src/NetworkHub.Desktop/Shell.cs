@@ -39,7 +39,8 @@ public sealed class Shell : IDisposable
     internal WorkspaceController Workspace {get;private set;}=null!;
     readonly OwnedWindowRestorer ownedWindows;
     private Window? settingsWindow;
-    private DnsManagerView? dnsWindow;
+    private SimpleDnsView? dnsWindow;
+    private readonly HbDnsController hbDns;private bool dnsInspectionOk;
     private readonly Dictionary<string,Window> moduleWindows=new();
     private readonly Dictionary<string,string> moduleMessages=new();
     public event Action? StateChanged;
@@ -79,7 +80,7 @@ public sealed class Shell : IDisposable
         Installer=new ModuleInstaller(files,installerHandler,runningProbe);Installer.RecoverInterruptedDownloads();
         try{Settings=Installer.ApplyManaged(Settings);}catch(Exception ex){errors["settings"]=ex.Message;files.Log("Module manifest: "+ex.Message);}
         if(!File.Exists(files.SettingsPath))files.Save(Settings);
-        Runtime=new ToolRuntime(files,testMode);
+        Runtime=new ToolRuntime(files,testMode);hbDns=new HbDnsController(this,files);
         Autostart=new AutostartService(files,startupStore??(testMode?new IsolatedStartupStore():new WindowsStartupStore(false)),Environment.ProcessPath!);
         icon=IconFactory.TrayIcon(96);Window.Icon=IconFactory.WindowIcon();FocusCues.Attach(Window);
         Find<Button>("Minimize").Click+=(_,_)=>Window.WindowState=WindowState.Minimized;
@@ -302,30 +303,17 @@ public sealed class Shell : IDisposable
         var handle=new WindowInteropHelper(Window).Handle;BringWindowToTop(handle);SetForegroundWindow(handle);Window.Focus();ownedWindows.Restore();
     }
     public void Exit() {if(exiting)return;if(Busy||dnsWindow?.IsBusy==true){ShowMessage(L.T("Wait for the current operation to finish before exiting."));return;}exiting=true;timer.Stop();Tray.Visible=false;Window.Close();Application.Current.Shutdown();}
-    internal Window OpenDnsSettings()
-    {
-        if(dnsWindow!=null){dnsWindow.Window.Show();if(dnsWindow.Window.WindowState==WindowState.Minimized)dnsWindow.Window.WindowState=WindowState.Normal;dnsWindow.Window.Activate();dnsWindow.Window.Focus();return dnsWindow.Window;}
-        try{dnsWindow=new DnsManagerView(this,files);var view=dnsWindow;view.Window.Closed+=(_,_)=>dnsWindow=null;view.Window.Show();UpdateDnsStatus();return view.Window;}
-        catch(Exception ex){files.Log("DNS window: "+ex);throw;}
-    }
-    bool dnsApplied;
+    SimpleDnsView EnsureDns(){if(dnsWindow==null){var view=new SimpleDnsView(this,files,hbDns);dnsWindow=view;view.Window.Closed+=(_,_)=>dnsWindow=null;}return dnsWindow;}
+    internal Window OpenDnsSettings(){var view=EnsureDns();view.RefreshStatus();view.Window.Show();view.Window.WindowState=WindowState.Normal;view.Window.Activate();return view.Window;}
     internal string DnsLineStatus {get;private set;}="";
     internal string DnsTone {get;private set;}="Muted";
     internal string DnsCurrentProfile {get;private set;}="";
     internal bool DnsBusy=>dnsWindow?.IsBusy==true;
-    internal bool DnsApplied=>dnsWindow?.Applied??dnsApplied;
-    internal void SelectDnsProfile(string id){dnsWindow?.SelectProfile(id);}
-    internal async Task<bool> DnsAction(bool? restore=null){OpenDnsSettings();return await dnsWindow!.Power(restore);}
-    internal void UpdateDnsStatus()
-    {
-        if(dnsWindow!=null){dnsWindow.RefreshStatus();dnsApplied=dnsWindow.Applied;DnsLineStatus=dnsWindow.LineStatus;DnsTone=dnsWindow.StatusTone;DnsCurrentProfile=dnsWindow.CurrentProfile;Find<TextBlock>("DnsState").Text=L.T(dnsWindow.Status);return;}
-        dnsApplied=false;DnsTone="Error";DnsLineStatus=L.T("Error");DnsCurrentProfile="";
-#if OPENNET_TESTING
-        if(Runtime.TestMode){try{var fake=TestsDns.Fixture(files.Data);var record=new DnsFileJournalStore(Paths.Owned(files.Data,"Dns/IsolatedRecovery"),"safe-test").Load(fake.State.AdapterId);dnsApplied=DnsPresentation.Managed(fake.State,record);DnsTone=DnsPresentation.StatusTone(fake.State,record);DnsLineStatus=L.T("Preview mode")+" · "+DnsPresentation.LineStatus(fake.State,record);DnsCurrentProfile=DnsPresentation.CurrentProfile(fake.State,record);Find<TextBlock>("DnsState").Text=L.T("Preview mode")+" · "+DnsPresentation.Status(fake.State,record);}catch(Exception ex){Find<TextBlock>("DnsState").Text=L.T("Error");files.Log("Preview DNS status: "+ex.Message);}return;}
-#endif
-        try{var backend=new WindowsDnsSettings();var adapters=backend.Adapters();var adapter=adapters.FirstOrDefault(a=>a.Id.ToString("D")==Settings.DnsAdapterId)??adapters.FirstOrDefault(a=>a.Connected&&!a.Virtual);if(adapter==null){DnsTone="Muted";DnsLineStatus=L.T("No connected adapter");Find<TextBlock>("DnsState").Text=L.T("No connected adapter");return;}var current=backend.Read(adapter.Id);var record=DnsRecoveryStore.Open(DnsRecoveryStore.Owner(),false).Load(adapter.Id);dnsApplied=DnsPresentation.Managed(current,record);DnsTone=DnsPresentation.StatusTone(current,record);DnsLineStatus=DnsPresentation.LineStatus(current,record);DnsCurrentProfile=DnsPresentation.CurrentProfile(current,record);Find<TextBlock>("DnsState").Text=DnsPresentation.Status(current,record);}
-        catch(Exception ex){Find<TextBlock>("DnsState").Text=L.T("Error");files.Log("DNS status: "+ex.Message);}
-    }
+    internal bool DnsApplied=>dnsWindow?.Applied??(dnsInspectionOk&&hbDns.Active!=null);
+    internal void SelectDnsProfile(string id){EnsureDns().SelectProfile(id);}
+    internal DnsProfile[] DnsProfilesForMenu {get{try{return hbDns.Profiles;}catch{return SimpleDns.Presets;}}}
+    internal async Task<bool> DnsAction(bool? restore=null)=>await EnsureDns().Power(restore);
+    internal void UpdateDnsStatus(){try{if(dnsWindow!=null){dnsWindow.RefreshStatus();DnsLineStatus=dnsWindow.LineStatus;DnsTone=dnsWindow.StatusTone;DnsCurrentProfile=dnsWindow.CurrentProfile;}else{hbDns.Read();DnsCurrentProfile=hbDns.Active?.Name??"";DnsLineStatus=hbDns.Current==null?L.T("Choose a connected adapter"):hbDns.Active!=null?L.T("Running"):L.T(hbDns.Current.IPv4.Mode==DnsMode.Automatic?"Automatic DNS":"Manual DNS");DnsTone=hbDns.Active!=null?"Success":"Muted";}dnsInspectionOk=true;Find<TextBlock>("DnsState").Text=DnsLineStatus;Workspace?.Render();}catch(Exception ex){dnsInspectionOk=false;DnsCurrentProfile="";DnsTone="Error";DnsLineStatus=L.T("Error");Find<TextBlock>("DnsState").Text=DnsLineStatus;files.Log("Experimental DNS inspection: "+ex);}}
     public void ApplySettings(UserSettings settings) {settings.Workspace??=new();settings.Workspace.Normalize();settings.StartupZapret??=settings.ZapretSelected;settings.StartupTg??=settings.TgSelected;files.Save(settings);if(Settings.Language!=settings.Language){moduleMessages.Clear();}Settings=settings;ThemeManager.SetMode(settings.Theme);L.Set(settings.Language);WindowAppearance.Refresh(Window);Workspace?.Reload();errors.Clear();_ =Refresh();Render();}
     public void ApplyGeneralSettings(UserSettings settings)
     {

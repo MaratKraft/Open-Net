@@ -15,7 +15,7 @@ internal static class DnsRecoveryStore
     static SecurityIdentifier Admin=>new(WellKnownSidType.BuiltinAdministratorsSid,null);
     static SecurityIdentifier System=>new(WellKnownSidType.LocalSystemSid,null);
     internal static string Owner()=>WindowsIdentity.GetCurrent().User!.Value;
-    static string Root=>Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"Open Net DNS Recovery");
+    static string Root=>Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"Open Net HB DNS Recovery");
     internal static string DirectoryFor(string owner){var sid=new SecurityIdentifier(owner);return Path.Combine(Root,sid.Value);}
     internal static IDnsJournalStore Open(string owner,bool create)
     {

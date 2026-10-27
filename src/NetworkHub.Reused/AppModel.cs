@@ -33,6 +33,10 @@ public sealed class UserSettings
     public string PendingStrategy {get;set;}="";
     public string DnsProfileName {get;set;}="ComssDNS";
     public string DnsProfileId {get;set;}="comss";
+    public string HbDnsProfileId {get;set;}="hb:comss";
+    public string HbDnsAdapterId {get;set;}="";
+    public bool HbDnsPolicyAccepted {get;set;}
+    public string[] HbDnsWarningsAccepted {get;set;}=Array.Empty<string>();
     public string DnsAdapterId {get;set;}="";
     public string StartupInstallationId { get; set; } = "";
     public UserSettings Copy()=>JsonSerializer.Deserialize<UserSettings>(JsonSerializer.Serialize(this))!;
