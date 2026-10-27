@@ -57,7 +57,7 @@ internal sealed class SimpleDnsView
  }
  internal async Task ClearCache(){if(busy)return;RefreshStatus();var before=Controller.Current;if(before==null)return;try{busy=true;Render();var response=await Controller.Change(before,before,null,cacheOnly:true);if(!response.Success)throw new DnsException(response.Message);message.Text=L.T(response.Message);files.Log("Experimental DNS cache: "+response.Message);transient.Start();}catch(Exception ex){ShowError(ex);}finally{busy=false;RefreshStatus();shell.UpdateDnsStatus();}}
  void ShowError(Exception ex){transient.Stop();message.Text=ex is DnsException?L.T(ex.Message):L.Error(ex);files.Log("Experimental DNS: "+ex);shell.ShowMessage(message.Text);}
- internal void SelectProfile(string id){var item=profiles.Items.Cast<ComboBoxItem>().FirstOrDefault(i=>((DnsProfile)i.Tag).Id==id);if(item!=null)profiles.SelectedItem=item;}
+ internal void SelectProfile(string id){var item=profiles.Items.Cast<ComboBoxItem>().FirstOrDefault(i=>((DnsProfile)i.Tag).Id==id);if(item!=null){if(item==profiles.SelectedItem&&Applied)_ =Power(false);else profiles.SelectedItem=item;}}
  internal void EditCustom()
  {
   if(busy)return;var selected=Selected;string? id=selected?.Id.StartsWith("hb-custom:")==true?selected.Id.Substring(10):null;var editor=SettingsLayout.Create(shell,L.T("Custom DNS"),480);editor.Owner=Window.IsVisible?Window:shell.Window;var panel=SettingsLayout.Panel(editor);SettingsLayout.Heading(panel,L.T("Custom DNS"),L.T("One preferred and an optional alternate IPv4 address."));
