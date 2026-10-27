@@ -47,7 +47,7 @@ internal sealed class SimpleDnsView
  return AppDialog.Show(Window.IsVisible?Window:shell.Window,L.T(text),L.T("DNS Manager — experiment"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;}
  internal async Task<bool> Power(bool? restore=null)
  {
-  if(busy||shell.Busy)return false;RefreshStatus();var before=Controller.Current;if(before==null||!before.CanChange||inspectionError.Length>0){ShowError(new DnsException(inspectionError.Length>0?inspectionError:before?.Limitation??"Choose a connected adapter"));return false;}bool off=restore??Applied;var profile=off?null:Selected;if(!off&&profile==null)return false;
+  if(busy||shell.Busy)return false;RefreshStatus();var before=Controller.Current;if(before==null||!before.CanChange||inspectionError.Length>0){ShowError(new DnsException(inspectionError.Length>0?inspectionError:before?.Limitation??"Choose a connected adapter"));if(!Window.IsVisible){Fill();Window.Show();Window.WindowState=WindowState.Normal;Window.Activate();}return false;}bool off=restore??Applied;var profile=off?null:Selected;if(!off&&profile==null)return false;
   try{
    if(!shell.Settings.HbDnsPolicyAccepted){string notice="Turning off restores automatic IPv4 DNS, not earlier manual addresses. IPv6 is unchanged. An emergency snapshot is kept. Continue?";if(!Confirm(notice))return false;shell.Settings.HbDnsPolicyAccepted=true;files.Save(shell.Settings);}
    if(!off&&!profile!.Available)throw new DnsException(profile.Warning);if(!off&&profile!.Warning.Length>0&&!shell.Settings.HbDnsWarningsAccepted.Contains(profile.Id)){if(!Confirm(profile.Warning))return false;shell.Settings.HbDnsWarningsAccepted=shell.Settings.HbDnsWarningsAccepted.Append(profile.Id).ToArray();files.Save(shell.Settings);}

@@ -730,5 +730,6 @@
   "An interrupted DNS operation needs offline recovery. Its backup has been kept.": "Прерванная операция DNS требует автономного восстановления. Резервная копия сохранена.",
   "Enter a preferred IPv4 DNS address.": "Укажите основной DNS IPv4.",
   "Enter valid dotted IPv4 DNS addresses.": "Укажите корректные IPv4-адреса из четырёх чисел через точки.",
-  "DNS was not applied. Your previous profile remains selected.": "DNS не применён. Предыдущий профиль остаётся выбранным."
+  "DNS was not applied. Your previous profile remains selected.": "DNS не применён. Предыдущий профиль остаётся выбранным.",
+  "This tool is running outside this copy of Open Net. To control it here, first close it using the application or tray that started it, then turn it on here. The running process has been left unchanged.": "Этот инструмент запущен вне этой копии Open Net. Чтобы управлять им здесь, сначала закройте его через запустившее его приложение или трей, затем включите здесь. Работающий процесс оставлен без изменений."
 }

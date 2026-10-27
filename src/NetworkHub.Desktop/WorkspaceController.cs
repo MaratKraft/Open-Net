@@ -65,7 +65,13 @@ internal sealed class WorkspaceController
     internal async Task ToggleTool(string id,bool desired)
     {
         if(changingTool||shell.Busy||shell.DnsBusy||Editing){Render();return;}changingTool=true;Render();
-        try{await shell.Refresh();if(id=="dns"){if(desired!=shell.DnsApplied)await shell.DnsAction(!desired);}else if(desired){if(!ToolOn(id))await shell.StartSelected(new[]{id});}else if(ToolOn(id)||Active(id))await shell.StopSelected(false,new[]{id});}
+        try{await shell.Refresh();
+            if(id!="dns"&&shell.Observations.Any(o=>o.Id==id&&o.State==ObservedState.External)){
+                string message=L.T("This tool is running outside this copy of Open Net. To control it here, first close it using the application or tray that started it, then turn it on here. The running process has been left unchanged.");
+                shell.ShowMessage(message);files.Log("Individual switch: external instance left unchanged: "+id);
+                AppDialog.Show(shell.Window,message,Name(id),MessageBoxButton.OK,MessageBoxImage.Information,MessageBoxResult.OK);return;
+            }
+            if(id=="dns"){if(desired!=shell.DnsApplied)await shell.DnsAction(!desired);}else if(desired){if(!ToolOn(id))await shell.StartSelected(new[]{id});}else if(ToolOn(id)||Active(id))await shell.StopSelected(false,new[]{id});}
         catch(Exception ex){shell.ShowMessage(L.Error(ex));files.Log("Individual switch: "+ex);}
         finally{changingTool=false;await shell.Refresh();Render();}
     }
