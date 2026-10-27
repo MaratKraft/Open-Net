@@ -91,7 +91,7 @@ public static class TestsFoundation
             var gear=shell.Find<System.Windows.Shapes.Path>("SettingsGear");Check(gear.Data.Bounds.Width>15&&gear.Data.Bounds.Height>15,"Fluent geometry present");var close=shell.Find<Button>("Close");close.ApplyTemplate();var surface=(Border)close.Template.FindName("CaptionSurface",close);FocusCues.SetMode(true);close.Focus();Check(surface.BorderThickness==new Thickness(0)&&surface.CornerRadius.TopLeft==5&&close.FocusVisualStyle!=null,"Separate caption template; accessible keyboard focus");return Task.CompletedTask;
         });
         await test("022 foundation cross hides even with close preference disabled; tools remain owned and running",async()=>{
-            var saved=shell.Settings;shell.Settings.CloseToTray=false;shell.ApplySettings(shell.Settings);shell.Find<CheckBox>("ZapretCheck").IsChecked=true;shell.Find<CheckBox>("TgCheck").IsChecked=true;await shell.StartSelected();await shell.Refresh();var pids=shell.Observations.Select(x=>x.Pid!.Value).ToArray();
+            var saved=shell.Settings;shell.Settings.CloseToTray=false;shell.ApplySettings(shell.Settings);shell.Settings.ZapretSelected=true;shell.Settings.TgSelected=true;await shell.StartSelected();await shell.Refresh();var pids=shell.Observations.Select(x=>x.Pid!.Value).ToArray();
             shell.Find<Button>("Close").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Check(!shell.Window.IsVisible&&!shell.Window.ShowInTaskbar&&pids.All(x=>ProcessIdentity.Read(x).Exists),"Cross preserved own stubs");shell.Restore();await shell.StopSelected(false);shell.ApplySettings(saved);
         });
         await test("022 foundation native activation, redraw, focus, tray restore, position and material switching show no thick white border",async()=>{

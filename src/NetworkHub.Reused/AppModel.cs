@@ -26,7 +26,14 @@ public sealed class UserSettings
     public bool ConfirmStartStop { get; set; } = false;
     public bool StartWithWindows { get; set; } = false;
     public bool AutoStartTools { get; set; } = false;
+    public bool? StartupZapret {get;set;}
+    public bool? StartupTg {get;set;}
     public bool StartupInTray { get; set; } = true;
+    public WorkspaceSettings Workspace {get;set;}=new();
+    public string PendingStrategy {get;set;}="";
+    public string DnsProfileName {get;set;}="ComssDNS";
+    public string DnsProfileId {get;set;}="comss";
+    public string DnsAdapterId {get;set;}="";
     public string StartupInstallationId { get; set; } = "";
     public UserSettings Copy()=>JsonSerializer.Deserialize<UserSettings>(JsonSerializer.Serialize(this))!;
     public ModulePreferences ForModule(string id)=>id switch {
@@ -109,7 +116,10 @@ public sealed class AppFiles
 }
 public enum ObservedState { Stopped, Starting, Running, Error, External, Unknown, CleanupRequired, NotInstalled }
 public sealed record ToolObservation(string Id,ObservedState State,string Detail,int? Pid=null);
-public sealed record OwnedReceipt(string Token,int Pid,long StartFileTime,string Executable,string Module);
+public sealed record OwnedReceipt(string Token,int Pid,long StartFileTime,string Executable,string Module)
+{
+    public string Profile {get;init;}="";
+}
 public sealed record Probe(bool Exists,bool IdentityReadable,long StartFileTime,string? Executable);
 public static class ProcessIdentity
 {

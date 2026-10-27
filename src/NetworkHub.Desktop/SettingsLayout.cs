@@ -12,6 +12,27 @@ using NetworkHub.Core;
 namespace NetworkHub.Desktop;
 internal static class SettingsLayout
 {
+    internal static readonly Thickness FooterPadding=new(24,12,24,20);
+    internal static void PinActions(Window window,FrameworkElement actions)
+    {
+        var body=(UIElement)window.Content;window.Content=null;
+        var layout=new Grid();layout.RowDefinitions.Add(new());layout.RowDefinitions.Add(new(){Height=GridLength.Auto});layout.Children.Add(body);
+        var footer=new Border{Padding=FooterPadding,Child=actions};ThemeManager.Bind(footer,Border.BackgroundProperty,"Surface");Grid.SetRow(footer,1);layout.Children.Add(footer);window.Content=layout;
+    }
+    internal static Button Finish(Window window,string name,string caption)
+    {
+        var button=Button(window,name,caption);button.MinWidth=136;button.Height=36;button.Padding=new Thickness(16,4,16,4);button.HorizontalAlignment=HorizontalAlignment.Right;
+        ThemeManager.Bind(button,Control.BackgroundProperty,"PrimaryBackground");ThemeManager.Bind(button,Control.ForegroundProperty,"PrimaryText");return button;
+    }
+    internal static Grid Footer(Window window,Button finish,UIElement? leading=null)
+    {
+        var row=new Grid();row.ColumnDefinitions.Add(new());row.ColumnDefinitions.Add(new(){Width=GridLength.Auto});if(leading!=null)row.Children.Add(leading);Grid.SetColumn(finish,1);row.Children.Add(finish);return row;
+    }
+    internal static Button Additional(Window window,string name,StackPanel content)
+    {
+        content.Visibility=Visibility.Collapsed;var button=Button(window,name,"");button.Style=(Style)window.FindResource("QuietLink");button.ClearValue(Control.BackgroundProperty);button.MinWidth=0;button.Height=36;button.Padding=new Thickness(10,0,10,0);button.HorizontalAlignment=HorizontalAlignment.Left;
+        void Caption()=>button.Content=CompactUi.Disclosure(L.T("Additional"),content.Visibility==Visibility.Visible);Caption();button.Click+=(_,_)=>{content.Visibility=content.Visibility==Visibility.Visible?Visibility.Collapsed:Visibility.Visible;Caption();};L.Changed+=Caption;window.Closed+=(_,_)=>L.Changed-=Caption;return button;
+    }
     public static Window Create(Shell shell,string title,double height)
     {
         var window=new Window{Title=title,Width=560,Height=height,MinWidth=430,MinHeight=360,Owner=shell.Window,ResizeMode=ResizeMode.CanResize,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=new SolidColorBrush(Color.FromRgb(25,25,25)),Foreground=Brushes.White,FontFamily=new FontFamily("Segoe UI"),FontSize=13,Icon=shell.Window.Icon};
@@ -19,7 +40,7 @@ internal static class SettingsLayout
     }
     public static StackPanel Panel(Window window)
     {
-        var panel=new StackPanel{Margin=new Thickness(26)};window.Content=new ScrollViewer{Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled,FocusVisualStyle=null};return panel;
+        var panel=new StackPanel{Margin=new Thickness(24)};window.Content=new ScrollViewer{Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled,FocusVisualStyle=null};return panel;
     }
     public static void Heading(StackPanel panel,string title,string description)
     {
@@ -29,7 +50,7 @@ internal static class SettingsLayout
     public static void Label(StackPanel panel,string text)=>panel.Children.Add(new TextBlock{Text=L.T(text),Margin=new Thickness(0,8,0,6),Foreground=Brushes.LightGray});
     public static TextBlock Error(Window window,StackPanel panel,string name)
     {
-        var error=new TextBlock{Foreground=Brushes.Salmon,FontSize=12,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,10,0,4)};window.RegisterName(name,error);panel.Children.Add(error);return error;
+        var error=new TextBlock{Foreground=Brushes.Salmon,FontSize=12,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,10,0,4)};var style=new Style(typeof(TextBlock));var empty=new Trigger{Property=TextBlock.TextProperty,Value=""};empty.Setters.Add(new Setter(UIElement.VisibilityProperty,Visibility.Collapsed));style.Triggers.Add(empty);error.Style=style;window.RegisterName(name,error);panel.Children.Add(error);return error;
     }
     public static CheckBox Toggle(Window window,StackPanel panel,Shell shell,string name,string caption,bool value,string? tooltip=null)
     {
@@ -52,9 +73,9 @@ internal static class SettingsLayout
     {
         while(grid.RowDefinitions.Count<=index/2)grid.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});Grid.SetColumn(button,index%2);Grid.SetRow(button,index/2);button.Margin=new Thickness(index%2==0?0:8,index<2?0:8,0,0);grid.Children.Add(button);
     }
-    public static Button Save(Window window,StackPanel panel,string name="SaveSettings")
+    public static Button Save(Window window,StackPanel panel,string name="SaveSettings",bool pinned=true)
     {
-        var save=Button(window,name,"Save");save.Height=38;save.Background=Brushes.White;save.Foreground=Brushes.Black;save.Padding=new Thickness(20,8,20,8);save.HorizontalAlignment=HorizontalAlignment.Right;save.Margin=new Thickness(0,12,0,0);panel.Children.Add(save);return save;
+        var save=Button(window,name,"Save");save.Height=36;save.MinWidth=136;save.Background=Brushes.White;save.Foreground=Brushes.Black;save.Padding=new Thickness(20,4,20,4);save.HorizontalAlignment=HorizontalAlignment.Right;save.Margin=new Thickness(0);if(pinned)PinActions(window,save);else panel.Children.Add(save);return save;
     }
     public static void OpenFolder(Shell shell,AppFiles files,string path)
     {
