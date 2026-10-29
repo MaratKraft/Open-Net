@@ -731,5 +731,10 @@
   "Enter a preferred IPv4 DNS address.": "Укажите основной DNS IPv4.",
   "Enter valid dotted IPv4 DNS addresses.": "Укажите корректные IPv4-адреса из четырёх чисел через точки.",
   "DNS was not applied. Your previous profile remains selected.": "DNS не применён. Предыдущий профиль остаётся выбранным.",
-  "This tool is running outside this copy of Open Net. To control it here, first close it using the application or tray that started it, then turn it on here. The running process has been left unchanged.": "Этот инструмент запущен вне этой копии Open Net. Чтобы управлять им здесь, сначала закройте его через запустившее его приложение или трей, затем включите здесь. Работающий процесс оставлен без изменений."
+  "This tool is running outside this copy of Open Net. To control it here, first close it using the application or tray that started it, then turn it on here. The running process has been left unchanged.": "Этот инструмент запущен вне этой копии Open Net. Чтобы управлять им здесь, сначала закройте его через запустившее его приложение или трей, затем включите здесь. Работающий процесс оставлен без изменений.",
+  "Fix connection": "Исправить подключение",
+  "Check hosts": "Проверить hosts",
+  "No relevant hosts entries found.": "Записей для проверяемых сервисов в hosts не найдено.",
+  "The hosts file overrides DNS for these names. This can prevent the selected DNS profile from working:": "Файл hosts переопределяет DNS для этих адресов. Из-за этого выбранный DNS-профиль может не работать:",
+  "Could not read the hosts file.": "Не удалось прочитать файл hosts."
 }
