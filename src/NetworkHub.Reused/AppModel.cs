@@ -24,6 +24,7 @@ public sealed class UserSettings
     public bool TgSelected { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
     public bool ConfirmStartStop { get; set; } = false;
+    public bool TgForcedStopAcknowledged { get; set; } = false;
     public bool StartWithWindows { get; set; } = false;
     public bool AutoStartTools { get; set; } = false;
     public bool? StartupZapret {get;set;}

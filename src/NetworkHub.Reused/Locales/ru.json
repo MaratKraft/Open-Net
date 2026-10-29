@@ -737,5 +737,6 @@
   "No relevant hosts entries found.": "Записей для проверяемых сервисов в hosts не найдено.",
   "The hosts file overrides DNS for these names. This can prevent the selected DNS profile from working:": "Файл hosts переопределяет DNS для этих адресов. Из-за этого выбранный DNS-профиль может не работать:",
   "Could not read the hosts file.": "Не удалось прочитать файл hosts.",
-  "IPv4 DNS on one physical adapter.": "DNS IPv4 одного физического адаптера."
+  "IPv4 DNS on one physical adapter.": "DNS IPv4 одного физического адаптера.",
+  "TG and its child processes may be stopped forcibly; unsaved settings may be lost. If you agree, this warning will not be repeated when routine confirmations are disabled. Stop this owned instance?": "TG и его дочерние процессы могут быть завершены принудительно; несохранённые настройки могут потеряться. Если вы согласны, при выключенных обычных подтверждениях это предупреждение больше не появится. Остановить этот экземпляр?"
 }

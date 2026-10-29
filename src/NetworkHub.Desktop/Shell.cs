@@ -223,7 +223,10 @@ public sealed class Shell : IDisposable
         if(!Observations.Any(x=>ids.Contains(x.Id)&&PrimaryAction.CanStop(x))){ShowMessage(Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.External)?L.T("Close external tools using their own window or tray. Open Net manages only processes it launched."):L.T("The process is not running."));return;}
         bool ownRunning=Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.Running);
         if(Settings.ConfirmStartStop&&ownRunning&&!AskRoutine("stop",L.T("Only processes launched by this copy of Open Net will be ended. TG and its child processes may be terminated forcibly; unsaved settings may be lost. Zapret and WinDivert require UAC. Continue?"),L.T("Open Net — stop")))return;
-        if(!Settings.ConfirmStartStop&&!Runtime.TestMode&&Observations.Any(x=>ids.Contains(x.Id)&&x.Id=="tg"&&x.State==ObservedState.Running)&&!ConfirmForcedTgStop())return;
+        if(!Settings.ConfirmStartStop&&!Settings.TgForcedStopAcknowledged&&(!Runtime.TestMode||ForcedTgConfirmationForTests!=null)&&Observations.Any(x=>ids.Contains(x.Id)&&x.Id=="tg"&&x.State==ObservedState.Running)){
+            if(!ConfirmForcedTgStop())return;
+            try{var next=Settings.Copy();next.TgForcedStopAcknowledged=true;ApplySettings(next);}catch(Exception ex){ShowMessage(L.Error(ex));files.Log("TG stop consent: "+ex);return;}
+        }
         stopping=true;Busy=true;Render();ShowMessage(L.T("Stopping owned processes. Confirm the Windows prompt for Zapret."));var messages=new List<string>();bool failed=false;
         try
         {
@@ -238,7 +241,8 @@ public sealed class Shell : IDisposable
     }
     internal void ShowNotice(string message){ShowMessage(message);noticeTimer.Start();}
     public void ShowMessage(string message) {noticeTimer.Stop();string safe=NetworkHub.Core.LogSafety.Redact(message);Find<TextBlock>("Message").Text=safe;Find<TextBlock>("Message").ToolTip=safe;if(installing!=null)moduleMessages[installing]=safe;StateChanged?.Invoke();}
-    internal bool ConfirmForcedTgStop()=>AppDialog.Show(Window,L.T("TG may be stopped forcibly with its child processes. Unsaved settings may be lost. Stop this owned instance?"),L.T("Open Net — stop"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;
+    internal Func<bool>? ForcedTgConfirmationForTests {get;set;}
+    internal bool ConfirmForcedTgStop()=>Runtime.TestMode&&ForcedTgConfirmationForTests!=null?ForcedTgConfirmationForTests():AppDialog.Show(Window,L.T("TG and its child processes may be stopped forcibly; unsaved settings may be lost. If you agree, this warning will not be repeated when routine confirmations are disabled. Stop this owned instance?"),L.T("Open Net — stop"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;
     public async Task ConfigureZapret(string folder,Window owner)
     {
         if(Busy)return;bool confirmed=false;string result="";
