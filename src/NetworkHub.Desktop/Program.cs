@@ -64,6 +64,7 @@ internal static class Program
             }
             bool firstRun=!File.Exists(files.SettingsPath);if(firstRun&&!test){var initial=files.Defaults();initial.StartWithWindows=false;initial.AutoStartTools=false;files.Save(initial);}
             var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};var shell=new Shell(files,test,instance);
+            if(firstRun&&!test&&!autostart&&!args.Contains("--startup-probe")&&!args.Contains("--close-probe")){bool offered=false;shell.Window.ContentRendered+=async(_,_)=>{if(offered)return;offered=true;await shell.OfferFirstRunStartup();};}
 #if OPENNET_TESTING
             if(args.Contains("--headless-tests")){try{return TestsHeadless.Run(shell,files);}finally{shell.Exit();shell.Runtime.CloseShell();shell.Dispose();}}
 #endif
