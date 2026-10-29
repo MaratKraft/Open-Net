@@ -736,5 +736,6 @@
   "Check hosts": "Проверить hosts",
   "No relevant hosts entries found.": "Записей для проверяемых сервисов в hosts не найдено.",
   "The hosts file overrides DNS for these names. This can prevent the selected DNS profile from working:": "Файл hosts переопределяет DNS для этих адресов. Из-за этого выбранный DNS-профиль может не работать:",
-  "Could not read the hosts file.": "Не удалось прочитать файл hosts."
+  "Could not read the hosts file.": "Не удалось прочитать файл hosts.",
+  "IPv4 DNS on one physical adapter.": "DNS IPv4 одного физического адаптера."
 }

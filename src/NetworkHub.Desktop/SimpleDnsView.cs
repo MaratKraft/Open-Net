@@ -24,7 +24,7 @@ internal sealed class SimpleDnsView
 #endif
  internal SimpleDnsView(Shell shell,AppFiles files,HbDnsController controller)
  {
-  this.shell=shell;this.files=files;Controller=controller;Window=SettingsLayout.Create(shell,L.T("DNS Manager — experiment"),490);var panel=SettingsLayout.Panel(Window);SettingsLayout.Heading(panel,"DNS Manager",L.T("Experimental · IPv4 DNS on one physical adapter."));
+  this.shell=shell;this.files=files;Controller=controller;Window=SettingsLayout.Create(shell,"DNS Manager — Open Net",490);var panel=SettingsLayout.Panel(Window);SettingsLayout.Heading(panel,"DNS Manager",L.T("IPv4 DNS on one physical adapter."));
   SettingsLayout.Label(panel,"Network adapter");panel.Children.Add(adapters);Window.RegisterName("HbAdapter",adapters);SettingsLayout.Label(panel,"DNS profile");panel.Children.Add(profiles);Window.RegisterName("HbProfile",profiles);status.Margin=new Thickness(0,14,0,0);panel.Children.Add(status);panel.Children.Add(message);Window.RegisterName("HbStatus",status);Window.RegisterName("HbMessage",message);ThemeManager.Bind(message,TextBlock.ForegroundProperty,"Muted");
   var actions=SettingsLayout.ActionGrid(Window,panel,"HbActions");cache=SettingsLayout.Button(Window,"HbClearCache","Clear DNS cache");add=SettingsLayout.Button(Window,"HbAddDns","Add DNS");SettingsLayout.AddAction(actions,cache,0);SettingsLayout.AddAction(actions,add,1);cache.Click+=async(_,_)=>await ClearCache();add.Click+=(_,_)=>EditCustom();
   var repair=new Expander{Header=L.T("Fix connection"),Margin=new Thickness(0,12,0,0)};var repairBody=new StackPanel{Margin=new Thickness(0,8,0,0)};var inspect=SettingsLayout.Button(Window,"HbInspectHosts","Check hosts");var hostsResult=new TextBlock{TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,8,0,0)};Window.RegisterName("HbHostsResult",hostsResult);ThemeManager.Bind(hostsResult,TextBlock.ForegroundProperty,"Muted");repairBody.Children.Add(inspect);repairBody.Children.Add(hostsResult);repair.Content=repairBody;panel.Children.Add(repair);inspect.Click+=(_,_)=>{try{var names=HostsInspection.Read();hostsResult.Text=names.Length==0?L.T("No relevant hosts entries found."):L.T("The hosts file overrides DNS for these names. This can prevent the selected DNS profile from working:")+"\n"+string.Join(", ",names);}catch(Exception ex){hostsResult.Text=L.T("Could not read the hosts file.")+" "+L.Error(ex);}};
@@ -45,7 +45,7 @@ internal sealed class SimpleDnsView
 #if OPENNET_TESTING
  if(shell.Runtime.TestMode&&ConfirmationForTests!=null)return ConfirmationForTests(text);
 #endif
- return AppDialog.Show(Window.IsVisible?Window:shell.Window,L.T(text),L.T("DNS Manager — experiment"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;}
+ return AppDialog.Show(Window.IsVisible?Window:shell.Window,L.T(text),"DNS Manager — Open Net",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;}
  internal async Task<bool> Power(bool? restore=null)
  {
   if(busy||shell.Busy)return false;RefreshStatus();var before=Controller.Current;if(before==null||!before.CanChange||inspectionError.Length>0){ShowError(new DnsException(inspectionError.Length>0?inspectionError:before?.Limitation??"Choose a connected adapter"));if(!Window.IsVisible){Fill();Window.Show();Window.WindowState=WindowState.Normal;Window.Activate();}return false;}bool off=restore??Applied;var profile=off?null:Selected;if(!off&&profile==null)return false;
