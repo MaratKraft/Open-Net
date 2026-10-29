@@ -8,6 +8,7 @@ using NetworkHub.Core;
 
 internal static class ElevatedActions
 {
+    internal static bool SameLaunch(OwnedReceipt? original,OwnedReceipt saved)=>original!=null&&original.Token==saved.Token&&original.Module==saved.Module&&original.Pid==saved.Pid&&original.StartFileTime==saved.StartFileTime&&string.Equals(original.Executable,saved.Executable,StringComparison.OrdinalIgnoreCase);
     // Fixed start/stop actions only; stop target is read from this installation's receipt.
     public static int Run(string[] args)
     {
@@ -36,7 +37,7 @@ internal static class ElevatedActions
                     throw new InvalidDataException(L.T("The Zapret receipt does not match the selected build. Stop was blocked."));
                 var launchResponse=Paths.Owned(files.Data,"requests/"+owned.Token+"/response.json");
                 var original=JsonSerializer.Deserialize<ZapretResponse>(File.ReadAllText(launchResponse));
-                if(original?.Success!=true||original.Receipt!=owned)throw new InvalidDataException(L.T("No confirmed launch of this Zapret exists. Stop was blocked."));
+                if(original?.Success!=true||!SameLaunch(original.Receipt,owned))throw new InvalidDataException(L.T("No confirmed launch of this Zapret exists. Stop was blocked."));
                 var hashes=files.ForZapret(r.Settings).TrustedFiles;
                 if(Metadata.Hash(binary)!=(hashes.TryGetValue("bin/winws.exe",out var verified)?verified:"AFFB4F69D2EA302A7ABCCD5325D81826E140DDAE014F1E070BC4A6C0DD555188"))throw new InvalidDataException(L.T("The winws file was modified. Reinstall the official release."));
                 OwnedStop.Stop(owned,false);
