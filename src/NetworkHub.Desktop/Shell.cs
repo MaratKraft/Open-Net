@@ -353,8 +353,9 @@ public sealed class Shell : IDisposable
     internal async Task OfferFirstRunStartup()
     {
         if(!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return;
-        try{var next=Settings.Copy();next.StartWithWindows=true;next.AutoStartTools=true;next.StartupInTray=true;if(await ApplyGeneralSettingsAsync(next,startupConsent:true))ShowNotice(L.T("Settings saved."));}
-        catch(Exception ex){files.Log("First-run startup setup: "+ex);ShowMessage(L.Error(ex));OpenSettings();}
+        var previous=Settings.Copy();
+        try{var next=Settings.Copy();next.StartWithWindows=true;next.AutoStartTools=true;next.StartupInTray=true;if(!await ApplyGeneralSettingsAsync(next,startupConsent:true))return;var state=Autostart.Inspect(Settings);if(!state.Ready)throw new IOException(state.Message);ShowNotice(L.T("Settings saved."));}
+        catch(Exception ex){files.Log("First-run startup setup: "+ex);try{if(!Autostart.Inspect(Settings).Ready)ApplySettings(previous);}catch(Exception rollback){files.Log("First-run preferences rollback: "+rollback);}ShowMessage(L.Error(ex));OpenSettings();}
     }
     public void RepairStartup(){var next=Settings.Copy();next.StartWithWindows=true;Autostart.Configure(next,()=>ApplySettings(next));}
     public void StartHidden(){Window.ShowInTaskbar=false;new WindowInteropHelper(Window).EnsureHandle();_ =Refresh();}
