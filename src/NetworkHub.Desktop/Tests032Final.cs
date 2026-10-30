@@ -49,7 +49,7 @@ public static class Tests032Final
    var track=(Border)toggle.Template.FindName("Track",toggle);var thumb=(System.Windows.Shapes.Ellipse)toggle.Template.FindName("Thumb",toggle);
    var a=Bounds(track,toggle);var b=Bounds(thumb,toggle);
    double diameter=enabled&&state=="hover"?16:enabled&&state=="pressed"?12:14,inset=(22-diameter)/2;
-   Check(a.Width==42&&a.Height==22&&b.Width==diameter&&b.Height==diameter&&track.BorderThickness==new Thickness(1),"Stable track and thumb");
+   Check(a.Width==42&&a.Height==22&&b.Width==diameter&&b.Height==diameter&&track.BorderThickness==new Thickness(on?0:1),"Stable track and thumb");
    Check(Math.Abs(b.Top-a.Top-inset)<.1&&Math.Abs(a.Bottom-b.Bottom-inset)<.1,"Balanced vertical inset");
    Check(Math.Abs(on?a.Right-b.Right-inset:b.Left-a.Left-inset)<.1,"State matches thumb position");
    Check(thumb.HorizontalAlignment==(on?HorizontalAlignment.Right:HorizontalAlignment.Left),"Checked value drives position");
