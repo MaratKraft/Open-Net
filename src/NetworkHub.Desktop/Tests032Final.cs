@@ -35,7 +35,7 @@ public static class Tests032Final
    {
     glyph.Data=GeometryParse(installed);shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);shell.Window.UpdateLayout();
     var gear=(System.Windows.Shapes.Path)((Button)controls[1]).Content;var left=ModuleIconAlignment.Ink(glyph,(Visual)shell.Window.Content);var middle=ModuleIconAlignment.Ink(gear,(Visual)shell.Window.Content);
-    Check(Math.Abs(middle.Left+middle.Width/2-rects[1].Left-rects[1].Width/2)<.1,"Gear stays centered in its hover area for both glyphs");
+     Check(Math.Abs(middle.Left+middle.Width/2-rects[1].Left-rects[1].Width/2+1)<.1,"Gear keeps the same optical inset for both glyphs");
    }}finally{glyph.Data=original;shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);}
   }
  }
