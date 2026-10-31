@@ -22,7 +22,7 @@ internal static class DnsElevated
 {
     [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(IntPtr handle,uint access,out IntPtr token);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
-    internal static bool ValidRequest(DnsRequest r,string token)=>r.Token==token&&Guid.TryParseExact(token,"N",out _)&&r.Action is "apply" or "automatic" or "restore" or "flush" or "reapply" or "adopt"&&r.Before.AdapterId!=Guid.Empty&&r.Before.AdapterId==r.Target.AdapterId&&r.ParentPid>0&&r.ParentStart>0&&r.Owner.StartsWith("S-1-",StringComparison.Ordinal)&&r.ApprovedFingerprint.Length==64&&(r.Action!="reapply"||!r.ClearCache);
+    internal static bool ValidRequest(DnsRequest r,string token)=>r.Token==token&&Guid.TryParseExact(token,"N",out _)&&r.Action is "apply" or "automatic" or "restore" or "flush" or "reapply" or "adopt" or "hb-on" or "hb-off"&&r.Before.AdapterId!=Guid.Empty&&r.Before.AdapterId==r.Target.AdapterId&&r.ParentPid>0&&r.ParentStart>0&&r.Owner.StartsWith("S-1-",StringComparison.Ordinal)&&r.ApprovedFingerprint.Length==64&&(r.Action!="reapply"||!r.ClearCache);
     internal static string RequestHash(string json)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
     internal static bool MatchesHash(byte[] data,string hash)=>hash.Length==64&&hash.All(Uri.IsHexDigit)&&CryptographicOperations.FixedTimeEquals(SHA256.HashData(data),Convert.FromHexString(hash));
     static string ParentOwner(int pid){using var p=Process.GetProcessById(pid);if(!OpenProcessToken(p.Handle,8,out var token))throw new Win32Exception();try{using var identity=new WindowsIdentity(token);return identity.User!.Value;}finally{CloseHandle(token);}}
@@ -54,7 +54,18 @@ internal static class DnsElevated
                 var store=DnsRecoveryStore.Open(r.Owner,true);DnsRecoveryStore.ValidateRecord(r.Before.AdapterId,r.Owner);
                 DnsRecoveryStore.MarkUsed(r.Owner,r.Token);
                 var transaction=new DnsTransaction(backend,backend,store,r.Owner,evidence);
-                if(r.Action=="adopt"){if(!r.Before.SameConfiguration(r.Target)||r.ClearCache)throw new DnsException("Invalid baseline acceptance plan.");transaction.AcceptCurrent(r.Before);}
+                if(r.Action is "hb-on" or "hb-off"){
+                    if(r.ClearCache||!r.Families.SequenceEqual(SimpleDns.Families))throw new DnsException("Invalid experimental DNS plan.");
+                    DnsProfile? profile=null;
+                    if(r.Action=="hb-on"){
+                        profile=SimpleDns.Presets.FirstOrDefault(p=>p.Id==r.ProfileId);
+                        if(profile==null&&r.ProfileId.StartsWith("hb-custom:",StringComparison.Ordinal)&&r.CustomProfile!=null){DnsProfileStore.Validate(r.CustomProfile);if(r.ProfileId!="hb-custom:"+r.CustomProfile.Id||r.CustomProfile.UseDoh||r.CustomProfile.IPv6.Length>0||r.CustomProfile.Doh!=null)throw new DnsException("Invalid experimental custom profile.");profile=new(r.ProfileId,r.CustomProfile.Name,r.CustomProfile.IPv4,Array.Empty<string>(),null,"","",true,"");}
+                        if(profile==null)throw new DnsException("Choose a DNS profile.");
+                    }
+                    var expected=SimpleDns.Plan(current,profile,r.EncryptionChangeApproved);if(!expected.SameConfiguration(r.Target))throw new DnsException("The approved DNS plan was modified.");
+                    SimpleDns.Change(backend,backend,store,r.Owner,current,expected,r.Action=="hb-off",evidence);
+                }
+                else if(r.Action=="adopt"){if(!r.Before.SameConfiguration(r.Target)||r.ClearCache)throw new DnsException("Invalid baseline acceptance plan.");transaction.AcceptCurrent(r.Before);}
                 else if(r.Action is "apply" or "reapply"){
                     if(r.Action=="reapply"){if(r.ClearCache)throw new DnsException("Repeat never clears the DNS cache. Use the separate cache action.");DnsTransaction.ValidateReapply(r.Before,r.Target,r.Families);}
                     DnsTransaction.Validate(r.Before,r.Target,r.Families,false,r.EncryptionChangeApproved);
@@ -68,7 +79,7 @@ internal static class DnsElevated
                 }else if(r.Action=="automatic"){
                     DnsTransaction.Validate(r.Before,r.Target,r.Families,true,true);if(!r.Families.SequenceEqual(new[]{DnsFamily.IPv4}))throw new DnsException("Automatic DNS changes only IPv4 DNS assignment.");transaction.Automatic(r.Before);
                 }else transaction.Restore(r.Before.AdapterId,r.ApprovedFingerprint);
-                string message=L.T(r.Action=="adopt"?"Current settings accepted; previous recovery record archived.":r.Action=="reapply"?"Windows accepted the repeat request. DNS and DoH values are unchanged; a network-state change and service availability have not been confirmed.":r.Action=="apply"?"DNS profile applied. Connection has not been tested.":r.Action=="automatic"?"DNS automatically. The original configuration remains recoverable.":"The original DNS configuration was restored.");
+                string message=L.T(r.Action=="hb-on"?"DNS addresses verified. Service availability has not been tested.":r.Action=="hb-off"?"Automatic IPv4 DNS verified.":r.Action=="adopt"?"Current settings accepted; previous recovery record archived.":r.Action=="reapply"?"Windows accepted the repeat request. DNS and DoH values are unchanged; a network-state change and service availability have not been confirmed.":r.Action=="apply"?"DNS profile applied. Connection has not been tested.":r.Action=="automatic"?"DNS automatically. The original configuration remains recoverable.":"The original DNS configuration was restored.");
                 if(r.Action!="reapply"&&r.ClearCache)try{evidence.CacheResult="requested";message+="\n"+L.T(DnsCache.Clear(false));evidence.CacheResult="cleared";}catch(Exception){evidence.CacheResult="failed";message+="\n"+L.T("DNS configuration is verified, but cache clearing failed. Retry cache clearing separately.");}
                 Paths.WriteNew(response,JsonSerializer.Serialize(new DnsResponse(true,message){Evidence=evidence}));return 0;
             }finally{if(locked)gate.ReleaseMutex();}

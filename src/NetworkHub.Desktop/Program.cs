@@ -62,8 +62,9 @@ internal static class Program
                 files.Log("Activation failed: "+instance.LastError);if(test)return 1;
                 MessageBox.Show(L.T("Open Net is already open but did not respond. Check its tray icon."),"Open Net");return 1;
             }
-            bool firstRun=!File.Exists(files.SettingsPath);
+            bool firstRun=!File.Exists(files.SettingsPath);if(firstRun&&!test){var initial=files.Defaults();initial.StartWithWindows=false;initial.AutoStartTools=false;files.Save(initial);}
             var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};var shell=new Shell(files,test,instance);
+            if(firstRun&&!test&&!autostart&&!args.Contains("--startup-probe")&&!args.Contains("--close-probe")){bool offered=false;shell.Window.ContentRendered+=async(_,_)=>{if(offered)return;offered=true;await shell.OfferFirstRunStartup();};}
 #if OPENNET_TESTING
             if(args.Contains("--headless-tests")){try{return TestsHeadless.Run(shell,files);}finally{shell.Exit();shell.Runtime.CloseShell();shell.Dispose();}}
 #endif
@@ -81,9 +82,7 @@ internal static class Program
                 if(args.Contains("--close-probe"))shell.Window.Close();else shell.Exit();
             }
             if(args.Contains("--startup-probe")&&!autostart)shell.Window.ContentRendered+=async(_,_)=>await Probe();
-            if(firstRun&&!test&&!autostart&&!args.Contains("--startup-probe")){
-                bool offered=false;shell.Window.ContentRendered+=async(_,_)=>{if(offered)return;offered=true;await shell.SetupRecommendedStartup();};
-            }
+
             try
             {
                 if(autostart){app.MainWindow=shell.Window;if(shell.Settings.StartupInTray)shell.StartHidden();else shell.Window.Show();app.Dispatcher.BeginInvoke(new Action(async()=>await shell.RunWindowsStartup(args.Contains("--startup-probe"))));if(args.Contains("--startup-probe"))app.Dispatcher.BeginInvoke(new Action(async()=>await Probe()));app.Run();}
@@ -99,7 +98,7 @@ internal static class Program
 #endif
             string details="",diagnosticRoot=Path.GetDirectoryName(Environment.ProcessPath!)!;
             #if !OPENNET_SAFE_PREVIEW
-            if(!File.Exists(Path.Combine(diagnosticRoot,"portable.flag")))try{string diagnostic=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net","Startup-errors");Directory.CreateDirectory(diagnostic);File.WriteAllText(Path.Combine(diagnostic,DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")+".log"),ex.ToString());details=L.T("\nDetails: ")+diagnostic;}catch(IOException){}catch(UnauthorizedAccessException){}
+            if(!File.Exists(Path.Combine(diagnosticRoot,"portable.flag")))try{string diagnostic=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net HB Experiment","Startup-errors");Directory.CreateDirectory(diagnostic);File.WriteAllText(Path.Combine(diagnostic,DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")+".log"),ex.ToString());details=L.T("\nDetails: ")+diagnostic;}catch(IOException){}catch(UnauthorizedAccessException){}
             #endif
             if(!args.Contains("--autostart"))MessageBox.Show(NetworkHub.Core.LogSafety.Redact(L.Error(ex))+details,L.T("Open Net — error"),MessageBoxButton.OK,MessageBoxImage.Error);return 1;
         }

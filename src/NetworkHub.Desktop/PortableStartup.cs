@@ -12,7 +12,7 @@ public static class PortableStartup
     {
         if(testData!=null)return new AppFiles(root,testData);
         bool portable=File.Exists(Path.Combine(root,"portable.flag"));
-        string data=portable?Path.Combine(root,"Data"):Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net");
+        string data=portable?Path.Combine(root,"Data"):Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net HB Experiment");
         try
         {
             Directory.CreateDirectory(data);string probe=Path.Combine(data,Guid.NewGuid().ToString("N")+".probe");

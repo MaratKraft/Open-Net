@@ -39,7 +39,8 @@ public sealed class Shell : IDisposable
     internal WorkspaceController Workspace {get;private set;}=null!;
     readonly OwnedWindowRestorer ownedWindows;
     private Window? settingsWindow;
-    private DnsManagerView? dnsWindow;
+    private SimpleDnsView? dnsWindow;
+    private readonly HbDnsController hbDns;private bool dnsInspectionOk;
     private readonly Dictionary<string,Window> moduleWindows=new();
     private readonly Dictionary<string,string> moduleMessages=new();
     public event Action? StateChanged;
@@ -79,7 +80,7 @@ public sealed class Shell : IDisposable
         Installer=new ModuleInstaller(files,installerHandler,runningProbe);Installer.RecoverInterruptedDownloads();
         try{Settings=Installer.ApplyManaged(Settings);}catch(Exception ex){errors["settings"]=ex.Message;files.Log("Module manifest: "+ex.Message);}
         if(!File.Exists(files.SettingsPath))files.Save(Settings);
-        Runtime=new ToolRuntime(files,testMode);
+        Runtime=new ToolRuntime(files,testMode);hbDns=new HbDnsController(this,files);
         Autostart=new AutostartService(files,startupStore??(testMode?new IsolatedStartupStore():new WindowsStartupStore(false)),Environment.ProcessPath!);
         icon=IconFactory.TrayIcon(96);Window.Icon=IconFactory.WindowIcon();FocusCues.Attach(Window);
         Find<Button>("Minimize").Click+=(_,_)=>Window.WindowState=WindowState.Minimized;
@@ -222,7 +223,10 @@ public sealed class Shell : IDisposable
         if(!Observations.Any(x=>ids.Contains(x.Id)&&PrimaryAction.CanStop(x))){ShowMessage(Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.External)?L.T("Close external tools using their own window or tray. Open Net manages only processes it launched."):L.T("The process is not running."));return;}
         bool ownRunning=Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.Running);
         if(Settings.ConfirmStartStop&&ownRunning&&!AskRoutine("stop",L.T("Only processes launched by this copy of Open Net will be ended. TG and its child processes may be terminated forcibly; unsaved settings may be lost. Zapret and WinDivert require UAC. Continue?"),L.T("Open Net — stop")))return;
-        if(!Settings.ConfirmStartStop&&!Runtime.TestMode&&Observations.Any(x=>ids.Contains(x.Id)&&x.Id=="tg"&&x.State==ObservedState.Running)&&!ConfirmForcedTgStop())return;
+        if(!Settings.ConfirmStartStop&&!Settings.TgForcedStopAcknowledged&&(!Runtime.TestMode||ForcedTgConfirmationForTests!=null)&&Observations.Any(x=>ids.Contains(x.Id)&&x.Id=="tg"&&x.State==ObservedState.Running)){
+            if(!ConfirmForcedTgStop())return;
+            try{var next=Settings.Copy();next.TgForcedStopAcknowledged=true;ApplySettings(next);}catch(Exception ex){ShowMessage(L.Error(ex));files.Log("TG stop consent: "+ex);return;}
+        }
         stopping=true;Busy=true;Render();ShowMessage(L.T("Stopping owned processes. Confirm the Windows prompt for Zapret."));var messages=new List<string>();bool failed=false;
         try
         {
@@ -237,7 +241,8 @@ public sealed class Shell : IDisposable
     }
     internal void ShowNotice(string message){ShowMessage(message);noticeTimer.Start();}
     public void ShowMessage(string message) {noticeTimer.Stop();string safe=NetworkHub.Core.LogSafety.Redact(message);Find<TextBlock>("Message").Text=safe;Find<TextBlock>("Message").ToolTip=safe;if(installing!=null)moduleMessages[installing]=safe;StateChanged?.Invoke();}
-    internal bool ConfirmForcedTgStop()=>AppDialog.Show(Window,L.T("TG may be stopped forcibly with its child processes. Unsaved settings may be lost. Stop this owned instance?"),L.T("Open Net — stop"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;
+    internal Func<bool>? ForcedTgConfirmationForTests {get;set;}
+    internal bool ConfirmForcedTgStop()=>Runtime.TestMode&&ForcedTgConfirmationForTests!=null?ForcedTgConfirmationForTests():AppDialog.Show(Window,L.T("TG and its child processes may be stopped forcibly; unsaved settings may be lost. If you agree, this warning will not be repeated when routine confirmations are disabled. Stop this owned instance?"),L.T("Open Net — stop"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;
     public async Task ConfigureZapret(string folder,Window owner)
     {
         if(Busy)return;bool confirmed=false;string result="";
@@ -302,44 +307,31 @@ public sealed class Shell : IDisposable
         var handle=new WindowInteropHelper(Window).Handle;BringWindowToTop(handle);SetForegroundWindow(handle);Window.Focus();ownedWindows.Restore();
     }
     public void Exit() {if(exiting)return;if(Busy||dnsWindow?.IsBusy==true){ShowMessage(L.T("Wait for the current operation to finish before exiting."));return;}exiting=true;timer.Stop();Tray.Visible=false;Window.Close();Application.Current.Shutdown();}
-    internal Window OpenDnsSettings()
-    {
-        if(dnsWindow!=null){dnsWindow.Window.Show();if(dnsWindow.Window.WindowState==WindowState.Minimized)dnsWindow.Window.WindowState=WindowState.Normal;dnsWindow.Window.Activate();dnsWindow.Window.Focus();return dnsWindow.Window;}
-        try{dnsWindow=new DnsManagerView(this,files);var view=dnsWindow;view.Window.Closed+=(_,_)=>dnsWindow=null;view.Window.Show();UpdateDnsStatus();return view.Window;}
-        catch(Exception ex){files.Log("DNS window: "+ex);throw;}
-    }
-    bool dnsApplied;
+    SimpleDnsView EnsureDns(){if(dnsWindow==null){var view=new SimpleDnsView(this,files,hbDns);dnsWindow=view;view.Window.Closed+=(_,_)=>dnsWindow=null;}return dnsWindow;}
+    internal Window OpenDnsSettings(){var view=EnsureDns();view.RefreshStatus();view.Window.Show();view.Window.WindowState=WindowState.Normal;view.Window.Activate();return view.Window;}
     internal string DnsLineStatus {get;private set;}="";
     internal string DnsTone {get;private set;}="Muted";
     internal string DnsCurrentProfile {get;private set;}="";
     internal bool DnsBusy=>dnsWindow?.IsBusy==true;
-    internal bool DnsApplied=>dnsWindow?.Applied??dnsApplied;
-    internal void SelectDnsProfile(string id){dnsWindow?.SelectProfile(id);}
-    internal async Task<bool> DnsAction(bool? restore=null){OpenDnsSettings();return await dnsWindow!.Power(restore);}
-    internal void UpdateDnsStatus()
-    {
-        if(dnsWindow!=null){dnsWindow.RefreshStatus();dnsApplied=dnsWindow.Applied;DnsLineStatus=dnsWindow.LineStatus;DnsTone=dnsWindow.StatusTone;DnsCurrentProfile=dnsWindow.CurrentProfile;Find<TextBlock>("DnsState").Text=L.T(dnsWindow.Status);return;}
-        dnsApplied=false;DnsTone="Error";DnsLineStatus=L.T("Error");DnsCurrentProfile="";
-#if OPENNET_TESTING
-        if(Runtime.TestMode){try{var fake=TestsDns.Fixture(files.Data);var record=new DnsFileJournalStore(Paths.Owned(files.Data,"Dns/IsolatedRecovery"),"safe-test").Load(fake.State.AdapterId);dnsApplied=DnsPresentation.Managed(fake.State,record);DnsTone=DnsPresentation.StatusTone(fake.State,record);DnsLineStatus=L.T("Preview mode")+" · "+DnsPresentation.LineStatus(fake.State,record);DnsCurrentProfile=DnsPresentation.CurrentProfile(fake.State,record);Find<TextBlock>("DnsState").Text=L.T("Preview mode")+" · "+DnsPresentation.Status(fake.State,record);}catch(Exception ex){Find<TextBlock>("DnsState").Text=L.T("Error");files.Log("Preview DNS status: "+ex.Message);}return;}
-#endif
-        try{var backend=new WindowsDnsSettings();var adapters=backend.Adapters();var adapter=adapters.FirstOrDefault(a=>a.Id.ToString("D")==Settings.DnsAdapterId)??adapters.FirstOrDefault(a=>a.Connected&&!a.Virtual);if(adapter==null){DnsTone="Muted";DnsLineStatus=L.T("No connected adapter");Find<TextBlock>("DnsState").Text=L.T("No connected adapter");return;}var current=backend.Read(adapter.Id);var record=DnsRecoveryStore.Open(DnsRecoveryStore.Owner(),false).Load(adapter.Id);dnsApplied=DnsPresentation.Managed(current,record);DnsTone=DnsPresentation.StatusTone(current,record);DnsLineStatus=DnsPresentation.LineStatus(current,record);DnsCurrentProfile=DnsPresentation.CurrentProfile(current,record);Find<TextBlock>("DnsState").Text=DnsPresentation.Status(current,record);}
-        catch(Exception ex){Find<TextBlock>("DnsState").Text=L.T("Error");files.Log("DNS status: "+ex.Message);}
-    }
+    internal bool DnsApplied=>dnsWindow?.Applied??(dnsInspectionOk&&hbDns.Active!=null);
+    internal void SelectDnsProfile(string id){EnsureDns().SelectProfile(id);}
+    internal DnsProfile[] DnsProfilesForMenu {get{try{return hbDns.Profiles;}catch{return SimpleDns.Presets;}}}
+    internal async Task<bool> DnsAction(bool? restore=null)=>await EnsureDns().Power(restore);
+    internal void UpdateDnsStatus(){try{if(dnsWindow!=null){dnsWindow.RefreshStatus();DnsLineStatus=dnsWindow.LineStatus;DnsTone=dnsWindow.StatusTone;DnsCurrentProfile=dnsWindow.CurrentProfile;}else{hbDns.Read();DnsCurrentProfile=hbDns.Active?.Name??"";DnsLineStatus=hbDns.Current==null?L.T("Choose a connected adapter"):hbDns.Active!=null?L.T("Running"):L.T(hbDns.Current.IPv4.Mode==DnsMode.Automatic?"Automatic DNS":"Manual DNS");DnsTone=hbDns.Active!=null?"Success":"Muted";}dnsInspectionOk=true;Find<TextBlock>("DnsState").Text=DnsLineStatus;Workspace?.Render();}catch(Exception ex){dnsInspectionOk=false;DnsCurrentProfile="";DnsTone="Error";DnsLineStatus=L.T("Error");Find<TextBlock>("DnsState").Text=DnsLineStatus;files.Log("Experimental DNS inspection: "+ex);}}
     public void ApplySettings(UserSettings settings) {settings.Workspace??=new();settings.Workspace.Normalize();settings.StartupZapret??=settings.ZapretSelected;settings.StartupTg??=settings.TgSelected;files.Save(settings);if(Settings.Language!=settings.Language){moduleMessages.Clear();}Settings=settings;ThemeManager.SetMode(settings.Theme);L.Set(settings.Language);WindowAppearance.Refresh(Window);Workspace?.Reload();errors.Clear();_ =Refresh();Render();}
     public void ApplyGeneralSettings(UserSettings settings)
     {
         if(settings.StartWithWindows!=Settings.StartWithWindows)Autostart.Configure(settings,()=>ApplySettings(settings));
         else ApplySettings(settings);
     }
-    internal async Task<bool> ApplyGeneralSettingsAsync(UserSettings settings,bool repair=false)
+    internal async Task<bool> ApplyGeneralSettingsAsync(UserSettings settings,bool repair=false,bool startupConsent=false)
     {
         var state=Autostart.Inspect(Settings);string? approvedHash=null;
         bool registration=repair||settings.StartWithWindows!=Settings.StartWithWindows||settings.AutoStartTools!=Settings.AutoStartTools||settings.StartWithWindows&&!state.Ready||!settings.StartWithWindows&&state.Exists==true;
         // Save can offer the same explicit recovery directly, without a preceding error.
         bool reviewExisting=registration&&state.Exists==true&&(!state.ConfigurationValid||state.Owned!=true||state.Enabled!=true||!string.Equals(state.Command,Autostart.Command,StringComparison.OrdinalIgnoreCase));
         if(reviewExisting)repair=true;
-        if(settings.StartWithWindows&&settings.AutoStartTools&&(!Settings.AutoStartTools||!state.Registered)&&!reviewExisting&&!repair&&!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return false;
+        if(settings.StartWithWindows&&settings.AutoStartTools&&(!Settings.AutoStartTools||!state.Registered)&&!reviewExisting&&!repair&&!startupConsent&&!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return false;
         if(repair&&state.Exists==true){
             if(!state.RepairAllowed)throw new IOException(state.Message);
             string message=L.T("Repair only this Open Net startup registration? The previous task XML will be backed up. Windows will request UAC. Running tools will be left unchanged.")+"\n\n"+state.Message+"\n\n"+L.T("Current command:")+"\n"+state.Command+"\n\n"+L.T("Requested command:")+"\n"+(settings.StartWithWindows?Autostart.Command:L.T("Remove this registration"));
@@ -361,6 +353,13 @@ public sealed class Shell : IDisposable
     {
         try{if(await ApplyGeneralSettingsAsync(Settings.Copy()))ShowNotice(L.T("Settings saved."));}
         catch(Exception ex){files.Log("First-run startup setup: "+ex);ShowMessage(L.Error(ex));OpenSettings();}
+    }
+    internal async Task OfferFirstRunStartup()
+    {
+        if(!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return;
+        var previous=Settings.Copy();
+        try{var next=Settings.Copy();next.StartWithWindows=true;next.AutoStartTools=true;next.StartupInTray=true;if(!await ApplyGeneralSettingsAsync(next,startupConsent:true))return;var state=Autostart.Inspect(Settings);if(!state.Ready)throw new IOException(state.Message);ShowNotice(L.T("Settings saved."));}
+        catch(Exception ex){files.Log("First-run startup setup: "+ex);try{if(!Autostart.Inspect(Settings).Ready)ApplySettings(previous);}catch(Exception rollback){files.Log("First-run preferences rollback: "+rollback);}ShowMessage(L.Error(ex));OpenSettings();}
     }
     public void RepairStartup(){var next=Settings.Copy();next.StartWithWindows=true;Autostart.Configure(next,()=>ApplySettings(next));}
     public void StartHidden(){Window.ShowInTaskbar=false;new WindowInteropHelper(Window).EnsureHandle();_ =Refresh();}

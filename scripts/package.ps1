@@ -24,38 +24,30 @@ try {
         'portable.flag' = 'Open Net portable storage marker'
         'Восстановление DNS.cmd' = "@echo off`r`nstart `"`" `"%~dp0Open Net.exe`" --dns-recovery`r`n"
         'README.txt' = @'
-Open Net 0.4.0-alpha.1 Experimental / Windows x64
-Experimental DNS Manager: Apply/Restore require explicit confirmation and UAC.
-Real DNS/UAC behavior has not yet been validated on Windows 10/11.
-Supported IPv4 adapter DoH is captured and restored. Unsupported encryption/policies and virtual adapters remain read-only.
-Automatic DNS is separate from restoring the first session original. Cache clearing is optional.
-Offline recovery: use the adjacent recovery CMD; see DNS_RECOVERY_RU.txt.
-Recovery records remain on the original machine even when the portable folder is moved.
-Extract the entire Open Net folder into a writable location. Keep portable.flag.
-Data and Modules stay beside the EXE. Stop tools and exit before moving the folder.
-Zapret and TG WS Proxy are not bundled: install official components in the app.
-Recommended startup switches are preselected on a fresh install. First launch asks for approval and UAC to register startup; preferences alone do not start tools. No separate .NET/Python installation is needed.
-Native .NET libraries can be extracted to Windows temporary storage.
-Zapret needs UAC approval; TG WS Proxy has its own native UI and tray.
-Exiting Open Net does not automatically stop network tools.
-Reboot, settings, automatic tools and tray were confirmed by the owner on their PC. Physical Windows 10 and multi-monitor/DPI remain unverified.
-Original code: MIT, see LICENSE.txt. Third-party notices: Notices/ and About in the app.
-Documentation: https://github.com/MaratKraft/Open-Net
+Open Net 0.4.0-alpha.1 — HB DNS Experiment / Windows x64
+This is an independent experiment based on checked R5. Do not copy the original Open Net Data here.
+On assigns the selected IPv4 DNS to one selected physical adapter. Off returns automatic IPv4 DNS.
+Off does NOT restore earlier manual addresses. Emergency recovery is a separate explicit operation.
+Active DoH is preserved where supported; a plaintext downgrade requires consent. IPv6 is unchanged.
+The system DNS cache is cleared only by the separate cache action. Browser caches are unchanged.
+Standard data: LocalAppData/Open Net HB Experiment. Portable data: adjacent Data/Modules.
+No automatic startup registration is offered on first launch. Real network trials require separate approval.
+Offline emergency recovery: adjacent recovery CMD and DNS_RECOVERY_RU.txt. Snapshots are machine-local.
+No real DNS/DoH/cache, VPN or physical reboot was tested during development. Readback does not prove Gemini works.
+No network components, .NET or Python installation are bundled/required to run the manager.
+Original code: MIT, LICENSE.txt. HB AI attribution and both upstream license texts: Notices/ and About.
 
-Распакуйте всю папку Open Net в доступное для записи место. Сохраните portable.flag.
-Экспериментальный DNS Manager: применение и восстановление требуют подтверждения и UAC.
-Настоящее изменение DNS/UAC на Windows 10/11 ещё не проверено.
-Поддержанные параметры DoH IPv4 сохраняются и восстанавливаются; неизвестные режимы, политики и виртуальные адаптеры доступны только для просмотра.
-Автоматический DNS — отдельное действие; восстановление возвращает первый исходник сессии. Очистка кэша необязательна.
-Автономное восстановление: соседний CMD и инструкция DNS_RECOVERY_RU.txt.
-Резервная запись восстановления остаётся на исходной машине при переносе Portable.
-Data и Modules находятся рядом с EXE. Перед переносом остановите инструменты и выйдите.
-Zapret и TG WS Proxy устанавливаются отдельно через приложение. В новой установке опции автозапуска выбраны заранее; регистрация требует согласия при первом запуске и UAC.
-Устанавливать .NET/Python отдельно не нужно. Нативные библиотеки .NET могут извлекаться во временную папку Windows.
-Zapret требует UAC; TG WS Proxy сохраняет собственный интерфейс и трей.
-Выход из Open Net не останавливает сетевые инструменты автоматически.
-Перезагрузка, настройки, автозапуск инструментов и трей подтверждены владельцем на его ПК. Физическая Windows 10 и разные мониторы/DPI не проверены.
-Собственный код: MIT, см. LICENSE.txt. Сторонние лицензии: Notices/ и раздел «О программе».
+Это отдельный эксперимент на базе проверенной R5. Не копируйте сюда Data основной версии.
+Включение назначает DNS IPv4 выбранному физическому адаптеру. Выключение возвращает автоматический DNS.
+Прежние ручные адреса при выключении НЕ возвращаются. Для этого есть отдельное аварийное восстановление.
+DoH сохраняется, если это поддержано; переход к незашифрованному DNS требует согласия. IPv6 не меняется.
+Кэш очищается только отдельной кнопкой. Данные и кэш браузера не сбрасываются.
+Standard: LocalAppData/Open Net HB Experiment. Portable: соседние Data/Modules.
+Регистрация автозапуска при первом запуске не предлагается. Реальный тест требует отдельного согласования.
+Автономное восстановление: соседний CMD и DNS_RECOVERY_RU.txt. Снимки остаются на исходной машине.
+Настоящие DNS/DoH/кэш, VPN и перезагрузка при разработке не испытывались. Запись DNS не доказывает доступность Gemini.
+Zapret и TG устанавливаются отдельно. Собственный код: MIT. Лицензии HB AI включены в Notices/ и EXE.
+
 '@
     }
     foreach ($name in $texts.Keys) {
