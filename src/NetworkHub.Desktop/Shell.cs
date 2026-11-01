@@ -224,7 +224,7 @@ public sealed class Shell : IDisposable
         if(ids.Length==0){ShowMessage(L.T("Select at least one tool."));return;}
         if(!Observations.Any(x=>ids.Contains(x.Id)&&PrimaryAction.CanStop(x))){ShowMessage(Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.External)?L.T("Close external tools using their own window or tray. Open Net manages only processes it launched."):L.T("The process is not running."));return;}
         bool ownRunning=Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.Running);
-        if(Settings.ConfirmStartStop&&ownRunning&&!AskRoutine("stop",L.T("Only processes launched by this copy of Open Net will be ended. TG and its child processes may be terminated forcibly; unsaved settings may be lost. Zapret and WinDivert require UAC. Continue?"),L.T("Open Net — stop")))return;
+        if(Settings.ConfirmStartStop&&ownRunning&&!AskRoutine("stop",StopConfirmation.Message(ids),L.T("Open Net — stop")))return;
         if(!Settings.ConfirmStartStop&&!Settings.TgForcedStopAcknowledged&&(!Runtime.TestMode||ForcedTgConfirmationForTests!=null)&&Observations.Any(x=>ids.Contains(x.Id)&&x.Id=="tg"&&x.State==ObservedState.Running)){
             if(!ConfirmForcedTgStop())return;
             try{var next=Settings.Copy();next.TgForcedStopAcknowledged=true;ApplySettings(next);}catch(Exception ex){ShowMessage(L.Error(ex));files.Log("TG stop consent: "+ex);return;}
