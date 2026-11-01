@@ -28,6 +28,14 @@ public sealed class ToolRuntime
     private string? tgValidation;
     public int LaunchCount {get;private set;}
     public bool TestMode=>testMode;
+    public event Action<string>? ProgressChanged;
+    private async Task<Process> StartHelper(ProcessStartInfo info)
+    {
+        ProgressChanged?.Invoke(L.T("Waiting for Windows permission…"));
+        var timer=Stopwatch.StartNew();
+        try{return await Task.Run(()=>Process.Start(info))??throw new IOException("Windows did not start the helper.");}
+        finally{files.Log("Timing helper UAC/start: "+timer.ElapsedMilliseconds+" ms");}
+    }
     string simulatedProfile="";
     internal string ActiveZapretProfile=>testMode?simulatedProfile:owned.TryGetValue("zapret",out var receipt)?receipt.Profile??"":"";
     public ToolRuntime(AppFiles files,bool testMode)
@@ -98,7 +106,7 @@ public sealed class ToolRuntime
     {
         if(!testMode&&!launchAuthorized) throw new InvalidOperationException(L.T("A real launch requires explicit user confirmation."));
         string launchedStrategy=settings.Strategy;
-        var current=Observe(id,settings);
+        var current=await Task.Run(()=>Observe(id,settings));
         if(current.State==ObservedState.Running||current.State==ObservedState.External||current.State==ObservedState.Unknown) return current.Detail;
         if(current.State==ObservedState.Error) throw new InvalidDataException(current.Detail);
         if(current.State==ObservedState.CleanupRequired)throw new InvalidOperationException(current.Detail);
@@ -119,20 +127,20 @@ public sealed class ToolRuntime
             Store(new OwnedReceipt(Guid.NewGuid().ToString("N"),p.Id,identity.StartFileTime,identity.Executable!,id)); LaunchCount++;
             return L.T("TG started normally. Its own tray is available.");
         }
-        _=ZapretPreparation.Prepare(files,settings);
+        await Task.Run(()=>ZapretPreparation.Prepare(files,settings));
         string token=Guid.NewGuid().ToString("N"),folder=Paths.Owned(files.Data,"requests/"+token); Directory.CreateDirectory(folder);
         var parent=ProcessIdentity.Read(Environment.ProcessId);
         if(!parent.IdentityReadable) throw new InvalidOperationException(L.T("Could not verify the Open Net process. Check the diagnostic log."));
         Paths.WriteNew(Path.Combine(folder,"request.json"),JsonSerializer.Serialize(new ZapretRequest(token,settings,Environment.ProcessId,parent.StartFileTime)));
         var psi=new ProcessStartInfo(Environment.ProcessPath!) {UseShellExecute=true,Verb="runas",WorkingDirectory=files.Root};
         psi.ArgumentList.Add("--elevated");psi.ArgumentList.Add(token);psi.ArgumentList.Add("--data-root");psi.ArgumentList.Add(files.Data);
-        using var helper=Process.Start(psi) ?? throw new InvalidOperationException(L.T("The Zapret helper did not start. Check the UAC prompt and diagnostic log."));
+        using var helper=await StartHelper(psi) ?? throw new InvalidOperationException(L.T("The Zapret helper did not start. Check the UAC prompt and diagnostic log."));
         string response=Path.Combine(folder,"response.json");
-        // A log-pump helper intentionally remains alive with its own winws.
+        // The one-shot helper exits after publishing the verified child receipt.
         var deadline=Stopwatch.StartNew();
         while(!File.Exists(response))
         {
-            if(helper.HasExited) throw new InvalidOperationException(L.T("The helper exited without a result. Check the diagnostic log."));
+            if(helper.HasExited&&!File.Exists(response)) throw new InvalidOperationException(L.T("The helper exited without a result. Check the diagnostic log."));
             if(deadline.Elapsed>TimeSpan.FromSeconds(30))throw new TimeoutException(L.T("The helper did not respond within 30 seconds. Check the diagnostic log."));
             await Task.Delay(100);
         }
@@ -170,8 +178,8 @@ public sealed class ToolRuntime
         var request=new ZapretRequest(token,settings,Environment.ProcessId,parent.StartFileTime,action){ExternalPid=approved?.Receipt?.Pid??0,ExternalStart=approved?.Receipt?.StartFileTime??0,Members=approved?.Members??Array.Empty<OwnedReceipt>()};
         Paths.WriteNew(Path.Combine(folder,"request.json"),JsonSerializer.Serialize(request));
         var psi=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=true,Verb="runas",WorkingDirectory=files.Root};foreach(var arg in new[]{"--elevated",token,"--data-root",files.Data})psi.ArgumentList.Add(arg);
-        using var helper=Process.Start(psi)??throw new IOException("TG helper did not start");string response=Path.Combine(folder,"response.json");var timer=Stopwatch.StartNew();
-        while(!File.Exists(response)){if(helper.HasExited||timer.Elapsed>TimeSpan.FromSeconds(30))throw new IOException("TG helper did not return a result");await Task.Delay(100);}
+        using var helper=await StartHelper(psi)??throw new IOException("TG helper did not start");string response=Path.Combine(folder,"response.json");var timer=Stopwatch.StartNew();
+        while(!File.Exists(response)){if((helper.HasExited||timer.Elapsed>TimeSpan.FromSeconds(30))&&!File.Exists(response))throw new IOException("TG helper did not return a result");await Task.Delay(100);}
         var result=JsonSerializer.Deserialize<ZapretResponse>(File.ReadAllText(response))??throw new InvalidDataException("Invalid TG response");if(!result.Success)throw new InvalidOperationException(result.Message);return result;
     }
     internal async Task<OwnedReceipt> InspectExternal(string id,UserSettings settings)
@@ -198,17 +206,15 @@ public sealed class ToolRuntime
         }
         var current=await Task.Run(()=>IdentifyExternal(id,settings));
         if(current.Pid!=approved.Pid||current.StartFileTime!=approved.StartFileTime||!string.Equals(current.Executable,approved.Executable,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
-        if(id=="tg") await Task.Run(()=>OwnedStop.Stop(current,true,true));
-        else
         {
             string token=Guid.NewGuid().ToString("N"),folder=Paths.Owned(files.Data,"requests/"+token);Directory.CreateDirectory(folder);
             var parent=ProcessIdentity.Read(Environment.ProcessId);if(!parent.IdentityReadable)throw new InvalidOperationException(L.T("Could not verify Open Net. Check the diagnostic log."));
             var request=new ZapretRequest(token,settings,Environment.ProcessId,parent.StartFileTime,"stop-external"){ExternalPid=current.Pid,ExternalStart=current.StartFileTime,ExternalExecutable=current.Executable};
             Paths.WriteNew(Path.Combine(folder,"request.json"),JsonSerializer.Serialize(request));
             var psi=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=true,Verb="runas",WorkingDirectory=files.Root};psi.ArgumentList.Add("--elevated");psi.ArgumentList.Add(token);psi.ArgumentList.Add("--data-root");psi.ArgumentList.Add(files.Data);
-            using var helper=Process.Start(psi)??throw new InvalidOperationException(L.T("The stop helper did not start. Check the UAC prompt and diagnostic log."));
+            using var helper=await StartHelper(psi)??throw new InvalidOperationException(L.T("The stop helper did not start. Check the UAC prompt and diagnostic log."));
             string response=Path.Combine(folder,"response.json");var deadline=Stopwatch.StartNew();
-            while(!File.Exists(response)){if(helper.HasExited)throw new InvalidOperationException(L.T("The stop helper exited without a result. Check the diagnostic log."));if(deadline.Elapsed>TimeSpan.FromSeconds(30))throw new TimeoutException(L.T("The stop helper did not respond. Check the diagnostic log."));await Task.Delay(100);}
+            while(!File.Exists(response)){if(helper.HasExited&&!File.Exists(response))throw new InvalidOperationException(L.T("The stop helper exited without a result. Check the diagnostic log."));if(deadline.Elapsed>TimeSpan.FromSeconds(30))throw new TimeoutException(L.T("The stop helper did not respond. Check the diagnostic log."));await Task.Delay(100);}
             var result=JsonSerializer.Deserialize<ZapretResponse>(File.ReadAllText(response));if(result?.Success!=true)throw new InvalidOperationException(result?.Message??L.T("Stop was not confirmed. Check the process and diagnostic log."));
         }
         if(ProcessObserver.Find(id=="zapret"?"winws":"TgWsProxy_windows").Length!=0)throw new InvalidOperationException(L.T("Another instance is still running. Check the module status."));
@@ -219,7 +225,7 @@ public sealed class ToolRuntime
 #if OPENNET_TESTING
         if(testMode && stubs.TryGetValue(id,out var stub)) {if(FaultForTests?.Invoke("stop",id) is Exception fault)throw fault;await Task.Run(()=>supervisor!.Stop(stub.Token));stubs.Remove(id);return L.T("Test process stopped.");}
 #endif
-        var state=Observe(id,settings);
+        var state=await Task.Run(()=>Observe(id,settings));
         if(state.State==ObservedState.External) return L.T("The external instance was left unchanged.");
         if(state.State is ObservedState.Stopped or ObservedState.Error or ObservedState.NotInstalled) return L.T("The process is not running.");
         OwnedReceipt? receipt=null;
@@ -235,11 +241,11 @@ public sealed class ToolRuntime
             Paths.WriteNew(Path.Combine(folder,"request.json"),JsonSerializer.Serialize(new ZapretRequest(token,settings,Environment.ProcessId,parent.StartFileTime,"stop")));
             var psi=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=true,Verb="runas"};
             psi.ArgumentList.Add("--elevated");psi.ArgumentList.Add(token);psi.ArgumentList.Add("--data-root");psi.ArgumentList.Add(files.Data);
-            using var helper=Process.Start(psi)??throw new InvalidOperationException(L.T("The stop helper did not start. Check the UAC prompt and diagnostic log."));
+            using var helper=await StartHelper(psi)??throw new InvalidOperationException(L.T("The stop helper did not start. Check the UAC prompt and diagnostic log."));
             string response=Path.Combine(folder,"response.json");var deadline=Stopwatch.StartNew();
             while(!File.Exists(response))
             {
-                if(helper.HasExited)throw new InvalidOperationException(L.T("The stop helper exited without a result. Check the diagnostic log."));
+                if(helper.HasExited&&!File.Exists(response))throw new InvalidOperationException(L.T("The stop helper exited without a result. Check the diagnostic log."));
                 if(deadline.Elapsed>TimeSpan.FromSeconds(30))throw new TimeoutException(L.T("The stop helper did not respond. Check the diagnostic log."));
                 await Task.Delay(100);
             }

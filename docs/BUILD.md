@@ -1,5 +1,7 @@
 # Build, test and package
 
+Current personal-test candidate: **0.4.0-pre.3**. Production output is `publish/Open Net 0.4.0-pre.3/Open Net.exe`; the isolated test host uses `publish/Open Net 0.4.0-pre.3 Test/Open Net.exe`. See [pre.3 validation](PRE3_VALIDATION_RU.md) and [release notes](RELEASE_NOTES_v0.4.0-pre.3.md) for current results and unverified laptop scenarios. Historical counts and paths below describe earlier development stages.
+
 Use Windows x64, PowerShell 7 and .NET SDK **10.0.100** (`global.json` permits SDK patch roll-forward). Package sources are restricted by `NuGet.Config` to official NuGet. The runtime is pinned to **10.0.12**. Internet access or a populated local package cache is required.
 
 ```powershell

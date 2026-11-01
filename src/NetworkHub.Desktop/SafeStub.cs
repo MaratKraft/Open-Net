@@ -8,6 +8,7 @@ public static class SafeStub
     public static int Run(string[] args)
     {
         string Value(string key){int i=Array.IndexOf(args,key);return i>=0&&i+1<args.Length?args[i+1]:"";}
+        if(Value("--report-args") is string report&&report!=""){File.WriteAllText(report,System.Text.Json.JsonSerializer.Serialize(args));Console.WriteLine("owned stub stdout");Console.Error.WriteLine("owned stub stderr");}
         string gate=Value("--gate"),stop=Value("--stop");if(gate==""||stop=="")return 2;
         bool hang=Array.IndexOf(args,"--hang")>=0;var timer=Stopwatch.StartNew();
         while(!File.Exists(gate)){if(timer.ElapsedMilliseconds>10000)return 98;Thread.Sleep(25);}

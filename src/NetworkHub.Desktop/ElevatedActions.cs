@@ -77,19 +77,23 @@ internal static class ElevatedActions
                 if(ProcessObserver.Find("winws").Length>0) throw new InvalidOperationException(L.T("Zapret is already running. The existing instance was left unchanged."));
                 var plan=ZapretPreparation.Prepare(files,r.Settings);
                 Directory.CreateDirectory(Path.GetDirectoryName(plan.LogFile)!);
-                var info=plan.CreateStartInfo();
-                // v0.1 deliberately does not promise a safe stop or kill-on-shell-exit for the network process.
-                using var process=Process.Start(info) ?? throw new InvalidOperationException(L.T("winws did not start. Check the diagnostic log."));
-                process.OutputDataReceived+=(_,e)=>{if(e.Data!=null) Append(plan.LogFile,e.Data);};
-                process.ErrorDataReceived+=(_,e)=>{if(e.Data!=null) Append(plan.LogFile,e.Data);};
-                process.BeginOutputReadLine(); process.BeginErrorReadLine();
+                // Preserve the exact effective plan for first/repeat comparisons.
+                // This local diagnostic never runs the BAT or changes driver state.
+                Paths.WriteNew(Path.Combine(Path.GetDirectoryName(response)!,"launch-plan.json"),JsonSerializer.Serialize(new{
+                    Strategy=Path.GetFullPath(Path.Combine(r.Settings.ZapretDirectory,r.Settings.Strategy)),
+                    StrategySHA256=Metadata.Hash(Path.Combine(r.Settings.ZapretDirectory,r.Settings.Strategy)),
+                    Executable=plan.Executable,ExecutableSHA256=Metadata.Hash(plan.Executable),
+                    WorkingDirectory=plan.WorkingDirectory,Arguments=plan.Redacted().Arguments,
+                    PreparedUtc=DateTime.UtcNow,WebsiteAvailability="Not tested"
+                },new JsonSerializerOptions{WriteIndented=true}));
+                using var process=DetachedToolProcess.Start(plan);
                 if(process.WaitForExit(750))throw new InvalidOperationException(L.T("Zapret exited during startup. Check the module output log; website availability was not tested."));
                 var p=ProcessIdentity.Read(process.Id);
                 if(!p.IdentityReadable) throw new InvalidOperationException(L.T("The process was created but ownership is not confirmed. Stop it manually."));
                 var receipt=new OwnedReceipt(token,process.Id,p.StartFileTime,p.Executable!,"zapret");
                 PublishResponse(response,JsonSerializer.Serialize(new ZapretResponse(true,L.T("The process was created; its state is being checked."),receipt)));
-                // Keep only this one-shot log pump alive until winws exits. No listener, service, command server, or stop API.
-                process.WaitForExit(); return process.ExitCode;
+                // The child owns its output handle; the elevated helper can exit.
+                return 0;
             }
             finally {moduleLock.ReleaseMutex();}
         }
@@ -102,8 +106,6 @@ internal static class ElevatedActions
         }
     }
     private static void PublishResponse(string path,string text){string temporary=path+"."+Guid.NewGuid().ToString("N")+".tmp";Paths.WriteNew(temporary,text);File.Move(temporary,path,false);}
-    private static readonly object logGate=new();
-    private static void Append(string path,string line) {lock(logGate) {try {File.AppendAllText(path,LogSafety.Redact(line)+Environment.NewLine);} catch(Exception ex){Trace.WriteLine("Open Net output log failed: "+ex);}}}
 }
 
 

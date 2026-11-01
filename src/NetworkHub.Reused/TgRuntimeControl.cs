@@ -10,11 +10,14 @@ public static class TgRuntimeControl
 {
  public static async Task VerifyOfficial(AppFiles files,string path)
  {
-  Paths.NoReparseAncestors(path);var record=ModuleTrust.Record(files,"tg");
-  if(record==null||!ModuleTrust.Matches(files,"tg",path))throw new InvalidDataException(L.T("The external instance is not from the selected verified installation. No process was stopped."));
+  var verified=await Task.Run(()=>{
+   Paths.NoReparseAncestors(path);var item=ModuleTrust.Record(files,"tg");
+   if(item==null||!ModuleTrust.Matches(files,"tg",path))throw new InvalidDataException(L.T("The external instance is not from the selected verified installation. No process was stopped."));
+   return (record:item,hash:Metadata.Hash(path));
+  });var record=verified.record;
   using var http=new HttpClient{Timeout=TimeSpan.FromSeconds(15)};http.DefaultRequestHeaders.UserAgent.ParseAdd("Open-Net/0.4.0");
   string url="https://api.github.com/repos/Flowseal/tg-ws-proxy/releases/tags/"+Uri.EscapeDataString(record.Version);
-  ValidateRelease(await http.GetStringAsync(url),record.Version,Metadata.Hash(path));
+  ValidateRelease(await http.GetStringAsync(url),record.Version,verified.hash);
  }
  public static void ValidateRelease(string jsonText,string version,string hash)
  {

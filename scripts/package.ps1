@@ -3,10 +3,10 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 if (!$OutputDirectory) { $OutputDirectory = Join-Path $root 'artifacts' }
 $destination = [IO.Path]::GetFullPath($OutputDirectory)
-if (!$ExePath) { $ExePath = Join-Path $root 'publish/Open Net 0.4.0-pre.2/Open Net.exe' }
+if (!$ExePath) { $ExePath = Join-Path $root 'publish/Open Net 0.4.0-pre.3/Open Net.exe' }
 $exe = Get-Item -LiteralPath $ExePath
 if ($exe.VersionInfo.FileVersion -ne '0.4.0.0') { throw 'Expected Open Net 0.4.0.0' }
-$names = @('Open-Net-0.4.0-pre.2-Windows-x64.exe','Open-Net-0.4.0-pre.2-Windows-x64-Portable.zip','LICENSE.txt','SHA256SUMS.txt')
+$names = @('Open-Net-0.4.0-pre.3-Windows-x64.exe','Open-Net-0.4.0-pre.3-Windows-x64-Portable.zip','LICENSE.txt','SHA256SUMS.txt')
 foreach ($name in $names) { if (Test-Path -LiteralPath (Join-Path $destination $name)) { throw "Output already exists: $name" } }
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
 Copy-Item -LiteralPath $exe.FullName -Destination (Join-Path $destination $names[0])
@@ -24,7 +24,7 @@ try {
         'portable.flag' = 'Open Net portable storage marker'
         'Восстановление DNS.cmd' = "@echo off`r`nstart `"`" `"%~dp0Open Net.exe`" --dns-recovery`r`n"
         'README.txt' = @'
-Open Net 0.4.0 Pre-release 2 / Windows x64
+Open Net 0.4.0 Pre-release 3 / Windows x64
 This is a pre-release for testing. Back up your settings before replacing an existing EXE.
 On assigns the selected IPv4 DNS to one selected physical adapter. Off returns automatic IPv4 DNS.
 Off does NOT restore earlier manual addresses. Emergency recovery is a separate explicit operation.

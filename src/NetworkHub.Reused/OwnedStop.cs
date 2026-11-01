@@ -87,8 +87,11 @@ public static class OwnedStop
             {
                 if(WaitForSingleObject(handles[i],0)==0)continue;
                 if(!TerminateProcess(handles[i],0)&&WaitForSingleObject(handles[i],0)!=0)throw new Win32Exception(Marshal.GetLastWin32Error());
-                if(WaitForSingleObject(handles[i],5000)!=0)throw new TimeoutException(L.T("The process did not confirm termination. Check the diagnostic log."));
             }
+            // One bounded confirmation budget for the whole verified tree, rather
+            // than another five seconds for every member on a slow machine.
+            var completion=Stopwatch.StartNew();
+            foreach(var handle in handles){uint remaining=(uint)Math.Max(0,5000-completion.ElapsedMilliseconds);if(WaitForSingleObject(handle,remaining)!=0)throw new TimeoutException(L.T("The process did not confirm termination. Check the diagnostic log."));}
         }
         finally{foreach(var h in handles)CloseHandle(h);}
     }

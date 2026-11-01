@@ -2,9 +2,9 @@ param([Parameter(Mandatory)][string]$OutputPath)
 $ErrorActionPreference='Stop'
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 if(-not ([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'Run this read-only diagnostic with the normal Windows administrator approval.'}
-$processes=@(Get-CimInstance Win32_Process -Filter "name='winws.exe' OR name='TgWsProxy_windows.exe'" | ForEach-Object {
+$processes=@(Get-CimInstance Win32_Process -Filter "name='winws.exe' OR name='TgWsProxy_windows.exe' OR name='Open Net.exe' OR name LIKE 'Open-Net-%.exe'" | ForEach-Object {
  $path=$_.ExecutablePath
- [pscustomobject]@{Pid=$_.ProcessId;ParentPid=$_.ParentProcessId;Created=$_.CreationDate;Path=$path;SHA256=if($path -and (Test-Path -LiteralPath $path)){(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}else{$null}}
+ [pscustomobject]@{Pid=$_.ProcessId;ParentPid=$_.ParentProcessId;Created=$_.CreationDate;Name=$_.Name;CommandLine=$_.CommandLine;WorkingSetBytes=$_.WorkingSetSize;PrivateBytes=$_.PrivatePageCount;Handles=$_.HandleCount;Path=$path;SHA256=if($path -and (Test-Path -LiteralPath $path)){(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}else{$null}}
 })
 $drivers=@(Get-CimInstance Win32_SystemDriver | Where-Object {$_.Name -like '*WinDivert*'} | Select-Object Name,State,PathName)
 $pids=@($processes.Pid)

@@ -2,7 +2,7 @@ param([string]$SdkPath = 'dotnet', [string]$OutputDirectory = '', [string]$Nuget
 $ErrorActionPreference = 'Stop'
 if ($SafePreview) { $TestBuild = [switch]::new($true) }
 $appRoot = Split-Path $PSScriptRoot -Parent
-if (!$OutputDirectory) { $OutputDirectory = if ($SafePreview) { 'publish/Open Net Safe Preview' } elseif ($TestBuild) { 'publish/Open Net 0.4.0-pre.2 Test' } else { 'publish/Open Net 0.4.0-pre.2' } }
+if (!$OutputDirectory) { $OutputDirectory = if ($SafePreview) { 'publish/Open Net Safe Preview' } elseif ($TestBuild) { 'publish/Open Net 0.4.0-pre.3 Test' } else { 'publish/Open Net 0.4.0-pre.3' } }
 if (![IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory = Join-Path $appRoot $OutputDirectory }
 $env:DOTNET_CLI_HOME = Join-Path $appRoot 'tools/cli-home'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'

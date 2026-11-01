@@ -81,7 +81,7 @@ public sealed class Shell : IDisposable
         Installer=new ModuleInstaller(files,installerHandler,runningProbe);Installer.RecoverInterruptedDownloads();
         try{Settings=Installer.ApplyManaged(Settings);}catch(Exception ex){errors["settings"]=ex.Message;files.Log("Module manifest: "+ex.Message);}
         if(!File.Exists(files.SettingsPath))files.Save(Settings);
-        Runtime=new ToolRuntime(files,testMode);hbDns=new HbDnsController(this,files);Updates=new UpdateDiscovery(files,Installer,testMode,()=>Settings.UpdatePrerelease);Updates.Changed+=()=>{if(string.IsNullOrEmpty(activeNotice))ShowMessage("");else StateChanged?.Invoke();};
+        Runtime=new ToolRuntime(files,testMode);Runtime.ProgressChanged+=ShowMessage;hbDns=new HbDnsController(this,files);Updates=new UpdateDiscovery(files,Installer,testMode,()=>Settings.UpdatePrerelease);Updates.Changed+=()=>{if(string.IsNullOrEmpty(activeNotice))ShowMessage("");else StateChanged?.Invoke();};
         Autostart=new AutostartService(files,startupStore??(testMode?new IsolatedStartupStore():new WindowsStartupStore(false)),Environment.ProcessPath!);
         icon=IconFactory.TrayIcon(96);Window.Icon=IconFactory.WindowIcon();FocusCues.Attach(Window);
         Find<Button>("Minimize").Click+=(_,_)=>Window.WindowState=WindowState.Minimized;
@@ -97,6 +97,7 @@ public sealed class Shell : IDisposable
         Find<Button>("ZapretInstall").Click+=async(_,_)=>await InstallOrCheck("zapret");
         Find<Button>("TgInstall").Click+=async(_,_)=>await InstallOrCheck("tg");
         foreach(string prefix in new[]{"Zapret","Tg"})ModuleIconAlignment.Attach(Find<Button>(prefix+"Install"),Find<Button>(prefix+"Settings"),Find<CheckBox>(prefix+"Check"));
+        ModuleIconAlignment.GeneralSettings(Find<System.Windows.Shapes.Path>("SettingsGear"));
         Window.Closing+=OnClosing;
         TrayOpen=new Forms.ToolStripMenuItem(L.T("Open Open Net")); TrayStart=new Forms.ToolStripMenuItem(L.T("Start selected"));
         TrayStop=new Forms.ToolStripMenuItem(L.T("Stop managed processes")); TrayExit=new Forms.ToolStripMenuItem(L.T("Exit"));
@@ -183,6 +184,7 @@ public sealed class Shell : IDisposable
     public async Task StartSelected(string[]? targets=null)
     {
         if(Busy||Workspace?.Editing==true) return;await Refresh();if(Busy)return;string[] ids=targets??Selected();if(ids.Length==0){ShowMessage(L.T("Select at least one tool."));return;}
+        if(ids.Contains("zapret")&&!IsActive("zapret")&&!string.IsNullOrEmpty(Settings.PendingStrategy)){Settings.Strategy=Settings.PendingStrategy;Settings.PendingStrategy="";files.Save(Settings);}
         bool authorized=Runtime.TestMode;
         if(Runtime.TestMode&&RoutineConfirmationForTests!=null&&!ConfirmLaunch(ids))return;
         if(!Runtime.TestMode)
@@ -193,15 +195,17 @@ public sealed class Shell : IDisposable
             if(!ConfirmLaunch(available)) return;
             authorized=true;
         }
-        if(ids.Contains("zapret")&&!IsActive("zapret")&&!string.IsNullOrEmpty(Settings.PendingStrategy)){Settings.Strategy=Settings.PendingStrategy;Settings.PendingStrategy="";files.Save(Settings);}
         Busy=true;Render();var messages=new List<string>();
         try
         {
             foreach(string id in ids)
             {
                 errors.Remove(id);
+                ShowMessage(L.T("Starting")+" · "+WorkspaceController.Name(id));
+                var operationTimer=System.Diagnostics.Stopwatch.StartNew();
                 try {messages.Add((id=="zapret"?"Zapret: ":"TG: ")+await Runtime.Start(id,Settings,authorized));}
                 catch(Exception ex) {errors[id]=L.Error(ex);messages.Add((id=="zapret"?"Zapret: ":"TG: ")+errors[id]);files.Log(id+" start: "+ex);}
+                finally{files.Log("Timing start "+id+": "+operationTimer.ElapsedMilliseconds+" ms");}
             }
         }
         finally {Busy=false;await Refresh();foreach(var message in messages)files.Log(message);if(ids.Any(errors.ContainsKey))ShowMessage(string.Join("\n",messages));else if(ids.All(id=>Observations.Any(o=>o.Id==id&&o.State==ObservedState.Running)))ShowNotice(L.T("Processes are running"));else ShowMessage(string.Join("\n",messages));}
@@ -234,8 +238,11 @@ public sealed class Shell : IDisposable
         {
             foreach(string id in ids)
             {
+                ShowMessage(L.T("Stopping")+" · "+WorkspaceController.Name(id));
+                var operationTimer=System.Diagnostics.Stopwatch.StartNew();
                 try{messages.Add((id=="zapret"?"Zapret: ":"TG: ")+await Runtime.Stop(id,Settings));errors.Remove(id);}
                 catch(Exception ex){failed=true;messages.Add((id=="zapret"?"Zapret: ":"TG: ")+(ex is Win32Exception w&&w.NativeErrorCode==1223?L.T("Stop was cancelled in the UAC prompt."):L.Error(ex)));files.Log(id+" stop: "+ex);}
+                finally{files.Log("Timing stop "+id+": "+operationTimer.ElapsedMilliseconds+" ms");}
             }
         }
         catch(Exception ex){failed=true;messages.Add(ex.Message);files.Log("stop: "+ex.Message);}
