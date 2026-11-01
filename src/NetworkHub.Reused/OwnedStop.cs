@@ -32,7 +32,7 @@ public static class OwnedStop
         {CloseHandle(h);throw new InvalidOperationException(L.T("Could not verify the process for stopping. Check the diagnostic log."));}
         return(h,start,path.ToString());
     }
-    public static void Stop(OwnedReceipt receipt,bool includeChildren)
+    public static void Stop(OwnedReceipt receipt,bool includeChildren,bool tryGraceful=false)
     {
         if(!ProcessIdentity.Read(receipt.Pid).Exists)return;
         var root=Open(receipt.Pid);var handles=new List<IntPtr>{root.Handle};
@@ -64,7 +64,7 @@ public static class OwnedStop
                 }while(added);
             }
             // Close a visible TG window first. Tray-only applications may ignore WM_CLOSE.
-            if(includeChildren)
+            if(includeChildren||tryGraceful)
             {
                 using var p=Process.GetProcessById(receipt.Pid);
                 if(p.CloseMainWindow())WaitForSingleObject(root.Handle,1500);

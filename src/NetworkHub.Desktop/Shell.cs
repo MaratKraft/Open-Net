@@ -172,7 +172,7 @@ public sealed class Shell : IDisposable
         Find<TextBlock>("Summary").Text=title; Find<TextBlock>("Selection").Text=L.T("Selected tools: ")+selected.Length;
         bool canStop=PrimaryAction.Stop(Observations,selected),externalOnly=PrimaryAction.ExternalOnly(Observations,selected);
         Primary.Content=Busy?(configuring?L.T("Console is open…"):stopping?L.T("Stopping…"):installing!=null?L.T("Installing…"):L.T("Starting…")):canStop?L.T("Stop selected"):externalOnly?L.T("External instance"):L.T("Start selected");Primary.IsEnabled=!Busy&&selected.Length>0&&!externalOnly;
-        Primary.ToolTip=selected.Any(id=>Observations.Any(x=>x.Id==id&&x.State==ObservedState.External))?L.T("Close external tools using their own window or tray. Open Net manages only processes it launched."):null;
+        Primary.ToolTip=selected.Any(id=>Observations.Any(x=>x.Id==id&&x.State==ObservedState.External))?L.T("Use the individual switch to review an external instance."):null;
         var brush=ThemeManager.Brush(active>0?"Success":"Muted");Find<System.Windows.Shapes.Path>("PowerArc").Stroke=brush;Find<System.Windows.Shapes.Path>("PowerLine").Stroke=brush;
         Tray.Text="Open Net · "+(active>0?active+L.T(" processes"):L.T("ready")); TrayStart.Enabled=!Busy&&selected.Length>0&&!externalOnly;TrayStop.Enabled=!Busy&&Observations.Any(PrimaryAction.CanStop);
         if(settingsWindow!=null)settingsWindow.IsEnabled=!Busy||installing!=null;

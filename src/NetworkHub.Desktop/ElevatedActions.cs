@@ -28,6 +28,18 @@ internal static class ElevatedActions
             string expected=Environment.ProcessPath!;
             if(!parent.Exists||!parent.IdentityReadable||parent.StartFileTime!=r.ParentStart||!string.Equals(parent.Executable,expected,StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException(L.T("The request does not belong to this Open Net instance. Execution was blocked."));
+            if(r.Action=="stop-external")
+            {
+                string binary=Path.GetFullPath(Path.Combine(r.Settings.ZapretDirectory,"bin","winws.exe"));
+                Paths.NoReparseAncestors(binary);
+                var hashes=files.ForZapret(r.Settings).TrustedFiles;
+                if(!hashes.TryGetValue("bin/winws.exe",out var verified)||!File.Exists(binary)||!string.Equals(Metadata.Hash(binary),verified,StringComparison.OrdinalIgnoreCase)||!ExternalProcessControl.ReviewedBinary("zapret",verified))throw new InvalidDataException(L.T("The external instance cannot be identified uniquely. No process was stopped."));
+                var candidate=ExternalProcessControl.Select("zapret",binary,ProcessObserver.Find("winws"),ProcessIdentity.Read,ExternalProcessControl.IsServiceProcess);
+                if(candidate.Pid!=r.ExternalPid||candidate.StartFileTime!=r.ExternalStart||!string.Equals(candidate.Executable,r.ExternalExecutable,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
+                OwnedStop.Stop(candidate,false);
+                if(ProcessObserver.Find("winws").Length!=0)throw new InvalidOperationException(L.T("Another instance is still running. Check the module status."));
+                Paths.WriteNew(response,JsonSerializer.Serialize(new ZapretResponse(true,L.T("The external process stopped. The driver was not changed."),null)));return 0;
+            }
             if(r.Action=="stop")
             {
                 var receiptPath=Paths.Owned(files.Data,"owned/zapret.json");

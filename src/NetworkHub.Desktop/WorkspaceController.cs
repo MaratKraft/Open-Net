@@ -19,6 +19,9 @@ internal sealed class WorkspaceController
     readonly System.Collections.Generic.Dictionary<string,ModuleStatusLine> statusLines=new();
     readonly System.Collections.Generic.Dictionary<string,CheckBox> switches=new();
     readonly Button assignment,hidden;bool changingTool;bool arranging;double resizeStart;string? pendingStrategy;Window? manager;
+#if OPENNET_TESTING
+    internal Func<bool>? ConfirmExternalForTests {get;set;}
+#endif
     internal bool Switching=>changingTool;
     internal bool Editing=>OrderEditor?.IsDragging==true;
     internal ModuleOrderEditor? OrderEditor {get;private set;}
@@ -61,21 +64,29 @@ internal sealed class WorkspaceController
     internal double MeasuredHeight(){var w=shell.Window;var surface=(Border)w.Content;double width=Math.Max(240,w.Width-surface.Padding.Left-surface.Padding.Right-2);var hero=(StackPanel)assignment.Parent;var icon=(Grid)shell.Find<System.Windows.Shapes.Path>("PowerArc").Parent;icon.Height=60;icon.LayoutTransform=Transform.Identity;icon.Margin=new Thickness(0,30,0,13);assignment.Margin=new Thickness(0,8,0,26);hero.Measure(new Size(width,double.PositiveInfinity));list.Measure(new Size(width-4,double.PositiveInfinity));var message=shell.Find<TextBlock>("Message");message.Measure(new Size(width,double.PositiveInfinity));return Math.Clamp(Math.Ceiling(surface.Padding.Top+surface.Padding.Bottom+2+42+32+hero.DesiredSize.Height+list.DesiredSize.Height+message.DesiredSize.Height+12),450,780);}
     void Resize(){if(arranging)return;arranging=true;try{shell.Window.Height=State.ManualHeight?State.Height:MeasuredHeight();WindowSizing.Fit(shell.Window);CompactHero();}finally{arranging=false;}}
     void Arrange(){list.Children.Clear();foreach(string id in State.Order.Where(State.Visible.Contains))list.Children.Add(rows[id]);Resize();Render();}
-    internal bool ToolOn(string id)=>id=="dns"?shell.DnsApplied:shell.Observations.Any(o=>o.Id==id&&o.State is ObservedState.Running or ObservedState.External);
+    internal bool ToolOn(string id)=>id=="dns"?shell.DnsApplied:shell.Observations.Any(o=>o.Id==id&&(o.State is ObservedState.Running or ObservedState.External||o.State==ObservedState.Unknown&&o.Pid.HasValue));
     internal async Task ToggleTool(string id,bool desired)
     {
         if(changingTool||shell.Busy||shell.DnsBusy||Editing){Render();return;}changingTool=true;Render();
         try{await shell.Refresh();
             if(id!="dns"&&shell.Observations.Any(o=>o.Id==id&&o.State==ObservedState.External)){
-                string message=L.T("This tool is running outside this copy of Open Net. To control it here, first close it using the application or tray that started it, then turn it on here. The running process has been left unchanged.");
-                shell.ShowMessage(message);files.Log("Individual switch: external instance left unchanged: "+id);
-                AppDialog.Show(shell.Window,message,Name(id),MessageBoxButton.OK,MessageBoxImage.Information,MessageBoxResult.OK);return;
+                if(desired)return;
+                try{var candidate=await Task.Run(()=>shell.Runtime.IdentifyExternal(id,shell.Settings));
+                    string message=Name(id)+" "+L.T("is running from another application. Stop this instance?");
+                    bool confirmed=
+#if OPENNET_TESTING
+                        ConfirmExternalForTests?.Invoke()??
+#endif
+                        AppDialog.ConfirmExternalStop(shell.Window,message,Name(id));
+                    if(!confirmed)return;
+                    shell.ShowMessage(await shell.Runtime.StopExternal(id,shell.Settings,candidate));
+                }catch(Exception ex){string message=L.Error(ex);files.Log("External stop: "+ex);shell.ShowMessage(message);AppDialog.Show(shell.Window,message,Name(id),MessageBoxButton.OK,MessageBoxImage.Information,MessageBoxResult.OK);}return;
             }
             if(id=="dns"){if(desired!=shell.DnsApplied)await shell.DnsAction(!desired);}else if(desired){if(!ToolOn(id))await shell.StartSelected(new[]{id});}else if(ToolOn(id)||Active(id))await shell.StopSelected(false,new[]{id});}
         catch(Exception ex){shell.ShowMessage(L.Error(ex));files.Log("Individual switch: "+ex);}
         finally{changingTool=false;await shell.Refresh();Render();}
     }
-    bool Active(string id)=>id=="dns"?shell.DnsApplied:shell.Observations.Any(o=>o.Id==id&&o.State is ObservedState.Running or ObservedState.External or ObservedState.CleanupRequired);
+    bool Active(string id)=>id=="dns"?shell.DnsApplied:shell.Observations.Any(o=>o.Id==id&&(o.State is ObservedState.Running or ObservedState.External or ObservedState.CleanupRequired||o.State==ObservedState.Unknown&&o.Pid.HasValue));
     internal static string StrategyCaption(string value)=>Path.GetFileNameWithoutExtension(value).Replace("general (","").TrimEnd(')');
     void RenderProfiles()
     {

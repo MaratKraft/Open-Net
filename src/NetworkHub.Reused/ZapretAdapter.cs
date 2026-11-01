@@ -17,8 +17,10 @@ public static class ReviewedStrategy
     {
         if(Path.GetFileName(name)!=name||!File.Exists(Path.Combine(bundle,name)))return false;
         string hash=Metadata.Hash(Path.Combine(bundle,name));
-        if(Digests.TryGetValue(name,out var digest)&&hash==digest)return true;
-        if(trusted==null||!trusted.TryGetValue(name,out var expected)||hash!=expected)return false;
+        // When an installation manifest exists, never silently accept a BAT from
+        // another release just because it matches an older built-in hash.
+        if(trusted!=null&&trusted.Count>0){if(!trusted.TryGetValue(name,out var expected)||hash!=expected)return false;}
+        else return Digests.TryGetValue(name,out var digest)&&hash==digest;
         try{_=Extract(File.ReadAllText(Path.Combine(bundle,name)),bundle,Path.Combine(bundle,"lists"));return true;}catch(InvalidDataException){return false;}
     }
     // This is an extractor for an exact reviewed file, NOT a BAT interpreter.

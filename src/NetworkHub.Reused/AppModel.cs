@@ -76,8 +76,9 @@ public sealed class AppFiles
     {
         // Recommended first-install preferences; existing JSON keeps its own values.
         // Registration still requires explicit approval and Windows UAC.
-        return new(){StartWithWindows=true,AutoStartTools=true};
+        return new(){Language=FirstRunLanguage(System.Globalization.CultureInfo.CurrentUICulture),StartWithWindows=true,AutoStartTools=true};
     }
+    public static string FirstRunLanguage(System.Globalization.CultureInfo windowsUiCulture)=>windowsUiCulture.TwoLetterISOLanguageName.Equals("ru",StringComparison.OrdinalIgnoreCase)?"ru":"en";
     public UserSettings Load()
     {
         if(!File.Exists(SettingsPath)) return Defaults();
@@ -144,22 +145,27 @@ public sealed record Probe(bool Exists,bool IdentityReadable,long StartFileTime,
 public static class ProcessIdentity
 {
     [DllImport("kernel32.dll",SetLastError=true)] private static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
+    [DllImport("kernel32.dll")] private static extern IntPtr GetCurrentProcess();
     [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
     [DllImport("kernel32.dll")] private static extern uint WaitForSingleObject(IntPtr handle,uint timeout);
     [DllImport("kernel32.dll",SetLastError=true)] private static extern bool GetProcessTimes(IntPtr process,out long creation,out long exit,out long kernel,out long user);
     [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] private static extern bool QueryFullProcessImageNameW(IntPtr process,uint flags,StringBuilder path,ref int size);
     public static Probe Read(int pid)
     {
+        // The current process already has a pseudo-handle: do not require Windows to
+        // reopen it with SYNCHRONIZE access under a potentially restrictive ACL.
+        if(pid==Environment.ProcessId)return Inspect(GetCurrentProcess());
         IntPtr h=OpenProcess(0x1000|0x100000,false,pid);
         if(h==IntPtr.Zero) return Marshal.GetLastWin32Error()==87 ? new(false,true,0,null) : new(true,false,0,null);
-        try
-        {
-            if(WaitForSingleObject(h,0)==0) return new(false,true,0,null);
-            var path=new StringBuilder(32768); int size=path.Capacity;
-            if(!GetProcessTimes(h,out var start,out _,out _,out _) || !QueryFullProcessImageNameW(h,0,path,ref size)) return new(true,false,0,null);
-            return new(true,true,start,path.ToString());
-        }
+        try {return Inspect(h);}
         finally {CloseHandle(h);}
+    }
+    private static Probe Inspect(IntPtr h)
+    {
+        if(WaitForSingleObject(h,0)==0) return new(false,true,0,null);
+        var path=new StringBuilder(32768); int size=path.Capacity;
+        if(!GetProcessTimes(h,out var start,out _,out _,out _) || !QueryFullProcessImageNameW(h,0,path,ref size)) return new(true,false,0,null);
+        return new(true,true,start,path.ToString());
     }
     public static ToolObservation ObserveOwned(OwnedReceipt r)
     {
@@ -189,7 +195,12 @@ public sealed class TgExeAdapter
         return new ProcessStartInfo(Path.GetFullPath(path)) {UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(Path.GetFullPath(path))!,CreateNoWindow=true};
     }
 }
-public sealed record ZapretRequest(string Token,UserSettings Settings,int ParentPid,long ParentStart,string Action="start");
+public sealed record ZapretRequest(string Token,UserSettings Settings,int ParentPid,long ParentStart,string Action="start")
+{
+    public int ExternalPid {get;init;}
+    public long ExternalStart {get;init;}
+    public string ExternalExecutable {get;init;}="";
+}
 public sealed record ZapretResponse(bool Success,string Message,OwnedReceipt? Receipt);
 public static class ZapretPreparation
 {

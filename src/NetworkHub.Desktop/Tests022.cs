@@ -66,7 +66,7 @@ public static class Tests022
                 property.SetValue(shell,new[]{new ToolObservation("zapret",ObservedState.Stopped,"ready"),new ToolObservation("tg",ObservedState.External,"external",123)});
                 shell.Settings.ZapretSelected=false;render.Invoke(shell,null);
                 Check(!shell.Primary.IsEnabled&&shell.Primary.Content.ToString()==L.T("External instance")&&!shell.TrayStop.Enabled,"External process cannot offer a no-op Stop");
-                Check(shell.Primary.ToolTip?.ToString()==L.T("Close external tools using their own window or tray. Open Net manages only processes it launched."),"Explicit ownership guidance");
+                Check(shell.Primary.ToolTip?.ToString()==L.T("Use the individual switch to review an external instance."),"Explicit ownership guidance");
                 shell.Settings.ZapretSelected=true;render.Invoke(shell,null);Check(shell.Primary.IsEnabled&&shell.Primary.Content.ToString()==L.T("Start selected"),"Mixed external/stopped offers Start");
             }finally{property.SetValue(shell,saved);await shell.Refresh();}
         });

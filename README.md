@@ -3,13 +3,13 @@
 <p align="center">A minimal Windows manager for Zapret, TG WS Proxy and DNS settings.</p>
 <p align="center">
 <img alt="Windows 10 / 11 x64" src="https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-0078D4">
-<img alt="0.4.0-pre.1 development" src="https://img.shields.io/badge/version-0.4.0--pre.1%20development-DAB46C">
+<img alt="0.4.0-pre.2 development" src="https://img.shields.io/badge/version-0.4.0--pre.2%20development-DAB46C">
 <a href="LICENSE"><img alt="MIT — Open Net code" src="https://img.shields.io/badge/license-MIT-369B59"></a>
 </p>
 
 **English** | [Русский](docs/README_RU.md)
 
-This branch prepares **v0.4.0-pre.1**, a pre-release with DNS Manager. **v0.3.3 remains the stable download** until a release is published. Live DNS and UAC behavior requires validation in a controlled environment.
+This branch prepares **v0.4.0-pre.2**, a pre-release with DNS Manager. **v0.3.3 remains the stable download** until a release is published. Live DNS and UAC behavior requires validation in a controlled environment.
 
 Install supported network tools, choose their settings and manage them from one small window. Open Net is an independent project; the tools retain their own behavior and licenses.
 

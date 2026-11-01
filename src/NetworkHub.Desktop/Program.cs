@@ -46,13 +46,16 @@ internal static class Program
             if(args.Contains("--headless-tests")&&!test)throw new ArgumentException("Headless tests require safe mode.");
             if(selfTest&&!test)throw new ArgumentException(L.T("Self-test is allowed only in safe mode."));
             if(args.Contains("--installer-test")&&!selfTest)throw new ArgumentException("Installer-test requires self-test.");
+            // Historical UI fixtures have a known English baseline; language selection
+            // itself is exercised explicitly with multiple UI cultures in headless tests.
+            if(selfTest||args.Contains("--headless-tests"))System.Globalization.CultureInfo.CurrentUICulture=System.Globalization.CultureInfo.GetCultureInfo("en-US");
             SelfTests.NetworkRequested=args.Contains("--installer-test");
             if(data!=null&&(!test||!NetworkHub.Core.Paths.Within(data,Path.Combine(root,"test-results"))))throw new ArgumentException(L.T("Test data must be in test-results next to the EXE."));
 #endif
 #if OPENNET_SAFE_PREVIEW
             data ??=Path.Combine(root,"test-results","preview");
 #endif
-            var files=PortableStartup.Open(root,data);files.Log("Startup 0.4.0-pre.1; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+            var files=PortableStartup.Open(root,data);files.Log("Startup 0.4.0-pre.2; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
             AppIdentity.Apply(files.Log);
             using var instance=new SingleInstance(files.Data,files.Log);
             if(!instance.Primary)
