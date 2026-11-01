@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Linq;
 
 namespace NetworkHub.App;
 public static class OwnedStop
@@ -32,7 +33,7 @@ public static class OwnedStop
         {CloseHandle(h);throw new InvalidOperationException(L.T("Could not verify the process for stopping. Check the diagnostic log."));}
         return(h,start,path.ToString());
     }
-    public static void Stop(OwnedReceipt receipt,bool includeChildren,bool tryGraceful=false)
+    public static void Stop(OwnedReceipt receipt,bool includeChildren,bool tryGraceful=false,OwnedReceipt[]? approvedMembers=null,Func<OwnedReceipt[]>? inspectMembers=null)
     {
         if(!ProcessIdentity.Read(receipt.Pid).Exists)return;
         var root=Open(receipt.Pid);var handles=new List<IntPtr>{root.Handle};
@@ -59,15 +60,26 @@ public static class OwnedStop
                         if(!ProcessIdentity.Read((int)e.Pid).Exists)continue;
                         var child=Open((int)e.Pid);
                         if(child.Start<parentStart){CloseHandle(child.Handle);continue;}
+                        if(tryGraceful&&!string.Equals(child.Path,receipt.Executable,StringComparison.OrdinalIgnoreCase)){CloseHandle(child.Handle);throw new InvalidOperationException(L.T("The external instance cannot be identified uniquely. No process was stopped."));}
                         handles.Add(child.Handle);parents[e.Pid]=child.Start;added=true;
                     }
                 }while(added);
+            }
+            if(approvedMembers!=null)
+            {
+                var current=inspectMembers?.Invoke()??TgRuntimeControl.Inspect(receipt.Executable).Members;
+                if(!TgRuntimeControl.SameMembers(approvedMembers,current)||handles.Count!=approvedMembers.Length)throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
             }
             // Close a visible TG window first. Tray-only applications may ignore WM_CLOSE.
             if(includeChildren||tryGraceful)
             {
                 using var p=Process.GetProcessById(receipt.Pid);
                 if(p.CloseMainWindow())WaitForSingleObject(root.Handle,1500);
+            }
+            if(approvedMembers!=null)
+            {
+                var remaining=inspectMembers?.Invoke()??(NetworkHub.Core.ProcessObserver.Find("TgWsProxy_windows").Length==0?Array.Empty<OwnedReceipt>():TgRuntimeControl.Inspect(receipt.Executable).Members);
+                if(remaining.Any(p=>!approvedMembers.Any(a=>a.Pid==p.Pid&&a.StartFileTime==p.StartFileTime&&string.Equals(a.Executable,p.Executable,StringComparison.OrdinalIgnoreCase))))throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
             }
             for(int i=handles.Count-1;i>=0;i--)
             {

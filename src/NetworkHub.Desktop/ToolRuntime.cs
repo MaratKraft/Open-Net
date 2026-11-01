@@ -14,6 +14,7 @@ public sealed class ToolRuntime
     private readonly AppFiles files;
     private readonly bool testMode;
     private readonly Dictionary<string,OwnedReceipt> owned=new();
+    private ZapretResponse? inspectedTg;
 #if OPENNET_TESTING
     private readonly Dictionary<string,OwnedIdentity> stubs=new();
     private StubSupervisor? supervisor;
@@ -60,7 +61,7 @@ public sealed class ToolRuntime
             if(owned.TryGetValue(id,out var receipt))
             {
                 var observed=ProcessIdentity.ObserveOwned(receipt);
-                if(observed.State==ObservedState.Running&&external.Any(x=>x.Pid!=receipt.Pid))return new(id,ObservedState.External,L.T("Multiple instances are running. No automatic stop is available."));
+                if(observed.State==ObservedState.Running&&external.Any(x=>x.Pid!=receipt.Pid&&!(id=="tg"&&ProcessObserver.IsDirectChild(x,receipt.Pid,receipt.StartFileTime))))return new(id,ObservedState.External,L.T("Multiple instances are running. No automatic stop is available."));
                 if(observed.State!=ObservedState.Stopped) return observed;
                 owned.Remove(id);
             }
@@ -68,7 +69,8 @@ public sealed class ToolRuntime
             if(id=="zapret")
             {
                 if(string.IsNullOrWhiteSpace(settings.ZapretDirectory)||!Directory.Exists(settings.ZapretDirectory))return new(id,ObservedState.NotInstalled,L.T("Click Install to obtain the official compatible release."));
-                if(File.Exists(ReceiptPath(id))&&DriverControl.Loaded(settings.ZapretDirectory))return new(id,ObservedState.CleanupRequired,L.T("The process stopped but WinDivert is still loaded. Click Stop to complete cleanup."));
+                // A loaded shared driver is not a running Zapret or a reason to
+                // unload it. winws opens its own handle and reports launch errors.
                 files.ValidateIsolation(settings);
                 if(!NetworkHub.Adapters.ReviewedStrategy.Supported(settings.ZapretDirectory,settings.Strategy,files.ForZapret(settings).TrustedFiles)) return new(id,ObservedState.Error,L.T("The selected strategy is unsupported, changed, or has no matching official installation record. Check the strategy and installed Zapret files."));
                 var c=new NetworkHub.Adapters.ZapretAdapter(files.ForZapret(settings)).Validate().FirstOrDefault(x=>x.Error);
@@ -159,16 +161,44 @@ public sealed class ToolRuntime
             ?files.ForZapret(settings).TrustedFiles.TryGetValue("bin/winws.exe",out var hash)&&File.Exists(expected)&&string.Equals(Metadata.Hash(expected),hash,StringComparison.OrdinalIgnoreCase)
             :ModuleTrust.Matches(files,"tg",expected);
         if(!verified||!ExternalProcessControl.ReviewedBinary(id,Metadata.Hash(expected)))throw new InvalidOperationException(L.T("The external instance is not from the selected verified installation. No process was stopped."));
-        return ExternalProcessControl.Select(id,expected,ProcessObserver.Find(id=="zapret"?"winws":"TgWsProxy_windows"),ProcessIdentity.Read,ExternalProcessControl.IsServiceProcess);
+        return ExternalProcessControl.SelectInstance(id,expected,ProcessObserver.Find(id=="zapret"?"winws":"TgWsProxy_windows"));
+    }
+    private async Task<ZapretResponse> TgHelper(string action,UserSettings settings,ZapretResponse? approved=null)
+    {
+        string token=Guid.NewGuid().ToString("N"),folder=Paths.Owned(files.Data,"requests/"+token);Directory.CreateDirectory(folder);
+        var parent=ProcessIdentity.Read(Environment.ProcessId);
+        var request=new ZapretRequest(token,settings,Environment.ProcessId,parent.StartFileTime,action){ExternalPid=approved?.Receipt?.Pid??0,ExternalStart=approved?.Receipt?.StartFileTime??0,Members=approved?.Members??Array.Empty<OwnedReceipt>()};
+        Paths.WriteNew(Path.Combine(folder,"request.json"),JsonSerializer.Serialize(request));
+        var psi=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=true,Verb="runas",WorkingDirectory=files.Root};foreach(var arg in new[]{"--elevated",token,"--data-root",files.Data})psi.ArgumentList.Add(arg);
+        using var helper=Process.Start(psi)??throw new IOException("TG helper did not start");string response=Path.Combine(folder,"response.json");var timer=Stopwatch.StartNew();
+        while(!File.Exists(response)){if(helper.HasExited||timer.Elapsed>TimeSpan.FromSeconds(30))throw new IOException("TG helper did not return a result");await Task.Delay(100);}
+        var result=JsonSerializer.Deserialize<ZapretResponse>(File.ReadAllText(response))??throw new InvalidDataException("Invalid TG response");if(!result.Success)throw new InvalidOperationException(result.Message);return result;
+    }
+    internal async Task<OwnedReceipt> InspectExternal(string id,UserSettings settings)
+    {
+#if OPENNET_TESTING
+        if(testMode)return IdentifyExternal(id,settings);
+#endif
+        if(id!="tg")return await Task.Run(()=>IdentifyExternal(id,settings));
+        try{await TgRuntimeControl.VerifyOfficial(files,settings.TgExe);inspectedTg=await Task.Run(()=>TgRuntimeControl.Inspect(settings.TgExe));}
+        catch(System.ComponentModel.Win32Exception){inspectedTg=await TgHelper("inspect-tg",settings);}
+        catch(InvalidOperationException) when(ProcessObserver.Find("TgWsProxy_windows").Any(p=>!p.MetadataAccessible)){inspectedTg=await TgHelper("inspect-tg",settings);}
+        return inspectedTg.Receipt!;
     }
     public async Task<string> StopExternal(string id,UserSettings settings,OwnedReceipt approved)
     {
 #if OPENNET_TESTING
         if(testMode&&StopExternalForTests!=null)return await StopExternalForTests(id,approved);
 #endif
+        if(id=="tg")
+        {
+            var approvedTree=inspectedTg??throw new InvalidOperationException("Inspect TG before confirming stop");
+            if(approvedTree.Receipt?.Pid!=approved.Pid||approvedTree.Receipt.StartFileTime!=approved.StartFileTime)throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
+            await TgHelper("stop-tg",settings,approvedTree);inspectedTg=null;return L.T("The process stopped.");
+        }
         var current=await Task.Run(()=>IdentifyExternal(id,settings));
         if(current.Pid!=approved.Pid||current.StartFileTime!=approved.StartFileTime||!string.Equals(current.Executable,approved.Executable,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
-        if(id=="tg") await Task.Run(()=>OwnedStop.Stop(current,false,true));
+        if(id=="tg") await Task.Run(()=>OwnedStop.Stop(current,true,true));
         else
         {
             string token=Guid.NewGuid().ToString("N"),folder=Paths.Owned(files.Data,"requests/"+token);Directory.CreateDirectory(folder);
@@ -196,7 +226,7 @@ public sealed class ToolRuntime
         if(state.State==ObservedState.Running)owned.TryGetValue(id,out receipt);
         else if(state.State==ObservedState.CleanupRequired&&id=="zapret")receipt=JsonSerializer.Deserialize<OwnedReceipt>(File.ReadAllText(ReceiptPath(id)));
         if(receipt==null)throw new InvalidOperationException(L.T("Process ownership could not be verified. It was left unchanged."));
-        if(id=="tg")await Task.Run(()=>OwnedStop.Stop(receipt,true));
+        if(id=="tg"){await InspectExternal(id,settings);await TgHelper("stop-tg",settings,inspectedTg);inspectedTg=null;}
         else
         {
             string token=Guid.NewGuid().ToString("N"),folder=Paths.Owned(files.Data,"requests/"+token);Directory.CreateDirectory(folder);
@@ -218,7 +248,7 @@ public sealed class ToolRuntime
         }
         if(ProcessIdentity.ObserveOwned(receipt).State!=ObservedState.Stopped)throw new InvalidOperationException(L.T("The process is still running. Stop was not confirmed."));
         owned.Remove(id);if(id!="zapret")File.Delete(ReceiptPath(id));
-        return id=="zapret"?L.T("The process and WinDivert stopped."):L.T("The process stopped.");
+        return L.T("The process stopped.");
     }
     public void CloseShell()
     {

@@ -15,7 +15,6 @@ public static class ExternalProcessControl
     public static bool ReviewedBinary(string id,string hash)=>id switch
     {
         "zapret"=>string.Equals(hash,"AFFB4F69D2EA302A7ABCCD5325D81826E140DDAE014F1E070BC4A6C0DD555188",StringComparison.OrdinalIgnoreCase),
-        "tg"=>new[]{"B11232956820B449348E51452C2D9EA2E441679B2E40053825B8E878689F51AB","36EC2D018065C9FC836402C35B5359F6791A40BA8E6173DC44B8A84DA4B8BB7C","454205CBCF76F333934108D893B58A528373BCE8096624E27F0B6DC16EEA660F"}.Contains(hash,StringComparer.OrdinalIgnoreCase),
         _=>false
     };
     [DllImport("advapi32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr OpenSCManagerW(string? machine,string? database,uint access);
@@ -48,5 +47,15 @@ public static class ExternalProcessControl
             throw new InvalidOperationException(L.T("The external instance cannot be identified uniquely. No process was stopped."));
         if(isService(item.Pid))throw new InvalidOperationException(L.T("This instance is managed by a Windows service. Open Net did not stop it; use its own service controls."));
         return new OwnedReceipt(Guid.NewGuid().ToString("N"),item.Pid,current.StartFileTime,current.Executable,id);
+    }
+    public static OwnedReceipt SelectInstance(string id,string expected,ProcessObservation[] observed)
+    {
+        if(id!="tg")return Select(id,expected,observed,ProcessIdentity.Read,IsServiceProcess);
+        // Validate every member before considering a common parent. Two roots
+        // remain ambiguous, even if they execute identical files.
+        var members=observed.Select(p=>Select(id,expected,new[]{p},ProcessIdentity.Read,IsServiceProcess)).ToArray();
+        var roots=members.Where(p=>!observed.Any(child=>child.Pid==p.Pid&&members.Any(parent=>parent.Pid!=p.Pid&&ProcessObserver.IsDirectChild(child,parent.Pid,parent.StartFileTime)))).ToArray();
+        if(roots.Length!=1||members.Any(p=>p.Pid!=roots[0].Pid&&!ProcessObserver.IsDirectChild(observed.Single(o=>o.Pid==p.Pid),roots[0].Pid,roots[0].StartFileTime)))throw new InvalidOperationException(L.T("The external instance cannot be identified uniquely. No process was stopped."));
+        return roots[0];
     }
 }

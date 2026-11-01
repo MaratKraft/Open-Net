@@ -155,16 +155,17 @@ public static class ProcessIdentity
         // The current process already has a pseudo-handle: do not require Windows to
         // reopen it with SYNCHRONIZE access under a potentially restrictive ACL.
         if(pid==Environment.ProcessId)return Inspect(GetCurrentProcess());
-        IntPtr h=OpenProcess(0x1000|0x100000,false,pid);
+        IntPtr h=OpenProcess(0x1000,false,pid);
         if(h==IntPtr.Zero) return Marshal.GetLastWin32Error()==87 ? new(false,true,0,null) : new(true,false,0,null);
         try {return Inspect(h);}
         finally {CloseHandle(h);}
     }
     private static Probe Inspect(IntPtr h)
     {
-        if(WaitForSingleObject(h,0)==0) return new(false,true,0,null);
         var path=new StringBuilder(32768); int size=path.Capacity;
-        if(!GetProcessTimes(h,out var start,out _,out _,out _) || !QueryFullProcessImageNameW(h,0,path,ref size)) return new(true,false,0,null);
+        if(!GetProcessTimes(h,out var start,out var exit,out _,out _))return new(true,false,0,null);
+        if(exit!=0)return new(false,true,0,null);
+        if(!QueryFullProcessImageNameW(h,0,path,ref size)) return new(true,false,0,null);
         return new(true,true,start,path.ToString());
     }
     public static ToolObservation ObserveOwned(OwnedReceipt r)
@@ -200,8 +201,9 @@ public sealed record ZapretRequest(string Token,UserSettings Settings,int Parent
     public int ExternalPid {get;init;}
     public long ExternalStart {get;init;}
     public string ExternalExecutable {get;init;}="";
+    public OwnedReceipt[] Members {get;init;}=Array.Empty<OwnedReceipt>();
 }
-public sealed record ZapretResponse(bool Success,string Message,OwnedReceipt? Receipt);
+public sealed record ZapretResponse(bool Success,string Message,OwnedReceipt? Receipt){public OwnedReceipt[] Members {get;init;}=Array.Empty<OwnedReceipt>();}
 public static class ZapretPreparation
 {
     public static LaunchPlan Prepare(AppFiles files,UserSettings settings)

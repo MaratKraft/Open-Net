@@ -71,7 +71,7 @@ internal sealed class WorkspaceController
         try{await shell.Refresh();
             if(id!="dns"&&shell.Observations.Any(o=>o.Id==id&&o.State==ObservedState.External)){
                 if(desired)return;
-                try{var candidate=await Task.Run(()=>shell.Runtime.IdentifyExternal(id,shell.Settings));
+                try{var candidate=await shell.Runtime.InspectExternal(id,shell.Settings);
                     string message=Name(id)+" "+L.T("is running from another application. Stop this instance?");
                     bool confirmed=
 #if OPENNET_TESTING

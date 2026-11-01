@@ -28,6 +28,19 @@ internal static class ElevatedActions
             string expected=Environment.ProcessPath!;
             if(!parent.Exists||!parent.IdentityReadable||parent.StartFileTime!=r.ParentStart||!string.Equals(parent.Executable,expected,StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException(L.T("The request does not belong to this Open Net instance. Execution was blocked."));
+            if(r.Action is "inspect-tg" or "stop-tg")
+            {
+                TgRuntimeControl.VerifyOfficial(files,r.Settings.TgExe).GetAwaiter().GetResult();
+                var inspected=TgRuntimeControl.Inspect(r.Settings.TgExe);
+                if(r.Action=="stop-tg")
+                {
+                    if(inspected.Receipt!.Pid!=r.ExternalPid||inspected.Receipt.StartFileTime!=r.ExternalStart||!TgRuntimeControl.SameMembers(r.Members,inspected.Members))throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
+                    OwnedStop.Stop(inspected.Receipt,true,true,r.Members);
+                    if(ProcessObserver.Find("TgWsProxy_windows").Length!=0)throw new InvalidOperationException(L.T("Another instance is still running. Check the module status."));
+                    inspected=new(true,L.T("The process stopped."),null);
+                }
+                PublishResponse(response,JsonSerializer.Serialize(inspected));return 0;
+            }
             if(r.Action=="stop-external")
             {
                 string binary=Path.GetFullPath(Path.Combine(r.Settings.ZapretDirectory,"bin","winws.exe"));
@@ -38,7 +51,7 @@ internal static class ElevatedActions
                 if(candidate.Pid!=r.ExternalPid||candidate.StartFileTime!=r.ExternalStart||!string.Equals(candidate.Executable,r.ExternalExecutable,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
                 OwnedStop.Stop(candidate,false);
                 if(ProcessObserver.Find("winws").Length!=0)throw new InvalidOperationException(L.T("Another instance is still running. Check the module status."));
-                Paths.WriteNew(response,JsonSerializer.Serialize(new ZapretResponse(true,L.T("The external process stopped. The driver was not changed."),null)));return 0;
+                PublishResponse(response,JsonSerializer.Serialize(new ZapretResponse(true,L.T("The external process stopped. The driver was not changed."),null)));return 0;
             }
             if(r.Action=="stop")
             {
@@ -53,8 +66,7 @@ internal static class ElevatedActions
                 var hashes=files.ForZapret(r.Settings).TrustedFiles;
                 if(Metadata.Hash(binary)!=(hashes.TryGetValue("bin/winws.exe",out var verified)?verified:"AFFB4F69D2EA302A7ABCCD5325D81826E140DDAE014F1E070BC4A6C0DD555188"))throw new InvalidDataException(L.T("The winws file was modified. Reinstall the official release."));
                 OwnedStop.Stop(owned,false);
-                DriverControl.Stop(r.Settings.ZapretDirectory,hashes.TryGetValue("bin/WinDivert64.sys",out var driverHash)?driverHash:null);
-                Paths.WriteNew(response,JsonSerializer.Serialize(new ZapretResponse(true,L.T("Zapret and its driver stopped."),owned)));
+                PublishResponse(response,JsonSerializer.Serialize(new ZapretResponse(true,L.T("The process stopped."),owned)));
                 return 0;
             }
             if(r.Action!="start")throw new InvalidDataException(L.T("Unknown action. Execution was blocked."));
@@ -71,10 +83,11 @@ internal static class ElevatedActions
                 process.OutputDataReceived+=(_,e)=>{if(e.Data!=null) Append(plan.LogFile,e.Data);};
                 process.ErrorDataReceived+=(_,e)=>{if(e.Data!=null) Append(plan.LogFile,e.Data);};
                 process.BeginOutputReadLine(); process.BeginErrorReadLine();
+                if(process.WaitForExit(750))throw new InvalidOperationException(L.T("Zapret exited during startup. Check the module output log; website availability was not tested."));
                 var p=ProcessIdentity.Read(process.Id);
                 if(!p.IdentityReadable) throw new InvalidOperationException(L.T("The process was created but ownership is not confirmed. Stop it manually."));
                 var receipt=new OwnedReceipt(token,process.Id,p.StartFileTime,p.Executable!,"zapret");
-                Paths.WriteNew(response,JsonSerializer.Serialize(new ZapretResponse(true,L.T("The process was created; its state is being checked."),receipt)));
+                PublishResponse(response,JsonSerializer.Serialize(new ZapretResponse(true,L.T("The process was created; its state is being checked."),receipt)));
                 // Keep only this one-shot log pump alive until winws exits. No listener, service, command server, or stop API.
                 process.WaitForExit(); return process.ExitCode;
             }
@@ -83,11 +96,12 @@ internal static class ElevatedActions
         catch(Exception ex)
         {
             files.Log("Elevated action failed: "+ex);
-            try { if(!File.Exists(response)) Paths.WriteNew(response,JsonSerializer.Serialize(new ZapretResponse(false,LogSafety.Redact(ex.Message),null))); }
+            try { if(!File.Exists(response)) PublishResponse(response,JsonSerializer.Serialize(new ZapretResponse(false,LogSafety.Redact(ex.Message),null))); }
             catch(Exception writeError){files.Log("Cannot publish elevated response: "+writeError);}
             return 1;
         }
     }
+    private static void PublishResponse(string path,string text){string temporary=path+"."+Guid.NewGuid().ToString("N")+".tmp";Paths.WriteNew(temporary,text);File.Move(temporary,path,false);}
     private static readonly object logGate=new();
     private static void Append(string path,string line) {lock(logGate) {try {File.AppendAllText(path,LogSafety.Redact(line)+Environment.NewLine);} catch(Exception ex){Trace.WriteLine("Open Net output log failed: "+ex);}}}
 }

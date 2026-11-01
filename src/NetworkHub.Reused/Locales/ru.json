@@ -235,6 +235,7 @@
   "The external process stopped.": "Внешний процесс остановлен.",
   "This instance is managed by a Windows service. Open Net did not stop it; use its own service controls.": "Этот экземпляр управляется службой Windows. Open Net его не остановил; используйте управление самой службы.",
   "Stop": "Остановить",
+  "Zapret exited during startup. Check the module output log; website availability was not tested.": "Zapret завершился во время запуска. Проверьте журнал вывода модуля; доступность сайтов не проверялась.",
   "Multiple instances are running. No automatic stop is available.": "Работает несколько экземпляров. Автоматическая остановка недоступна.",
   "is running from another application. Stop this instance?": "запущен другим приложением. Остановить этот экземпляр?",
   "Using the saved catalog from ": "Используется сохранённый каталог от ",
