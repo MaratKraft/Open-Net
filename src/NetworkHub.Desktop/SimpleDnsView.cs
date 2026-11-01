@@ -39,7 +39,7 @@ internal sealed class SimpleDnsView
    profiles.Items.Clear();foreach(var p in Controller.Profiles)profiles.Items.Add(new ComboBoxItem{Content=p.Name,Tag=p,ToolTip=p.Warning.Length==0?string.Join(", ",p.IPv4):L.T(p.Warning)});profiles.SelectedItem=profiles.Items.Cast<ComboBoxItem>().FirstOrDefault(i=>((DnsProfile)i.Tag).Id==shell.Settings.HbDnsProfileId)??profiles.Items.Cast<ComboBoxItem>().First();
   }catch(Exception ex){ShowError(ex);}finally{filling=false;}
  }
- internal void RefreshStatus(){if(busy)return;try{Controller.Read();inspectionError="";}catch(Exception ex){inspectionError=L.Error(ex);files.Log("Experimental DNS inspection: "+ex);}Render();}
+ internal void RefreshStatus(){if(busy)return;try{Controller.Read();inspectionError="";}catch(Exception ex){inspectionError=L.Error(ex);files.Log("DNS inspection: "+ex);}Render();}
  void Render(){status.Text=(shell.Runtime.TestMode?L.T("Preview mode")+" · ":"")+LineStatus+(CurrentProfile.Length>0?" · "+CurrentProfile:"");ThemeManager.Bind(status,TextBlock.ForegroundProperty,StatusTone);adapters.IsEnabled=profiles.IsEnabled=add.IsEnabled=!busy;cache.IsEnabled=!busy&&Controller.Current!=null;}
  bool Confirm(string text){
 #if OPENNET_TESTING
@@ -56,11 +56,11 @@ internal sealed class SimpleDnsView
    var notices=new System.Collections.Generic.List<string>();if(needPolicy)notices.Add(L.T("Turning off restores automatic IPv4 DNS, not earlier manual addresses. IPv6 is unchanged. An emergency snapshot is kept. Continue?"));if(needWarning)notices.Add(L.T(profile!.Warning));if(allowPlain)notices.Add(L.T("This profile has no verified DoH endpoint. Apply unencrypted IPv4 DNS on this adapter?"));
    if(notices.Count>0&&!Confirm(string.Join("\n\n",notices)))return false;
    if(needPolicy||needWarning){var next=shell.Settings.Copy();if(needPolicy)next.HbDnsPolicyAccepted=true;if(needWarning)next.HbDnsWarningsAccepted=next.HbDnsWarningsAccepted.Append(profile!.Id).ToArray();shell.ApplySettings(next);}
-   busy=true;Render();shell.UpdateDnsStatus();var response=await Controller.Change(before,target,profile,allowPlain);if(!response.Success)throw new DnsException(response.Message);Controller.Read();if(Controller.Current==null||!Controller.Current.SameConfiguration(target))throw new DnsException("DNS verification failed. The emergency snapshot has been kept.");files.Log("Experimental DNS: "+response.Message);message.Text=L.T(response.Message);transient.Start();return true;
+   busy=true;Render();shell.UpdateDnsStatus();var response=await Controller.Change(before,target,profile,allowPlain);if(!response.Success)throw new DnsException(response.Message);Controller.Read();if(Controller.Current==null||!Controller.Current.SameConfiguration(target))throw new DnsException("DNS verification failed. The emergency snapshot has been kept.");files.Log("DNS: "+response.Message);message.Text=L.T(response.Message);transient.Start();return true;
   }catch(Exception ex){ShowError(ex);return false;}finally{busy=false;RefreshStatus();shell.UpdateDnsStatus();}
  }
- internal async Task ClearCache(){if(busy)return;RefreshStatus();var before=Controller.Current;if(before==null)return;try{busy=true;Render();var response=await Controller.Change(before,before,null,cacheOnly:true);if(!response.Success)throw new DnsException(response.Message);message.Text=L.T(response.Message);files.Log("Experimental DNS cache: "+response.Message);transient.Start();}catch(Exception ex){ShowError(ex);}finally{busy=false;RefreshStatus();shell.UpdateDnsStatus();}}
- void ShowError(Exception ex){transient.Stop();message.Text=ex is DnsException?L.T(ex.Message):L.Error(ex);files.Log("Experimental DNS: "+ex);shell.ShowMessage(message.Text);}
+ internal async Task ClearCache(){if(busy)return;RefreshStatus();var before=Controller.Current;if(before==null)return;try{busy=true;Render();var response=await Controller.Change(before,before,null,cacheOnly:true);if(!response.Success)throw new DnsException(response.Message);message.Text=L.T(response.Message);files.Log("DNS cache: "+response.Message);transient.Start();}catch(Exception ex){ShowError(ex);}finally{busy=false;RefreshStatus();shell.UpdateDnsStatus();}}
+ void ShowError(Exception ex){transient.Stop();message.Text=ex is DnsException?L.T(ex.Message):L.Error(ex);files.Log("DNS: "+ex);shell.ShowMessage(message.Text);}
  internal void SelectProfile(string id){var item=profiles.Items.Cast<ComboBoxItem>().FirstOrDefault(i=>((DnsProfile)i.Tag).Id==id);if(item!=null){if(item==profiles.SelectedItem&&Applied)_ =Power(false);else profiles.SelectedItem=item;}}
  internal void EditCustom()
  {

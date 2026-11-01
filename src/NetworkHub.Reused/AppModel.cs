@@ -71,7 +71,7 @@ public sealed class AppFiles
         if(!DataAllowed(Root,Data,Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)))throw new InvalidDataException(L.T("The data folder is not allowed. Choose a user folder."));
         Paths.NoReparseAncestors(Data); Directory.CreateDirectory(Data);
     }
-    public static bool DataAllowed(string root,string data,string local){string experiment=Path.Combine(local,"Open Net HB Experiment");return Paths.Within(data,root)||Paths.Overlap(data,Path.Combine(local,"Open Net"))||string.Equals(Path.GetFullPath(data),Path.GetFullPath(experiment),StringComparison.OrdinalIgnoreCase)||Paths.Within(data,experiment);}
+    public static bool DataAllowed(string root,string data,string local){string official=Path.Combine(local,"Open Net");return Paths.Within(data,root)||string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(data)),Path.TrimEndingDirectorySeparator(Path.GetFullPath(official)),StringComparison.OrdinalIgnoreCase)||Paths.Within(data,official);}
     public UserSettings Defaults()
     {
         // Recommended first-install preferences; existing JSON keeps its own values.
@@ -94,6 +94,19 @@ public sealed class AppFiles
     public void Save(UserSettings settings)
     {
         Paths.NoReparseAncestors(SettingsPath);Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+        if(File.Exists(SettingsPath))
+        {
+            byte[] original=File.ReadAllBytes(SettingsPath);
+            bool needsBackup=true;
+            try{using var prior=JsonDocument.Parse(original);needsBackup=prior.RootElement.ValueKind!=JsonValueKind.Object||!prior.RootElement.TryGetProperty("HbDnsProfileId",out _);}catch(JsonException){}
+            if(needsBackup)
+            {
+                string backup=Paths.Owned(Data,"Backups/Settings/v0.3.3-"+Guid.NewGuid().ToString("N")+".json");
+                Paths.NoReparseAncestors(backup);Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+                using(var output=new FileStream(backup,FileMode.CreateNew,FileAccess.Write,FileShare.None)){output.Write(original);output.Flush(true);}
+                if(!original.SequenceEqual(File.ReadAllBytes(backup))||!original.SequenceEqual(File.ReadAllBytes(SettingsPath)))throw new IOException("Settings backup verification failed; settings were not changed.");
+            }
+        }
         var persisted=JsonSerializer.Deserialize<UserSettings>(JsonSerializer.Serialize(settings))!;
         string Relative(string value)=>value!=""&&Paths.Within(value,Modules)?"@modules/"+Path.GetRelativePath(Modules,value).Replace('\\','/'):value!=""&&Paths.Within(value,Root)?Path.GetRelativePath(Root,value).Replace('\\','/'):value;
         persisted.ZapretDirectory=Relative(persisted.ZapretDirectory);persisted.TgExe=Relative(persisted.TgExe);

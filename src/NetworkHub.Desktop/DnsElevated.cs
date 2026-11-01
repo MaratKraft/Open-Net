@@ -55,11 +55,11 @@ internal static class DnsElevated
                 DnsRecoveryStore.MarkUsed(r.Owner,r.Token);
                 var transaction=new DnsTransaction(backend,backend,store,r.Owner,evidence);
                 if(r.Action is "hb-on" or "hb-off"){
-                    if(r.ClearCache||!r.Families.SequenceEqual(SimpleDns.Families))throw new DnsException("Invalid experimental DNS plan.");
+                    if(r.ClearCache||!r.Families.SequenceEqual(SimpleDns.Families))throw new DnsException("Invalid DNS plan.");
                     DnsProfile? profile=null;
                     if(r.Action=="hb-on"){
                         profile=SimpleDns.Presets.FirstOrDefault(p=>p.Id==r.ProfileId);
-                        if(profile==null&&r.ProfileId.StartsWith("hb-custom:",StringComparison.Ordinal)&&r.CustomProfile!=null){DnsProfileStore.Validate(r.CustomProfile);if(r.ProfileId!="hb-custom:"+r.CustomProfile.Id||r.CustomProfile.UseDoh||r.CustomProfile.IPv6.Length>0||r.CustomProfile.Doh!=null)throw new DnsException("Invalid experimental custom profile.");profile=new(r.ProfileId,r.CustomProfile.Name,r.CustomProfile.IPv4,Array.Empty<string>(),null,"","",true,"");}
+                        if(profile==null&&r.ProfileId.StartsWith("hb-custom:",StringComparison.Ordinal)&&r.CustomProfile!=null){DnsProfileStore.Validate(r.CustomProfile);if(r.ProfileId!="hb-custom:"+r.CustomProfile.Id||r.CustomProfile.UseDoh||r.CustomProfile.IPv6.Length>0||r.CustomProfile.Doh!=null)throw new DnsException("Invalid custom DNS profile.");profile=new(r.ProfileId,r.CustomProfile.Name,r.CustomProfile.IPv4,Array.Empty<string>(),null,"","",true,"");}
                         if(profile==null)throw new DnsException("Choose a DNS profile.");
                     }
                     var expected=SimpleDns.Plan(current,profile,r.EncryptionChangeApproved);if(!expected.SameConfiguration(r.Target))throw new DnsException("The approved DNS plan was modified.");

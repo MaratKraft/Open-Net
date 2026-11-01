@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 namespace NetworkHub.Dns;
-// HB-style assignment policy; the transactional engine below is used only for crash-safe writes.
+// DNS assignment policy; the transactional engine below is used only for crash-safe writes.
 public static class SimpleDns
 {
  public static readonly DnsFamily[] Families={DnsFamily.IPv4};
