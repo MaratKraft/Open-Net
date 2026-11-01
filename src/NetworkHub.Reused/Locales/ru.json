@@ -1,4 +1,12 @@
 {
+  "Include pre-release updates": "Получать предварительные версии",
+  "Updates available: ": "Доступны обновления: ",
+  "Check Open Net updates": "Проверить обновления Open Net",
+  "A new Open Net release is available.": "Доступна новая версия Open Net.",
+  "The latest version is installed.": "Установлена последняя версия.",
+  "Could not check updates. Try again later.": "Не удалось проверить обновления. Повторите позже.",
+  "Open release": "Открыть выпуск",
+  "Open Net update available: ": "Доступен Open Net ",
   "Install": "Установить",
   "Stopped": "Остановлен",
   "Running": "Запущен",

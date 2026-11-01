@@ -51,6 +51,7 @@ public sealed class Shell : IDisposable
     public UserSettings Settings {get;private set;}
     public ToolRuntime Runtime {get;}
     public ModuleInstaller Installer {get;}
+    internal UpdateDiscovery Updates {get;}
     private string? installing;
     public Forms.NotifyIcon Tray {get;}
     public Forms.ToolStripMenuItem TrayOpen {get;}
@@ -80,7 +81,7 @@ public sealed class Shell : IDisposable
         Installer=new ModuleInstaller(files,installerHandler,runningProbe);Installer.RecoverInterruptedDownloads();
         try{Settings=Installer.ApplyManaged(Settings);}catch(Exception ex){errors["settings"]=ex.Message;files.Log("Module manifest: "+ex.Message);}
         if(!File.Exists(files.SettingsPath))files.Save(Settings);
-        Runtime=new ToolRuntime(files,testMode);hbDns=new HbDnsController(this,files);
+        Runtime=new ToolRuntime(files,testMode);hbDns=new HbDnsController(this,files);Updates=new UpdateDiscovery(files,Installer,testMode,()=>Settings.UpdatePrerelease);Updates.Changed+=()=>{if(string.IsNullOrEmpty(activeNotice))ShowMessage("");else StateChanged?.Invoke();};
         Autostart=new AutostartService(files,startupStore??(testMode?new IsolatedStartupStore():new WindowsStartupStore(false)),Environment.ProcessPath!);
         icon=IconFactory.TrayIcon(96);Window.Icon=IconFactory.WindowIcon();FocusCues.Attach(Window);
         Find<Button>("Minimize").Click+=(_,_)=>Window.WindowState=WindowState.Minimized;
@@ -111,6 +112,7 @@ public sealed class Shell : IDisposable
         TrayStop.Click+=async(_,_)=>await StopSelected(true); TrayExit.Click+=(_,_)=>Exit();
         timer=new DispatcherTimer {Interval=TimeSpan.FromSeconds(5)};timer.Tick+=async(_,_)=>await Refresh();timer.Start();
         Window.Loaded+=async(_,_)=>{await Refresh();if(Runtime.TestMode)ShowNotice(L.T("Safe testing: buttons run only our test processes."));else if(errors.ContainsKey("settings"))ShowMessage(L.T("Settings are damaged. Save them again; the original and a backup have been kept."));else if(Settings.StartWithWindows){var state=Autostart.Inspect(Settings);if(state.NeedsRepair||!state.Registered)ShowMessage(state.Message);}};
+        Window.Loaded+=async(_,_)=>{if(!Runtime.TestMode){await Updates.Check();if(string.IsNullOrEmpty(activeNotice))ShowMessage("");}};
     }
     public T Find<T>(string name) where T:class => (T)Window.FindName(name);
 #if OPENNET_TESTING
@@ -240,7 +242,8 @@ public sealed class Shell : IDisposable
         finally {Busy=false;stopping=false;await Refresh();foreach(var message in messages)files.Log(message);if(failed)ShowMessage(string.Join("\n",messages));else ShowNotice(L.T("Stopped"));}
     }
     internal void ShowNotice(string message){ShowMessage(message);noticeTimer.Start();}
-    public void ShowMessage(string message) {noticeTimer.Stop();string safe=NetworkHub.Core.LogSafety.Redact(message);Find<TextBlock>("Message").Text=safe;Find<TextBlock>("Message").ToolTip=string.IsNullOrWhiteSpace(safe)?null:safe;if(installing!=null)moduleMessages[installing]=safe;StateChanged?.Invoke();}
+    string activeNotice="";
+    public void ShowMessage(string message) {noticeTimer.Stop();string safe=NetworkHub.Core.LogSafety.Redact(message);activeNotice=safe;var update=Updates.Current;var available=new List<string>();if(update?.Application!=null)available.Add("Open Net");if(update?.Modules.Contains("zapret")==true)available.Add("Zapret");if(update?.Modules.Contains("tg")==true)available.Add("TG WS Proxy");string display=string.IsNullOrWhiteSpace(safe)&&available.Count>0?L.T("Updates available: ")+string.Join(", ",available):safe;Find<TextBlock>("Message").Text=display;Find<TextBlock>("Message").ToolTip=string.IsNullOrWhiteSpace(display)?null:display;if(installing!=null)moduleMessages[installing]=safe;StateChanged?.Invoke();}
     internal Func<bool>? ForcedTgConfirmationForTests {get;set;}
     internal bool ConfirmForcedTgStop()=>Runtime.TestMode&&ForcedTgConfirmationForTests!=null?ForcedTgConfirmationForTests():AppDialog.Show(Window,L.T("TG and its child processes may be stopped forcibly; unsaved settings may be lost. If you agree, this warning will not be repeated when routine confirmations are disabled. Stop this owned instance?"),L.T("Open Net — stop"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;
     public async Task ConfigureZapret(string folder,Window owner)
@@ -403,7 +406,7 @@ public sealed class Shell : IDisposable
         var view=new ModuleSettingsView(this,files,id);moduleWindows[id]=view.Window;view.Window.Closed+=(_,_)=>moduleWindows.Remove(id);view.Window.Show();return view.Window;
     }
     private void ApplyTheme(){WindowAppearance.Refresh(Window);ThemeManager.StyleTray(Tray.ContextMenuStrip!);Render();}
-    public void Dispose() {exiting=true;ThemeManager.Changed-=ApplyTheme;noticeTimer.Stop();timer.Stop();Tray.Visible=false;Tray.ContextMenuStrip?.Dispose();Tray.Dispose();icon.Dispose();Installer.Dispose();}
+    public void Dispose() {exiting=true;ThemeManager.Changed-=ApplyTheme;noticeTimer.Stop();timer.Stop();Tray.Visible=false;Tray.ContextMenuStrip?.Dispose();Tray.Dispose();icon.Dispose();Updates.Dispose();Installer.Dispose();}
 }
 
 
