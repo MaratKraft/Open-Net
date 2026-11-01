@@ -27,8 +27,10 @@ internal sealed class UpdateDiscovery : IDisposable
  bool Valid(OpenNetRelease? a)
  {
   if(a==null)return true;
-  string json=JsonSerializer.Serialize(new[]{new{draft=false,prerelease=a.Version.Contains('-'),tag_name=a.Version,html_url=a.ReleaseUrl,assets=new[]{new{name=a.AssetName,browser_download_url=a.AssetUrl,size=a.Size}}}});
-  return OpenNetReleaseCheck.Select(json,BuildInfo.Version,true,files.Portable)!=null;
+  if(string.IsNullOrWhiteSpace(a.Version)||string.IsNullOrWhiteSpace(a.ReleaseUrl)||string.IsNullOrWhiteSpace(a.AssetName)||string.IsNullOrWhiteSpace(a.AssetUrl))return false;
+  string json=JsonSerializer.Serialize(new[]{new{draft=false,prerelease=a.Version.Split('+')[0].Contains('-'),tag_name=a.Version,html_url=a.ReleaseUrl,assets=new[]{new{name=a.AssetName,browser_download_url=a.AssetUrl,size=a.Size}}}});
+  try{return OpenNetReleaseCheck.Select(json,BuildInfo.Version,prerelease(),files.Portable)!=null;}
+  catch(InvalidDataException){return false;} // A damaged optional cache must not prevent startup.
  }
  internal async Task<bool> Check(bool manual=false)
  {

@@ -1,69 +1,30 @@
-# Build, test and package
+# Build, test and package Open Net 0.4.0
 
-Current personal-test candidate: **0.4.0-pre.3**. Production output is `publish/Open Net 0.4.0-pre.3/Open Net.exe`; the isolated test host uses `publish/Open Net 0.4.0-pre.3 Test/Open Net.exe`. See [pre.3 validation](PRE3_VALIDATION_RU.md) and [release notes](RELEASE_NOTES_v0.4.0-pre.3.md) for current results and unverified laptop scenarios. Historical counts and paths below describe earlier development stages.
-
-Use Windows x64, PowerShell 7 and .NET SDK **10.0.100** (`global.json` permits SDK patch roll-forward). Package sources are restricted by `NuGet.Config` to official NuGet. The runtime is pinned to **10.0.12**. Internet access or a populated local package cache is required.
+Use Windows x64, PowerShell 7 and .NET SDK 10.0.100 (global.json permits patch roll-forward). Runtime 10.0.12 is pinned; NuGet.Config uses official NuGet. Builds are Release, self-contained win-x64, compressed single-file, native extraction, no trimming or debug symbols. No network tool is bundled or started by a build.
 
 ```powershell
 ./scripts/publish.ps1
-# Optional explicit SDK and pre-populated cache:
-./scripts/publish.ps1 -SdkPath 'C:/SDK/dotnet.exe' -NugetCache 'C:/NuGetCache'
-```
-
-Current development output: `publish/Open Net 0.4.0-alpha.1/Open Net.exe`; safe host: `publish/Open Net 0.4.0-alpha.1 Test/Open Net.exe`. Production compilation excludes the test harness and safe stub classes. Options: Release, win-x64, self-contained, single-file compression, native extraction, no trimming, no debug symbols. No network component is bundled or launched by the build. Published Stable v0.3.3 remains unchanged. See [DNS Manager alpha](DNS_MANAGER_ALPHA.md) for capability restrictions and manual-test gates.
-
-## Repository layout
-
-- `src/NetworkHub.Desktop`: WPF window, tray, module actions, storage selection and Windows integration.
-- `src/NetworkHub.Reused`: adapters, process ownership checks, installation, validation and localization. This is current shared application code; namespaces and files are retained from the verified source release.
-- `assets`: original application icon/logo, Fluent vector, license texts and reviewed screenshots.
-- `scripts`: build, packaging, public-file checks and the existing safe test entry point.
-- `docs`: Russian README, release notes and validation scope.
-
-Some shared types retain names/comments from earlier development stages. They are kept to preserve the verified source; old application directories and prototype projects are not included.
-
-## Safe development tests
-
-The existing harness is an interactive Windows test executable, not a `dotnet test` project. It opens its own windows and launches only its own stub processes. Obtain the official Zapret 1.10.3 reference files `general.bat`, `general (ALT13).bat` and `service.bat` separately. The tests read these fixtures, never execute them. Do not commit private fixtures or outputs.
-
-```powershell
 ./scripts/publish.ps1 -TestBuild
+./scripts/test-headless.ps1
 ./scripts/test.ps1 -FixtureDirectory 'C:/Fixtures/zapret-discord-youtube-1.10.3'
+./scripts/publish.ps1 -SafePreview
+./scripts/verify-safe-preview.ps1 -ExePath 'publish/Open Net Safe Preview/Open Net.exe'
+./scripts/verify-dns-recovery.ps1 -ExePath 'publish/Open Net 0.4.0/Open Net.exe'
+./scripts/package.ps1 -OutputDirectory 'C:/Candidates/Open-Net-0.4.0'
 ```
 
-`-InstallFiles` additionally downloads upstream release binaries for installation validation; it does not launch them. It is optional and is not enabled in CI. CI runs the separate twenty-one-check `test-headless.ps1` suite without fixture downloads or screenshots. Existing historical installation test results are summarized in [VALIDATION.md](VALIDATION.md). Do not mistake skipped network-installation checks for new live network testing.
+Production: publish/Open Net 0.4.0/Open Net.exe. Test host: publish/Open Net 0.4.0 Test/Open Net.exe. Safe Preview is separate and is not a public Stable asset. Production excludes Tests*.cs, SelfTests, SafeStub, StubSupervisor, the unused DriverControl and the old DnsManagerView. The current DNS transaction/restore engine remains shared; excluding the former window does not remove protected recovery.
 
-## Packaging
+The harness is not a dotnet test project. Headless tests cover pure contracts and isolated integration; WPF tests require an unlocked interactive Windows desktop. Fixtures are official BAT/archive files used as data and never executed. OPENNET_ZAPRET_FIXTURE and OPENNET_ZAPRET_ARCHIVES enable extra compatible-format checks. OPENNET_033_FIXTURE can point to an isolated copy of v0.3.3 data to exercise module manifests and settings conversion. Never commit these fixtures, runtime data or results. Optional -InstallFiles downloads official files for installation checks; it never starts them.
 
-```powershell
-./scripts/publish.ps1
-./scripts/package.ps1
-```
+Tests start only owned stub processes. DNS uses fake readers/writers. The startup fixture uses an owned temporary HKCU key, not the real autostart entry. Native materials and focus tests must run in a normal host desktop session; restricted process/registry access is not equivalent to a product defect or a passing test. Physical Windows 10, real network outcomes and a real logon are separate evidence.
 
-The packaging script copies the production EXE, constructs a clean Portable ZIP with `portable.flag`, empty data/module directories, notices and Open Net's license, and writes SHA-256 sums under `artifacts/`. It refuses to overwrite an existing artifact set. No runtime profiles or developer reports are copied. Publish the output as release assets, not source files. The standalone EXE keeps the bundled third-party notices; attach `LICENSE.txt` alongside it for Open Net's MIT terms.
+The production --startup-probe path is a diagnostic that opens/closes the shell without starting tools when used without --autostart. Use an isolated extracted Portable or a separate Windows user profile, never the owner's live data directory for automated audit. --dns-recovery --verify-only opens the independent recovery window without restoring DNS.
 
-## CI and reproducibility
+Packaging refuses to overwrite an existing artifact set. It checks stable metadata and creates Standard EXE and Portable ZIP plus bilingual README/release notes, license, notices and upgrade/recovery instructions. SHA256SUMS covers all packaged files except itself. Portable includes empty Data/Modules and the marker; no developer profiles, private logs or downloaded utilities are copied. Do not copy Safe Preview or test output into public Stable assets.
 
-The GitHub Actions workflow checks tracked public files, builds the production application and a separate test executable, runs twenty-one safe headless checks, and uploads a Windows artifact. It has read-only repository permissions. It does not launch the production application, network utilities, WinDivert or system-changing tests. Interactive tests are left to a Windows desktop session; no formatter configuration existed to enforce in CI. The public-file guard checks selected secret patterns and forbidden outputs; it is not a full credential scanner.
+GitHub Windows CI checks public files, builds/runs the safe harness, verifies Preview and the read-only recovery window, and packages artifacts. It does not publish a Release or tag. Hosted runs normally omit private optional archive/legacy fixtures, so counts can differ from local runs. CI uses read-only repository permissions.
 
-The prepared source rebuilt locally with SDK 10.0.100 and runtime 10.0.12 to an EXE **byte-identical to the supplied release candidate**. This is a measured result for that environment, not a universal reproducible-build guarantee. SDK patches, package contents or build paths may change results. CI artifacts must be independently compared before replacing the reviewed release EXE.
+Build from a clean committed tree. The EXE's ProductVersion contains 0.4.0 plus the source revision; compare it to the intended commit and record the full SHA in the handoff. A merge commit or different SDK/line endings may change binaries and checksums. Never silently substitute a hosted binary for the locally tested artifact. Checksums prove integrity only, not independent publisher identity; no Authenticode signing identity is configured.
 
-The first restricted restore used an existing official-package cache and could not reach vulnerability data (`NU1900`). The final online restore with advisory auditing enabled completed without warnings after network access was restored. This does not certify every bundled runtime/native dependency. Check the GitHub Actions run associated with the release commit for hosted build results.
-
-The [first hosted build](https://github.com/MaratKraft/Open-Net/actions/runs/38216211000) passed. Its EXE was 75,574,492 bytes, SHA-256 `47a3b0abbcbee7149b97cad636bd070e51de7ec936ca987ba4572d9514ec268e`, versus the reviewed release EXE's 75,574,364 bytes. Decoding both bundles showed identical runtime entries and identical compiled method bodies in both application assemblies (481 desktop and 639 shared methods). Four desktop text resources differed only in line endings (XAML and three notice files), and CI included the Git commit in informational-version metadata. These packaging/metadata differences affect checksums. Later documentation commits also change that commit metadata. Release assets use the locally tested EXE, not the CI artifact.
-
-## Current development checks
-
-The direct-launch user preview is a separate build: `./scripts/publish.ps1 -SafePreview` writes `publish/Open Net Safe Preview`. Verify it with `./scripts/verify-safe-preview.ps1 -ExePath 'publish/Open Net Safe Preview/Open Net.exe'`. This check launches without `--test-mode`, verifies isolated data and zero tool launches, rejects privileged/self-test entry points, and compares observed system DNS before/after using read-only enumeration. CI also builds and checks this preview. The developer harness remains separate: its legacy startup-registration fixture uses only an owned temporary HKCU key; that fixture cannot be run in the user preview.
-
-The compact DNS update has 59 always-run headless checks (plus the conditional administrator ACL fixture) and 83 interactive checks. New checks cover profile ownership across restart, inspection failures, actual Configure/Apply/Restore events, minimized/hidden reopening, and simulated Xbox application. Rendered dark/light images and scale checks do not substitute for physical DPI or real DNS/UAC validation.
-
-After building with -TestBuild, run ./scripts/test-headless.ps1 for palette/layout/configuration and isolated DNS transaction checks. The alpha currently has 59 always-run checks; an additional protected-file ACL fixture runs only under an elevated administrator token, entirely in the owned temporary data directory. A skipped ACL fixture is not evidence of production UAC validation. The full interactive harness still requires the private official BAT fixtures and a Windows desktop; it tests native materials, only owned stub processes, and fake DNS apply/restore. Its graphical checks must not be represented as real network tests. Safe DNS mode never constructs the production writer or probe runner, and the safe executable rejects the DNS elevated entry point.
-
-R5 adds thirteen headless session/profile/cache checks and three interactive scenarios for automatic assignment, profile switches, custom-profile persistence and simulated UAC/write/verification/restore/cache failures. `--dns-recovery --verify-only` opens the independent emergency window and produces a local read-only probe without applying DNS. Safe Preview rejects that entry point. A real Windows DNS trial is still separately gated; fake tests and inspection cannot certify real setters or physical Windows 10.
-
-R6 adds eight headless checks and two interactive scenarios for explicit same-value repeat, immutable originals, Google/foreign-adapter handling, error evidence, UAC denial, independent diagnostic modes and restart recovery. Repeat always excludes automatic assignment and cache clearing. These checks use mocks; no real DNS setter, flush or active probes run in development tests.
-
-## v0.3.3 startup checks
-
-See [automatic startup](AUTOSTART_033_RU.md). New headless checks use fake Run/task stores and fake module launch delegates; they do not register a real task or launch network tools. Interactive checks use owned stub processes and the existing isolated HKCU fixture. Task XML can be checked with TASK_VALIDATE_ONLY; it validates the schema without persisting or running a task. Live UAC, real registration/removal and logon validation require separate owner approval.
+The final audit and actual check results are recorded in STABLE_040_AUDIT_RU.md and the local candidate handoff. Historical alpha/pre-release documents remain development history and are not current user instructions. main, published v0.3.3, tags and release assets must remain unchanged until separately approved.

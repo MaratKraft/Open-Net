@@ -1,0 +1,47 @@
+# Open Net 0.4.0 — final audit / итоговый аудит
+
+Date: 2026-11-02. Scope: Draft PR #5 against main (v0.3.3 development baseline), plus the Stable audit changes. This is preparation for a separately approved publication, not permission to merge or publish.
+
+## Acceptance evidence
+
+The owner explicitly reports successful pre.3 testing on the main PC and several previously affected laptops: ALT13, YouTube, TG start/stop, external instances, main/individual switches and the approved interface. These are owner-reported real tests, not automated developer results. No new real process/network/driver trial was performed during this audit.
+
+## Findings fixed after pre.3
+
+1. A malformed optional update cache could abort shell construction. Three new negative fixtures reproduced failure with an invalid asset, missing version and wrong channel. Validation now rejects damaged/unsupported cache entries, checks the selected channel and lets startup continue. Separate tests cover weekly reuse, manual retry and API failure preserving the last successful result.
+2. DNS and startup registration called UAC Process.Start synchronously on the WPF thread. These calls now run on a worker. DNS helper completion has a 60-second budget after Windows approval. A timeout reports uncertainty/recovery rather than killing the helper or claiming rollback. The protected per-adapter mutex/transaction remains authoritative. An owned helper-stub test proves timeout returns without terminating an in-progress helper. Startup registration still waits asynchronously for its transaction to finish; it does not discard a still-running registration.
+3. The native application manifest still said 0.3.2.0. Manifest, product/informational version, UI version, startup log, scripts and CI output paths now target 0.4.0. AppUserModelID OpenNet.Desktop, storage identity and per-data SingleInstance scheme remain compatible.
+4. Removed unused stage-2 simulation/broker types (no call sites). The old driver-stop helper, referenced only by historical tests, is excluded from production compilation. Production already excludes the old DnsManagerView, tests, SafeStub and StubSupervisor. The DNS transaction/backup/recovery engine is required by the current simple view and is retained; it is not a second UI implementation.
+5. Removed obsolete alpha/experiment-facing messages from current resources and updated README, packaging, notices, upgrade and build instructions. No layout, icon, gear C, spacing, material, typography or animation redesign was performed.
+
+6. Binary inspection found the Russian HB AI license was classified as a satellite-culture resource and omitted by the About notice enumerator. Notices now explicitly use WithCulture=false; the ten original texts must be present in the primary assembly and discoverable through About. A new resource test and final bundle inspection cover this packaging defect.
+
+## Review map
+
+- Zapret: installation manifest/digests, compatible strategy parsing, ordered direct winws launch, native quoted arguments/working directory, early exit and receipt identity. ALT13 is preferred; unsupported/missing files are refused. No shell interpreter substitutes an unreviewed BAT. A running process remains distinct from website availability.
+- TG: official release/digest validation, one-root direct-child tree, reinspection and held PID/start/path handles before stop. Ambiguity, services and unexpected descendants fail closed. Surviving tools after shell restart are intentionally treated as external until confirmed. External TG control requires GitHub and a matching official digest. No name-only bulk kill.
+- WinDivert: loaded driver is not evidence of a running Zapret or sufficient reason to block start. Normal stop leaves the shared driver loaded. No production automatic driver-stop route remains.
+- DNS: one eligible physical adapter, unchanged IPv6, native API readback, adapter-specific DoH distinguished from the system catalogue, protected machine-local original and transaction journal, explicit off to automatic IPv4, independent offline restore. Unsupported policy/encryption is blocked. Cache flush is separate; hosts inspection is read-only. Selecting/using an already active DNS profile can apply it as documented; the bottom Save button alone does not toggle DNS.
+- Storage: official LocalAppData/Open Net and Portable Data/Modules. Atomic settings replacement and byte-verified legacy backup. No HB Experiment detection, migration, fallback or extra public data directory. Historical internal Hb property/file/profile IDs are retained for existing configurations; HB AI license attribution is required and retained.
+- Startup/tray: preferences, Windows registration ownership and observed launch are separate; task XML is semantically checked, changed entries require explicit repair. Same-path EXE replacement retains the target; renamed/moved EXE requires repair. Exit leaves tools running. Named pipe is current-user-only and data-specific; separate data roots cannot silently own unknown processes. Registration uses standard Windows UAC, not a resident privileged service.
+- Updates: strict SemVer, Stable/default and optional Pre-release, exact official GitHub URLs and package names, bounded HTTP response/time, cached successful checks around seven days, manual retry, noninteractive notices and Open release. No executable auto-installer/updater is advertised. Module cleanup is not included. SHA-256 from a release is integrity, not independent publisher authentication.
+- UI/resources: central palettes, filled general gear C, fixed hit areas, single-instance activation, owned-window restoration, themes/material fallback, dynamic module height. Timers, streams, native handles, windows/event unsubscriptions and HTTP clients were reviewed. Successful tests do not establish leak freedom under every long-running workload; high WPF memory remains a known limit.
+- Packaging/history: allowlisted package contents, no live settings/proxy data/tool binaries; preserved third-party notices. main and v0.3.3 are ancestors, with no history rewrite. PR #5 remains Draft. Full changed-file inventory and final Git status/CI/SHA receipts are in the local handoff; generated/private files are not committed.
+
+## Automated and Windows checks
+
+Local safe headless run: 128 passed with optional official archive fixtures, isolated legacy data/modules and the protected-file fixture available in that host context. Full WPF run: 103 passed on the available Windows 11 desktop, including activation, Acrylic → Mica, language, tray, switches, profile selection, themes and simulated DNS failures. The repository harness combines unit/integration/UI scenarios; it is not a separate dotnet test project.
+
+The first cache regression pass deliberately failed three new fixtures; the fixed pass is green. The first timeout test exposed a test synchronization-context deadlock, corrected with ConfigureAwait(false) inside the wait helper. The initial copied legacy fixture contained manifests without module payloads; the completed isolated fixture uses corresponding verified payloads. These failed/repaired fixture runs are not real network trials.
+
+Final production/Safe Preview builds, read-only recovery, extracted/moved Portable paths containing spaces and Cyrillic, package content/metadata/embedded-type scans, SHA/source correspondence and hosted CI are recorded with exact paths and commit in the local release handoff. This document does not claim a final binary has passed a check until that receipt exists.
+
+## Known limits and publication decision
+
+- No Authenticode publisher signature or independent signing infrastructure. No automatic self-installation or old-module cleanup.
+- No developer-owned Windows 10 machine, physical DPI/multi-monitor matrix, new real logon or fresh real DNS trial in this audit. Native DNS requires Windows 10 build 19041+; DoH uses Windows 11 support. Microsoft's .NET 10 support is edition/lifecycle dependent: https://learn.microsoft.com/en-us/dotnet/core/install/windows and https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md. DNS API contract: https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-dns_interface_settings3.
+- Protected DNS recovery is machine-local. Off returns automatic IPv4 rather than previous manual addresses. Unknown policy/encryption/service trees are intentionally refused.
+- The pre.3 memory investigation removed a resident elevated output-pump process, but did not meet 100–120 MB and did not prove absence of long-running leaks. Stable does not promise that target.
+- THIRD_PARTY_NOTICES.md retains an unresolved owner-supplied Zapret derivative-symbol permission question. Technical audit does not resolve brand permission or grant rights; review it in the release handoff without changing the approved design here.
+
+No newly identified unresolved technical failure is being concealed as a passing test. Subject to the final receipts and release-owner review of these limits, the code is ready for the controlled Stable publication process. No main merge, tag, Release, published-asset replacement or publishing automation is performed here.

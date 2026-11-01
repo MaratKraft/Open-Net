@@ -81,7 +81,7 @@ internal sealed class WindowsDnsSettings : IDnsSettingsReader,IDnsSettingsWriter
                     v4=v4 with{Encryption=CopyProperties(settings.ServerCount,settings.ServerProperties,servers)};
                     if(settings.ProfileServerCount!=0){supported=false;limitation="Profile-specific DoH overrides cannot be restored by this backend.";}
                 }
-                if(Value(settings.ProfileNameServer).Length>0){supported=false;limitation="Profile-specific DNS overrides are unsupported in this alpha.";}
+                if(Value(settings.ProfileNameServer).Length>0){supported=false;limitation="Profile-specific DNS overrides are unsupported.";}
                 native=string.Join('|',Value(settings.Domain),Value(settings.SearchList),settings.RegistrationEnabled,settings.RegisterAdapterName,settings.EnableLlmnr,settings.QueryAdapterName,Value(settings.ProfileNameServer),settings.DisableUnconstrainedQueries,Value(settings.SupplementalSearchList));
                 if(v4.Mode==DnsMode.Manual&&!Parse(Value(settings.NameServer),DnsFamily.IPv4).SequenceEqual(v4.Servers,StringComparer.OrdinalIgnoreCase)){supported=false;limitation="The original DNS configuration could not be determined safely.";}
             }finally{FreeInterfaceDnsSettings(ref settings);}
@@ -95,10 +95,10 @@ internal sealed class WindowsDnsSettings : IDnsSettingsReader,IDnsSettingsWriter
             v6=v6 with{Encryption=scope.IPv6};
             if(v6.Encryption.Any(p=>(p.Flags&3)!=0)){supported=false;limitation="Active IPv6 DoH cannot be independently verified by this Windows API. IPv6 settings are preserved; application is blocked.";}
         }catch(DnsException ex){supported=false;limitation=ex.Message;}
-        if(policy){supported=false;limitation="Managed DNS policies are present. DNS changes are blocked in this alpha.";}
+        if(policy){supported=false;limitation="Managed DNS policies are present. DNS changes are blocked.";}
         if(v4.Mode==DnsMode.Unknown||v6.Mode==DnsMode.Unknown){supported=false;limitation="The original IPv4 or IPv6 DNS assignment mode could not be determined safely.";}
-        if(IsVirtual(n)){supported=false;limitation="VPN and virtual adapters are read-only in this alpha.";}
-        if(!n.Supports(NetworkInterfaceComponent.IPv4)){supported=false;limitation="An IPv4-capable physical adapter is required in this alpha.";}
+        if(IsVirtual(n)){supported=false;limitation="VPN and virtual adapters are read-only.";}
+        if(!n.Supports(NetworkInterfaceComponent.IPv4)){supported=false;limitation="An IPv4-capable physical adapter is required.";}
         string hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(native+dependencies)));
         if(n.OperationalStatus!=OperationalStatus.Up){supported=false;limitation="The selected adapter is disconnected. Reconnect it before changing DNS.";}
         return new(id,n.Name,Machine(),v4,v6,hash,supported,limitation){SupportsDoh=Environment.OSVersion.Version.Build>=22000};

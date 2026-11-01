@@ -1,104 +1,29 @@
-<p align="center"><img src="assets/OpenNet.png" width="88" alt="Open Net logo"></p>
-<h1 align="center">Open Net</h1>
-<p align="center">A minimal Windows manager for Zapret, TG WS Proxy and DNS settings.</p>
-<p align="center">
-<img alt="Windows 10 / 11 x64" src="https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-0078D4">
-<img alt="0.4.0-pre.2 development" src="https://img.shields.io/badge/version-0.4.0--pre.2%20development-DAB46C">
-<a href="LICENSE"><img alt="MIT — Open Net code" src="https://img.shields.io/badge/license-MIT-369B59"></a>
-</p>
+**Release preparation:** v0.4.0 is prepared in PR #5 and is not published yet. The current public download remains [v0.3.3](https://github.com/MaratKraft/Open-Net/releases/tag/v0.3.3).
 
-**English** | [Русский](docs/README_RU.md)
+[Русский](docs/README_RU.md) | [Release notes](docs/RELEASE_NOTES_v0.4.0_EN.md) | [Upgrade](docs/UPGRADE_0.3.3.md) | [Build](docs/BUILD.md)
 
-This branch prepares **v0.4.0-pre.2**, a pre-release with DNS Manager. **v0.3.3 remains the stable download** until a release is published. Live DNS and UAC behavior requires validation in a controlled environment.
+# Open Net 0.4.0
 
-Install supported network tools, choose their settings and manage them from one small window. Open Net is an independent project; the tools retain their own behavior and licenses.
+Open Net manages Zapret, TG WS Proxy and IPv4 DNS in one compact Windows application. Tools are installed separately from their official GitHub releases. Open Net does not include a VPN and does not guarantee access to individual websites.
 
-## Download
+Standard: run Open-Net-0.4.0-Windows-x64.exe. It is the application, not an installer. Settings and installed modules use %LOCALAPPDATA%\Open Net.
 
-**[Standard — recommended](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/Open-Net-0.3.3-Windows-x64.exe)**<br>
-Download the EXE and run it. Data stays in `%LOCALAPPDATA%\Open Net`.
+Portable: extract the entire ZIP to a writable folder and run Open Net.exe. Keep portable.flag, Data and Modules together. Do not run the EXE inside the ZIP. Native runtime libraries may extract to Windows temporary storage.
 
-**[Portable ZIP](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/Open-Net-0.3.3-Windows-x64-Portable.zip)**<br>
-Extract into a separate folder and run `Open Net.exe`. Data stays beside the application.
+Use the download icon to install a missing module. Zapret defaults to ALT13 when supported. Configure tools with their gear, then use an individual switch or the assigned main button. A running process does not prove website access. External instances require confirmation and verified identity; ambiguous or service-managed instances are left unchanged. The shared WinDivert driver is not automatically unloaded.
 
-[SHA-256](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/SHA256SUMS.txt) · Zapret and TG WS Proxy are not included; install them through Open Net. [Releases](https://github.com/MaratKraft/Open-Net/releases) · [Latest stable release](https://github.com/MaratKraft/Open-Net/releases/latest).
+DNS Manager changes IPv4 DNS on one connected physical adapter. Off returns automatic IPv4 DNS, not the previous manual addresses. Protected originals are retained for the separate offline recovery action. IPv6 is preserved. Unsupported encryption or policies block changes. Clear DNS cache is a separate action. Cookies, browser profiles and VPN are not modified.
 
-## Screenshots
+Closing the window normally leaves Open Net in the tray. Tray > Exit closes the shell and leaves tools running. Configure Windows startup explicitly in Settings; tool startup uses a visible Task Scheduler entry with normal Windows approval. If the EXE is moved or renamed, use Settings > Repair after reviewing the new location.
 
-[![Open Net main window and settings](assets/screenshots/v0.3.3/overview.png)](assets/screenshots/v0.3.3/overview.png)
+Settings > About and licenses offers a manual update check and optional pre-release channel. Automatic discovery runs about weekly after successful checks. Settings shows Open release only for a compatible newer release; it opens the official GitHub page. Automatic download/installation is not implemented. Module updates use their existing settings.
 
-Real Open Net 0.3.3 windows with **Solid** material, without enlarging the captures. Components are installed separately. Click for the original size. [Settings](assets/screenshots/v0.3.3/settings.png).
+Windows x64. .NET 10.0.12 is included; no separate .NET or Python installation is needed. Native DNS changes require Windows 10 build 19041 or newer; per-adapter DoH requires supported Windows 11 APIs. Windows 10 support also depends on Microsoft's .NET/OS lifecycle; not every edition is supported by Microsoft. Physical Windows 10 validation by the developer is unavailable. Mica falls back to a supported material.
 
-## Features
+The EXE is not Authenticode signed. Do not disable Windows security. SHA-256 detects file differences; a checksum obtained from the same release is not independent publisher authentication. Obtain files only from https://github.com/MaratKraft/Open-Net/releases.
 
-- Compact module rows with Download/Refresh, Settings and Select controls.
-- **Light**, **Dark** and **System** themes, applied without restarting.
-- Mica, Acrylic and Solid materials, with a solid fallback where needed.
-- Official component installation and compatible updates independently of the shell.
-- Verified release import, component rollback and separate module settings.
-- Standard/Portable storage, system tray and separately approved Windows startup for selected tools.
-- English and Russian interface.
+Upgrade from 0.3.3: exit the old shell through the tray, back up the data folder, replace only the EXE in the same location and retain its filename where possible. Do not delete Modules or Data. A legacy settings backup is created before conversion. Check startup registration if the path/name changed. Existing tools are not reinstalled merely because the shell was updated. See UPGRADE_0.3.3.md for rollback.
 
-DNS Manager is included in this development branch; the v0.3.3 download does not include it. VPN is not included. Future incompatible upstream executable or strategy formats can require an adapter update; version numbers alone do not require a new Open Net release.
+Known limits: machine-local DNS recovery, online provenance required for external TG control, conservative refusal for unknown trees/services, and comparatively high WPF shell memory on some systems. Auto-installation of Open Net updates and old-module cleanup are not included.
 
-## Getting Started
-
-1. Run Standard, or extract the **entire** Portable folder before running its EXE. Do not start the EXE inside the ZIP. Keep `portable.flag`.
-2. Click the **download arrow** beside a missing tool (tooltip: **Install**). Review the official release and confirm file installation. Installation does not start the tool.
-3. Use the **gear** for module settings. Select a supported Zapret strategy if needed; ALT13 is preferred when available. TG WS Proxy keeps its own interface and tray.
-4. Select tools with the **checkmark** and choose **Start selected**. Zapret requests UAC approval. Use Open Net to stop verified managed processes when finished.
-
-The **refresh arrow** checks for component updates. Compatible official updates can be installed without updating Open Net itself. External processes are left unchanged. Before forced TG termination, unsaved-settings protection can require confirmation.
-
-Closing the main window hides it in the tray by default. Choose **Exit** in the tray menu to close Open Net; this does not automatically stop running tools.
-
-## Windows Startup
-
-- **Start with Windows** starts Open Net after you sign in.
-- **Automatically start selected tools** separately permits the installed, selected Zapret/TG tools to start at logon.
-- **Start in the tray at Windows logon** keeps the main window closed; manual launch still opens it. Windows controls notification icon placement.
-
-Fresh installations preselect the recommended startup options, but activation requires your explicit approval and UAC. Existing preferences are preserved; upgrading does not silently enable automatic tools. Routine start/stop prompts are off by default for new profiles.
-
-Save your choices in **Settings**. Automatic tools use one visible per-user Task Scheduler entry with administrator privileges; Open Net and its tools then run elevated. No password is stored. Keep the application and modules in a trusted folder. Shell-only startup uses the existing Windows Run entry. [Setup and Portable relocation](docs/AUTOSTART_033_RU.md).
-
-## Requirements
-
-Windows 10/11 **x64**, writable data storage and access to official GitHub releases for first-time component installation. Administrator approval is required for Zapret operations involving WinDivert. The shell includes .NET 10.0.12; a separate .NET or Python installation is unnecessary.
-
-The owner confirmed R8 reboot/logon startup, saved settings, selected tools, tray and UI on their PC. Physical Windows 10 and multi-monitor/DPI configurations remain unverified. See [validation](docs/VALIDATION_v0.3.3_RELEASE.md).
-
-## Storage and Troubleshooting
-
-**Standard:** the EXE is the application, not an installer. Settings, logs and modules use `%LOCALAPPDATA%\Open Net`; no adjacent `Data` or `Modules` is needed.
-
-**Portable:** settings and modules stay in its own `Data` and `Modules` folders. Stop tools and exit before moving the whole folder. Keep the marker; repair a moved Windows startup entry explicitly in settings. Native .NET libraries can still extract into Windows temporary storage.
-
-**GitHub unavailable:** retry when connectivity returns. You may obtain files from [official Zapret releases](https://github.com/Flowseal/zapret-discord-youtube/releases) or [official TG WS Proxy releases](https://github.com/Flowseal/tg-ws-proxy/releases), then choose **Import release** in module settings. Import requires official metadata online or a previously verified saved catalog and a matching official SHA-256. A fresh, completely offline installation cannot trust an unknown file from its filename alone. Open Net does not guarantee access to GitHub or use unofficial mirrors.
-
-**Unsigned application:** the EXE is not Authenticode-signed, so SmartScreen may warn about an unknown publisher. Check the repository, version tag and checksums before running it. Do not disable Windows protections. A matching hash establishes integrity, not a guarantee of safety.
-
-Compare with the release's [SHA256SUMS.txt](https://github.com/MaratKraft/Open-Net/releases/download/v0.3.3/SHA256SUMS.txt):
-
-```powershell
-Get-FileHash .\Open-Net-0.3.3-Windows-x64.exe -Algorithm SHA256
-Get-FileHash .\Open-Net-0.3.3-Windows-x64-Portable.zip -Algorithm SHA256
-```
-
-Use [Issues](https://github.com/MaratKraft/Open-Net/issues) for bugs; include reproduction steps and remove secrets from logs. Follow [SECURITY.md](SECURITY.md) for sensitive reports.
-
-## Build from Source
-
-On Windows x64 with PowerShell 7 and **.NET SDK 10.0.100**, run from the repository root:
-
-```powershell
-./scripts/publish.ps1
-```
-
-Output: `publish/Open Net 0.3.3/Open Net.exe`. The Release build is self-contained, compressed single-file, win-x64, runtime 10.0.12, without trimming or debug symbols. [BUILD.md](docs/BUILD.md) covers caches, safe tests, packaging and checksum differences between environments.
-
-## Credits and License
-
-Thanks to [Flowseal / Zapret](https://github.com/Flowseal/zapret-discord-youtube), [Flowseal / TG WS Proxy](https://github.com/Flowseal/tg-ws-proxy), [bol-van](https://github.com/bol-van/zapret), [WinDivert](https://github.com/basil00/WinDivert), [Cygwin](https://cygwin.com/), the [.NET](https://github.com/dotnet/runtime), [WPF](https://github.com/dotnet/wpf), [Windows Forms](https://github.com/dotnet/winforms) and [Fluent](https://github.com/microsoft/fluentui-system-icons) contributors.
-
-Original Open Net code and documentation: [MIT](LICENSE), copyright 2026 MaratKraft. Third-party dependencies and brand symbols retain their separate terms; project artwork is not given a separate trademark license. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and **Settings → About and licenses**. Download the release's `LICENSE.txt` alongside Standard; Portable already includes it. Open Net is independent and does not imply upstream endorsement.
+Original Open Net code: MIT, LICENSE.txt. Third-party terms remain separate; see THIRD_PARTY_NOTICES.md, Notices/ and Settings > About and licenses. Repository: https://github.com/MaratKraft/Open-Net. Report bugs without private logs or credentials.

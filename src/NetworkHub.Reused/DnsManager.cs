@@ -81,7 +81,7 @@ public static class DnsProfiles
         foreach(string value in values){
             if(!IPAddress.TryParse(value,out var ip)||ip.AddressFamily!=(family==DnsFamily.IPv4?AddressFamily.InterNetwork:AddressFamily.InterNetworkV6))throw new DnsException("Enter valid IP addresses of the selected family, without ports or URLs.");
             byte[] bytes=ip.GetAddressBytes();
-            if(IPAddress.IsLoopback(ip)||ip.Equals(IPAddress.Any)||ip.Equals(IPAddress.IPv6Any)||ip.IsIPv6Multicast||ip.IsIPv6LinkLocal||ip.ScopeIdSafe()!=0||(family==DnsFamily.IPv4&&(bytes[0]>=224||bytes[0]==0)))throw new DnsException("Loopback, unspecified, multicast and scoped DNS addresses are unsupported in this alpha.");
+            if(IPAddress.IsLoopback(ip)||ip.Equals(IPAddress.Any)||ip.Equals(IPAddress.IPv6Any)||ip.IsIPv6Multicast||ip.IsIPv6LinkLocal||ip.ScopeIdSafe()!=0||(family==DnsFamily.IPv4&&(bytes[0]>=224||bytes[0]==0)))throw new DnsException("Loopback, unspecified, multicast and scoped DNS addresses are unsupported.");
             string normalized=ip.ToString();if(result.Contains(normalized,StringComparer.OrdinalIgnoreCase))throw new DnsException("Duplicate DNS addresses are not allowed.");result.Add(normalized);
         }
         return result.ToArray();
@@ -236,7 +236,7 @@ public sealed class DnsTransaction
             if(desired.Encryption.Any(p=>(p.Flags&3)!=0)&&!before.SupportsDoh)throw new DnsException("This Windows version cannot apply native DoH. Plain IPv4 DNS remains available.");
             if(!families.Contains(family)){if(!before.Family(family).SameConfiguration(desired))throw new DnsException("The plan changes an unselected address family.");continue;}
             if(automatic){if(family!=DnsFamily.IPv4||desired.Mode!=DnsMode.Automatic||desired.Servers.Length!=0||desired.Encryption.Length!=0)throw new DnsException("Automatic DNS changes only IPv4 DNS assignment.");continue;}
-            if(desired.Mode!=DnsMode.Manual||!DnsProfiles.Validate(string.Join(' ',desired.Servers),family).SequenceEqual(desired.Servers))throw new DnsException("Only validated manual DNS profiles can be applied in this alpha.");
+            if(desired.Mode!=DnsMode.Manual||!DnsProfiles.Validate(string.Join(' ',desired.Servers),family).SequenceEqual(desired.Servers))throw new DnsException("Only validated manual DNS profiles can be applied.");
             var active=before.Family(family).Encryption.Where(p=>(p.Flags&3)!=0).ToArray();
             if(!encryptionChangeApproved&&active.Length>0&&(desired.Encryption.Count(p=>(p.Flags&3)!=0)!=desired.Servers.Length||active.Any(p=>(p.Flags&4)==0)&&desired.Encryption.Any(p=>(p.Flags&4)!=0)))throw new DnsException("The DNS plan would weaken encryption. Application is blocked.");
             if(!encryptionChangeApproved&&active.Length>0&&(active.Length!=before.Family(family).Servers.Length||active.Select(p=>p.Flags&12).Distinct().Count()!=1||desired.Encryption.Any(p=>(p.Flags&12)!=(active[0].Flags&12))))throw new DnsException("This profile cannot preserve the adapter's DNS encryption policy.");

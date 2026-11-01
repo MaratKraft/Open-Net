@@ -93,10 +93,17 @@ internal static class DnsElevated
         string directory=Paths.Owned(files.Data,"Dns/Requests/"+r.Token);Directory.CreateDirectory(directory);string request=Path.Combine(directory,"request.json");Paths.WriteNew(request,json);
         var plan=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=true,Verb="runas",WindowStyle=ProcessWindowStyle.Hidden};
         plan.Arguments="--dns-elevated "+r.Token+" --request-sha256 "+hash+" --data-root "+Quote(files.Data);
-        Process? started;try{started=Process.Start(plan);}catch(Win32Exception ex)when(ex.NativeErrorCode==1223){throw new DnsException("Windows permission was declined. DNS settings were not changed.");}
-        using var p=started??throw new DnsException("Windows did not start the DNS helper.");await p.WaitForExitAsync();
+        Process? started;try{started=await Task.Run(()=>Process.Start(plan));}catch(Win32Exception ex)when(ex.NativeErrorCode==1223){throw new DnsException("Windows permission was declined. DNS settings were not changed.");}
+        using var p=started??throw new DnsException("Windows did not start the DNS helper.");await WaitForHelper(p,TimeSpan.FromSeconds(60));
         string response=Path.Combine(directory,"response.json");if(!File.Exists(response))throw new DnsException("The DNS helper did not report completion. Refresh and review recovery before retrying.");
         if(new FileInfo(response).Length>65536)throw new InvalidDataException("Invalid DNS response");return JsonSerializer.Deserialize<DnsResponse>(File.ReadAllText(response))??throw new InvalidDataException("Invalid DNS response");
+    }
+    internal static async Task WaitForHelper(Process helper,TimeSpan timeout)
+    {
+        using var budget=new System.Threading.CancellationTokenSource(timeout);
+        try{await helper.WaitForExitAsync(budget.Token).ConfigureAwait(false);}
+        catch(OperationCanceledException)when(budget.IsCancellationRequested){throw new DnsException("The DNS helper did not report completion. Refresh and review recovery before retrying.");}
+        // Do not terminate an elevated helper: it may still be completing a protected transaction.
     }
     static string Quote(string value){if(value.Contains('"'))throw new InvalidDataException("Invalid data path");return "\""+value.TrimEnd('\\')+"\"";}
 }

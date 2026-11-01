@@ -55,7 +55,7 @@ internal static class Program
 #if OPENNET_SAFE_PREVIEW
             data ??=Path.Combine(root,"test-results","preview");
 #endif
-            var files=PortableStartup.Open(root,data);files.Log("Startup 0.4.0-pre.3; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+            var files=PortableStartup.Open(root,data);files.Log("Startup 0.4.0; executable="+Environment.ProcessPath+"; cwd="+Environment.CurrentDirectory+"; self-contained runtime="+System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
             AppIdentity.Apply(files.Log);
             using var instance=new SingleInstance(files.Data,files.Log);
             if(!instance.Primary)
