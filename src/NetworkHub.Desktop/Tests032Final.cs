@@ -35,7 +35,7 @@ public static class Tests032Final
    {
     glyph.Data=GeometryParse(installed);shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);shell.Window.UpdateLayout();
     var gear=(System.Windows.Shapes.Path)((Button)controls[1]).Content;var left=ModuleIconAlignment.Ink(glyph,(Visual)shell.Window.Content);var middle=ModuleIconAlignment.Ink(gear,(Visual)shell.Window.Content);
-    Check(Math.Abs(middle.Left+middle.Width/2-rects[1].Left-rects[1].Width/2)<.1,"Gear stays centered in its hover area for both glyphs");
+     Check(Math.Abs(middle.Left+middle.Width/2-rects[1].Left-rects[1].Width/2+1)<.1,"Gear keeps the same optical inset for both glyphs");
    }}finally{glyph.Data=original;shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);}
   }
  }
@@ -49,7 +49,7 @@ public static class Tests032Final
    var track=(Border)toggle.Template.FindName("Track",toggle);var thumb=(System.Windows.Shapes.Ellipse)toggle.Template.FindName("Thumb",toggle);
    var a=Bounds(track,toggle);var b=Bounds(thumb,toggle);
    double diameter=enabled&&state=="hover"?16:enabled&&state=="pressed"?12:14,inset=(22-diameter)/2;
-   Check(a.Width==42&&a.Height==22&&b.Width==diameter&&b.Height==diameter&&track.BorderThickness==new Thickness(1),"Stable track and thumb");
+   Check(a.Width==42&&a.Height==22&&b.Width==diameter&&b.Height==diameter&&track.BorderThickness==new Thickness(on?0:1),"Stable track and thumb");
    Check(Math.Abs(b.Top-a.Top-inset)<.1&&Math.Abs(a.Bottom-b.Bottom-inset)<.1,"Balanced vertical inset");
    Check(Math.Abs(on?a.Right-b.Right-inset:b.Left-a.Left-inset)<.1,"State matches thumb position");
    Check(thumb.HorizontalAlignment==(on?HorizontalAlignment.Right:HorizontalAlignment.Left),"Checked value drives position");

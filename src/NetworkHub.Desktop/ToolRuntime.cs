@@ -18,6 +18,7 @@ public sealed class ToolRuntime
     private readonly Dictionary<string,OwnedIdentity> stubs=new();
     private StubSupervisor? supervisor;
     internal Func<string,string,Exception?>? FaultForTests {get;set;}
+    internal Func<string,ToolObservation?>? ObservationForTests {get;set;}
 #endif
     private string tgStamp="";
     private string? tgValidation;
@@ -45,6 +46,7 @@ public sealed class ToolRuntime
 #if OPENNET_TESTING
             if(testMode)
             {
+                if(ObservationForTests?.Invoke(id) is ToolObservation injected)return injected;
                 if(stubs.TryGetValue(id,out var stub)) return new(id,supervisor!.State(stub.Token)==ModuleState.Running ? ObservedState.Running : ObservedState.Stopped,L.T("Safe test process"),stub.Pid);
                 return new(id,ObservedState.Stopped,L.T("Test mode: network tools are not launched."));
             }

@@ -1,15 +1,15 @@
 <p align="center"><img src="assets/OpenNet.png" width="88" alt="Open Net logo"></p>
 <h1 align="center">Open Net</h1>
-<p align="center">A minimal Windows manager for Zapret and TG WS Proxy.</p>
+<p align="center">A minimal Windows manager for Zapret, TG WS Proxy and DNS settings.</p>
 <p align="center">
 <img alt="Windows 10 / 11 x64" src="https://img.shields.io/badge/Windows-10%20%2F%2011%20x64-0078D4">
-<img alt="0.4.0-alpha.1 development" src="https://img.shields.io/badge/version-0.4.0--alpha.1%20development-DAB46C">
+<img alt="0.4.0-pre.1 development" src="https://img.shields.io/badge/version-0.4.0--pre.1%20development-DAB46C">
 <a href="LICENSE"><img alt="MIT — Open Net code" src="https://img.shields.io/badge/license-MIT-369B59"></a>
 </p>
 
 **English** | [Русский](docs/README_RU.md)
 
-This branch develops **v0.4.0-alpha.1**, adding an experimental DNS Manager. [DNS scope, recovery and test limitations](docs/DNS_MANAGER_ALPHA.md). No alpha release has been published; **v0.3.3 remains the stable download**. Real DNS/UAC validation requires a separately approved controlled test.
+This branch prepares **v0.4.0-pre.1**, a pre-release with DNS Manager. **v0.3.3 remains the stable download** until a release is published. Live DNS and UAC behavior requires validation in a controlled environment.
 
 Install supported network tools, choose their settings and manage them from one small window. Open Net is an independent project; the tools retain their own behavior and licenses.
 
@@ -39,7 +39,7 @@ Real Open Net 0.3.3 windows with **Solid** material, without enlarging the captu
 - Standard/Portable storage, system tray and separately approved Windows startup for selected tools.
 - English and Russian interface.
 
-There is no VPN or DNS manager in this version. Future incompatible upstream executable or strategy formats can require an adapter update; version numbers alone do not require a new Open Net release.
+DNS Manager is included in this development branch; the v0.3.3 download does not include it. VPN is not included. Future incompatible upstream executable or strategy formats can require an adapter update; version numbers alone do not require a new Open Net release.
 
 ## Getting Started
 

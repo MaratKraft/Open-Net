@@ -54,6 +54,16 @@ internal static class TestsStartupReadback
     }
     internal static async Task Ui(AppFiles files,Func<string,Func<Task>,Task> test)
     {
+        await test("First-run offer: decline preserves disabled startup; consent registers once",async()=>{
+            var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"startup-first-offer"));var defaults=isolated.Defaults();defaults.StartWithWindows=false;defaults.AutoStartTools=false;isolated.Save(defaults);var tasks=new Tasks();using var instance=new SingleInstance(isolated.Data,isolated.Log);var shell=new Shell(isolated,true,instance,null,null,new WindowsStartupStore(true,new IsolatedStartupStore(),tasks,Sid));
+            try{int prompts=0;shell.RoutineConfirmationForTests=_=>{prompts++;return false;};await shell.OfferFirstRunStartup();Check(!shell.Settings.StartWithWindows&&!shell.Settings.AutoStartTools&&tasks.Writes==0&&prompts==1,"Decline changed startup");shell.RoutineConfirmationForTests=_=>{prompts++;return true;};await shell.OfferFirstRunStartup();Check(prompts==2&&shell.Autostart.Inspect(shell.Settings).Ready&&shell.Settings.StartupInTray&&shell.Runtime.LaunchCount==0,"Approved setup failed or repeated prompt");}
+            finally{shell.Dispose();shell.Window.Close();}
+        });
+        await test("First-run offer: denied registration restores disabled switches",async()=>{
+            var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"startup-first-denied"));var defaults=isolated.Defaults();defaults.StartWithWindows=false;defaults.AutoStartTools=false;isolated.Save(defaults);var tasks=new Tasks{Denied=true};using var instance=new SingleInstance(isolated.Data,isolated.Log);var shell=new Shell(isolated,true,instance,null,null,new WindowsStartupStore(true,new IsolatedStartupStore(),tasks,Sid));
+            try{shell.Window.Show();shell.RoutineConfirmationForTests=_=>true;await shell.OfferFirstRunStartup();Check(!shell.Settings.StartWithWindows&&!shell.Settings.AutoStartTools&&!isolated.Load().StartWithWindows&&tasks.Writes==0,"Denied registration retained enabled switches");}
+            finally{foreach(var w in shell.Window.OwnedWindows.Cast<System.Windows.Window>().ToArray())w.Close();shell.Dispose();shell.Window.Close();}
+        });
         await test("033 first install: recommended switches require approval and never launch tools",async()=>{
             var isolated=new AppFiles(files.Root,Path.Combine(files.Data,"startup-ui-first"));var tasks=new Tasks();using var instance=new SingleInstance(isolated.Data,isolated.Log);var shell=new Shell(isolated,true,instance,null,null,new WindowsStartupStore(true,new IsolatedStartupStore(),tasks,Sid));
             try{

@@ -16,9 +16,9 @@ public static class ModuleIconAlignment
     }
     public static void Update(Button install,Button settings,CheckBox selection)
     {
-        // Approved compact glyphs share fixed centered hit areas. Keep the gear stable
-        // across Download, Refresh and progress rather than chasing asymmetric ink.
-        if(settings.Content is Path gear)gear.RenderTransform=Transform.Identity;
+        // The wider switch makes the 4-DIP spacing appear uneven. This small optical
+        // adjustment moves only the glyph; hit areas and their gaps remain unchanged.
+        if(settings.Content is Path gear && (gear.RenderTransform is not TranslateTransform offset || offset.X!=-1 || offset.Y!=0))gear.RenderTransform=new TranslateTransform(-1,0);
     }
     public static void Attach(Button install,Button settings,CheckBox selection)
     {
