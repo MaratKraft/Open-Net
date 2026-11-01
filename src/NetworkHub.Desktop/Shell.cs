@@ -240,7 +240,7 @@ public sealed class Shell : IDisposable
         finally {Busy=false;stopping=false;await Refresh();foreach(var message in messages)files.Log(message);if(failed)ShowMessage(string.Join("\n",messages));else ShowNotice(L.T("Stopped"));}
     }
     internal void ShowNotice(string message){ShowMessage(message);noticeTimer.Start();}
-    public void ShowMessage(string message) {noticeTimer.Stop();string safe=NetworkHub.Core.LogSafety.Redact(message);Find<TextBlock>("Message").Text=safe;Find<TextBlock>("Message").ToolTip=safe;if(installing!=null)moduleMessages[installing]=safe;StateChanged?.Invoke();}
+    public void ShowMessage(string message) {noticeTimer.Stop();string safe=NetworkHub.Core.LogSafety.Redact(message);Find<TextBlock>("Message").Text=safe;Find<TextBlock>("Message").ToolTip=string.IsNullOrWhiteSpace(safe)?null:safe;if(installing!=null)moduleMessages[installing]=safe;StateChanged?.Invoke();}
     internal Func<bool>? ForcedTgConfirmationForTests {get;set;}
     internal bool ConfirmForcedTgStop()=>Runtime.TestMode&&ForcedTgConfirmationForTests!=null?ForcedTgConfirmationForTests():AppDialog.Show(Window,L.T("TG and its child processes may be stopped forcibly; unsaved settings may be lost. If you agree, this warning will not be repeated when routine confirmations are disabled. Stop this owned instance?"),L.T("Open Net — stop"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;
     public async Task ConfigureZapret(string folder,Window owner)
