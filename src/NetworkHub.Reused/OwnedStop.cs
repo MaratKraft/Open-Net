@@ -37,6 +37,7 @@ public static class OwnedStop
     {
         if(!ProcessIdentity.Read(receipt.Pid).Exists)return;
         var root=Open(receipt.Pid);var handles=new List<IntPtr>{root.Handle};
+        var held=new List<OwnedReceipt>{receipt with{StartFileTime=root.Start,Executable=root.Path}};
         try
         {
             if(root.Start!=receipt.StartFileTime||!string.Equals(root.Path,receipt.Executable,StringComparison.OrdinalIgnoreCase))
@@ -62,13 +63,14 @@ public static class OwnedStop
                         if(child.Start<parentStart){CloseHandle(child.Handle);continue;}
                         if(tryGraceful&&!string.Equals(child.Path,receipt.Executable,StringComparison.OrdinalIgnoreCase)){CloseHandle(child.Handle);throw new InvalidOperationException(L.T("The external instance cannot be identified uniquely. No process was stopped."));}
                         handles.Add(child.Handle);parents[e.Pid]=child.Start;added=true;
+                        held.Add(new OwnedReceipt(receipt.Token,(int)e.Pid,child.Start,child.Path,receipt.Module));
                     }
                 }while(added);
             }
             if(approvedMembers!=null)
             {
                 var current=inspectMembers?.Invoke()??TgRuntimeControl.Inspect(receipt.Executable).Members;
-                if(!TgRuntimeControl.SameMembers(approvedMembers,current)||handles.Count!=approvedMembers.Length)throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
+                if(!TgRuntimeControl.SameMembers(approvedMembers,current)||!TgRuntimeControl.SameMembers(approvedMembers,held.ToArray()))throw new InvalidOperationException(L.T("The external instance changed. No process was stopped."));
             }
             // Close a visible TG window first. Tray-only applications may ignore WM_CLOSE.
             if(includeChildren||tryGraceful)
