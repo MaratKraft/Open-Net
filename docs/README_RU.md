@@ -4,8 +4,8 @@
 <p align="center"><a href="../README.md">English</a> | <strong>Русский</strong></p>
 
 <p align="center">
-<img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-596579">
-<img alt="v0.4.0 Stable" src="https://img.shields.io/badge/version-0.4.0%20Stable-3b6ca8">
+<a href="#системные-требования"><img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-596579"></a>
+<a href="https://github.com/MaratKraft/Open-Net/releases/tag/v0.4.0"><img alt="v0.4.0 Stable" src="https://img.shields.io/badge/version-0.4.0%20Stable-3b6ca8"></a>
 <a href="../LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-596579"></a>
 <a href="https://github.com/MaratKraft/Open-Net/actions/workflows/build.yml"><img alt="Build" src="https://github.com/MaratKraft/Open-Net/actions/workflows/build.yml/badge.svg?branch=main"></a>
 </p>

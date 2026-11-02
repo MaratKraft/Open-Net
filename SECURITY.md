@@ -1,6 +1,6 @@
 # Security policy
 
-Open Net 0.3.1 is a beta. Security fixes will target the latest published version; there is no guaranteed response deadline.
+Security fixes target the [latest published non-pre-release version](https://github.com/MaratKraft/Open-Net/releases/latest). Older versions are not maintained separately; update to the latest release before reporting an issue when possible. There is no guaranteed response deadline.
 
 Use **Security → Report a vulnerability** in this repository when private vulnerability reporting is enabled. Include the affected version, impact and minimal reproduction without live credentials. Do not post exploit details, proxy secrets, keys or personal logs in public issues.
 
