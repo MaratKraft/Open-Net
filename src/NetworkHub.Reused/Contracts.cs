@@ -37,27 +37,6 @@ public interface IModuleAdapter
     LaunchPlan Prepare();
     ModuleStatus Status();
 }
-public sealed record OperationResult(string Module, string Action, bool Simulated, string Message, LaunchPlan? Plan);
-public sealed class ModuleManager
-{
-    private readonly IModuleAdapter[] adapters;
-    public ModuleManager(params IModuleAdapter[] adapters) => this.adapters = adapters;
-    public IModuleAdapter[] Modules => adapters.ToArray();
-    public OperationResult Mutate(string action, IModuleAdapter adapter)
-    {
-        if (action != "start" && action != "stop" && action != "restart") throw new ArgumentException("Unknown operation");
-        // There is deliberately no process-launch or broker dependency in the stage-2 manager.
-        return new(adapter.Id, action, true, "Stage 2: simulated only; no process or system changes.",
-            null);
-    }
-}
-// Typed boundary for a future one-shot authenticated helper. No arbitrary executable API.
-public sealed record ZapretElevationRequest(string ReviewedBundleDigest, string ReviewedStrategyDigest);
-public sealed class RestrictedElevationBroker
-{
-    public void Execute(ZapretElevationRequest request) => throw new NotSupportedException(
-        "Stage 2: elevation execution disabled. Requires separate authorized experiment and authenticated helper implementation.");
-}
 public sealed class HubConfig
 {
     public Dictionary<string,string> TrustedFiles {get;set;}=new(StringComparer.OrdinalIgnoreCase);

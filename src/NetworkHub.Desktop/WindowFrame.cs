@@ -40,6 +40,7 @@ public static class WindowFrame
             if(message==0x84)
             {
                 long position=l.ToInt64();var point=window.PointFromScreen(new Point((short)(position&65535),(short)((position>>16)&65535)));
+                if(window.ResizeMode==ResizeMode.CanResize&&point.X>=0&&point.X<window.ActualWidth&&(point.Y<6||point.Y>window.ActualHeight-6)){handled=true;return new IntPtr(point.Y<6?12:15);}
                 if(point.X>=0&&point.X<window.ActualWidth&&point.Y>=0&&point.Y<62)
                 {
                     var hit=window.InputHitTest(point) as DependencyObject;

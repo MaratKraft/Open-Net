@@ -1,0 +1,13 @@
+# Upgrade / Обновление 0.3.3 → 0.4.0
+
+Standard: exit the old shell through its tray menu. Back up %LOCALAPPDATA%\Open Net before replacing the EXE. Replace only the executable at the same trusted location, retaining its filename when possible. The new shell uses that same official data directory. Installed modules and user configuration are retained; there is no second data directory and no experimental-directory migration.
+
+Portable: back up the complete extracted folder. Replace only Open Net.exe, keeping portable.flag, Data and Modules. If relocating, first stop the relevant tools yourself and exit the shell; move the whole folder. A copied second Portable should not take over a still-existing first copy's startup registration.
+
+A legacy settings file is copied byte-for-byte to Data/Backups/Settings (Standard: %LOCALAPPDATA%\Open Net\Backups\Settings) before conversion. Module manifests keep their format and relative module paths. If a path/digest/format is invalid, the module is rejected rather than automatically reinstalled or trusted by name.
+
+Same-path EXE replacement preserves the existing Windows Run/task target. Download filenames differ by version: if the EXE name or location changes, start the new copy manually, open Settings and explicitly repair the startup registration. A changed or unowned task is not silently overwritten. Check the next Windows logon separately; no reboot is performed by the updater or audit.
+
+Rollback: exit the new shell, retain a copy of current data, restore the old EXE and the matching pre-upgrade data backup together. A settings backup alone does not undo Windows DNS or a startup registration. DNS has a separate protected, machine-local recovery record; use the documented explicit recovery if needed. Do not delete recovery backups or assume Off restores previous manual DNS.
+
+Русский: выйдите из старой оболочки через трей и сохраните резервную копию данных. Standard использует прежнюю %LOCALAPPDATA%\Open Net; замените только EXE в том же месте, сохранив имя по возможности. Portable сохраняет portable.flag, Data и Modules. После смены имени/пути явно исправьте автозапуск в настройках. Для отката возвращайте старый EXE вместе с соответствующей копией данных; резервная копия настроек сама по себе не отменяет изменения DNS/автозапуска. Выключение DNS возвращает автоматический IPv4 DNS, а прежние ручные адреса восстанавливаются отдельно.

@@ -16,14 +16,21 @@ public static class ModuleIconAlignment
     }
     public static void Update(Button install,Button settings,CheckBox selection)
     {
-        // Approved compact glyphs share fixed centered hit areas. Keep the gear stable
-        // across Download, Refresh and progress rather than chasing asymmetric ink.
+        // Approved pre.3 correction: glyph, hover and focus share the same centre.
         if(settings.Content is Path gear)gear.RenderTransform=Transform.Identity;
     }
     public static void Attach(Button install,Button settings,CheckBox selection)
     {
-        void Align(object? sender,EventArgs args)=>Update(install,settings,selection);
-        settings.Loaded+=(_,_)=>{settings.LayoutUpdated+=Align;Update(install,settings,selection);};
-        settings.Unloaded+=(_,_)=>settings.LayoutUpdated-=Align;
+        settings.Loaded+=(_,_)=>Update(install,settings,selection);
+        Update(install,settings,selection);
+    }
+    public static void GeneralSettings(Path gear)
+    {
+        string outline=gear.Data.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        int end=outline.IndexOf('Z');if(end<0)end=outline.IndexOf('z');
+        var filled=new GeometryGroup{FillRule=FillRule.EvenOdd};
+        filled.Children.Add(Geometry.Parse(outline.Substring(0,end+1)));
+        filled.Children.Add(new EllipseGeometry(new Point(10,10),2.5,2.5));
+        gear.Data=filled;gear.RenderTransform=new ScaleTransform(.94,.94,10,10);
     }
 }

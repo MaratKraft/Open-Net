@@ -24,7 +24,7 @@ internal static class StartupRegistration
         Paths.WriteNew(request,JsonSerializer.Serialize(value));
         var plan=new ProcessStartInfo(Environment.ProcessPath!){UseShellExecute=true,Verb="runas",WindowStyle=ProcessWindowStyle.Hidden};
         foreach(string argument in new[]{"--startup-register",token,"--data-root",files.Data,"--hash",Hash(request)})plan.ArgumentList.Add(argument);
-        using var helper=Process.Start(plan)??throw new IOException(L.T("The startup helper did not start."));
+        using var helper=await Task.Run(()=>Process.Start(plan))??throw new IOException(L.T("The startup helper did not start."));
         // Do not time out and discard an elevated registration still in progress.
         await helper.WaitForExitAsync();
         var result=JsonSerializer.Deserialize<StartupRegistrationResponse>(File.ReadAllText(response));

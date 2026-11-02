@@ -17,7 +17,7 @@ internal sealed class WindowsStartupLaunch
         if(attempted)return;attempted=true;
         if(!Allowed(settings))return;
         // TG does not require UAC. Its start must not wait for the Zapret prompt.
-        foreach(string id in new[]{settings.TgSelected?"tg":"",settings.ZapretSelected?"zapret":""}.Where(s=>s!="")){
+        foreach(string id in new[]{(settings.StartupTg??settings.TgSelected)?"tg":"",(settings.StartupZapret??settings.ZapretSelected)?"zapret":""}.Where(s=>s!="")){
             try{
                 var state=observe(id);
                 if(state.State!=ObservedState.Stopped){result(id,state.Detail,state.State is not (ObservedState.Running or ObservedState.External));continue;}

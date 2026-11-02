@@ -177,6 +177,9 @@ public sealed class ModuleInstaller : IDisposable
                 var roots=Directory.GetFiles(staging,"general.bat",SearchOption.AllDirectories).Select(Path.GetDirectoryName).Where(x=>File.Exists(Path.Combine(x!,"bin","winws.exe"))).ToArray();
                 if(roots.Length!=1)throw new InvalidDataException(L.T("The Zapret archive structure is ambiguous. Installation was blocked."));payload=roots[0]!;
                 if(!Metadata.X64Pe(Path.Combine(payload,"bin","winws.exe"))||!File.Exists(Path.Combine(payload,"service.bat"))||!Directory.Exists(Path.Combine(payload,"lists")))throw new InvalidDataException(L.T("The archive does not contain the expected Zapret Windows structure."));
+                // Refuse an upstream format we cannot safely launch before changing the installed version.
+                var stagedHashes=ModuleTrust.HashPayload(payload);
+                if(!ReviewedStrategy.Supported(payload,StrategyList.Preferred,stagedHashes))throw new InvalidDataException(L.T("The official Zapret release does not contain a compatible ALT13 strategy. Installation was cancelled; existing files were kept."));
             }
             else
             {

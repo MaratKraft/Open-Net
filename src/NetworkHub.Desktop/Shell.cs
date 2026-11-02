@@ -1,4 +1,5 @@
 using System;
+using NetworkHub.Dns;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -23,18 +24,23 @@ public sealed class Shell : IDisposable
 {
     private readonly AppFiles files;
     private readonly DispatcherTimer timer;
+    private readonly DispatcherTimer noticeTimer=new(){Interval=TimeSpan.FromSeconds(4)};
     private readonly ModuleReadiness readiness;
     internal IReadOnlyDictionary<string,ModuleHealth> HealthStates {get;private set;}=new Dictionary<string,ModuleHealth>();
     private readonly Dictionary<string,string> errors=new();
     private readonly Dictionary<string,string> catalogErrors=new();
     private System.Drawing.Icon icon;
-    private bool exiting,updatingChecks;
+    private bool exiting;
     private Task? refreshTask;
     private bool stopping;
     private bool configuring;
     private bool startupHandled;
     private readonly WindowsStartupLaunch startupLaunch=new();
+    internal WorkspaceController Workspace {get;private set;}=null!;
+    readonly OwnedWindowRestorer ownedWindows;
     private Window? settingsWindow;
+    private SimpleDnsView? dnsWindow;
+    private readonly HbDnsController hbDns;private bool dnsInspectionOk;
     private readonly Dictionary<string,Window> moduleWindows=new();
     private readonly Dictionary<string,string> moduleMessages=new();
     public event Action? StateChanged;
@@ -45,6 +51,7 @@ public sealed class Shell : IDisposable
     public UserSettings Settings {get;private set;}
     public ToolRuntime Runtime {get;}
     public ModuleInstaller Installer {get;}
+    internal UpdateDiscovery Updates {get;}
     private string? installing;
     public Forms.NotifyIcon Tray {get;}
     public Forms.ToolStripMenuItem TrayOpen {get;}
@@ -56,9 +63,10 @@ public sealed class Shell : IDisposable
     public Shell(AppFiles files,bool testMode,SingleInstance instance):this(files,testMode,instance,null) {}
     internal Shell(AppFiles files,bool testMode,SingleInstance instance,System.Net.Http.HttpMessageHandler? installerHandler,Func<string,bool>? runningProbe=null,IStartupStore? startupStore=null)
     {
+        noticeTimer.Tick+=(_,_)=>{noticeTimer.Stop();ShowMessage("");};
         this.files=files;readiness=new ModuleReadiness(files);ThemeManager.SetMode("system");
         using var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("NetworkHub.MainView.xaml")!;
-        Window=(Window)XamlReader.Load(stream);
+        Window=(Window)XamlReader.Load(stream);ownedWindows=new OwnedWindowRestorer(Window);
         Window.SourceInitialized+=(_,_)=>{WindowFrame.Attach(Window);WindowSizing.Fit(Window);WindowAppearance.Apply(Window,files,()=>Settings?.Backdrop??"mica");};
         Window.DpiChanged+=(_,_)=>WindowSizing.Fit(Window);
         Application.Current.Resources.MergedDictionaries.Add(Window.Resources);
@@ -67,27 +75,29 @@ public sealed class Shell : IDisposable
             Settings=files.Defaults();errors["settings"]=ex.Message;files.Log("Settings load: "+ex.Message);
             if(File.Exists(files.SettingsPath)){string backup=Paths.Owned(files.Data,"Backups/corrupt-settings-"+DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")+".json");Directory.CreateDirectory(Path.GetDirectoryName(backup)!);File.Copy(files.SettingsPath,backup);}
         }
+        Settings.StartupZapret??=Settings.ZapretSelected;Settings.StartupTg??=Settings.TgSelected;
         ThemeManager.SetMode(Settings.Theme);L.Set(Settings.Language);LocalizedTree.Bind(Window);Find<Image>("Logo").Source=IconFactory.Logo();
         if(!testMode&&(installerHandler!=null||runningProbe!=null||startupStore!=null))throw new InvalidOperationException("Test installer overrides require safe mode.");
         Installer=new ModuleInstaller(files,installerHandler,runningProbe);Installer.RecoverInterruptedDownloads();
         try{Settings=Installer.ApplyManaged(Settings);}catch(Exception ex){errors["settings"]=ex.Message;files.Log("Module manifest: "+ex.Message);}
         if(!File.Exists(files.SettingsPath))files.Save(Settings);
-        Runtime=new ToolRuntime(files,testMode);
+        Runtime=new ToolRuntime(files,testMode);Runtime.ProgressChanged+=ShowMessage;hbDns=new HbDnsController(this,files);Updates=new UpdateDiscovery(files,Installer,testMode,()=>Settings.UpdatePrerelease);Updates.Changed+=()=>{if(string.IsNullOrEmpty(activeNotice))ShowMessage("");else StateChanged?.Invoke();};
         Autostart=new AutostartService(files,startupStore??(testMode?new IsolatedStartupStore():new WindowsStartupStore(false)),Environment.ProcessPath!);
         icon=IconFactory.TrayIcon(96);Window.Icon=IconFactory.WindowIcon();FocusCues.Attach(Window);
-        updatingChecks=true; Find<CheckBox>("ZapretCheck").IsChecked=Settings.ZapretSelected; Find<CheckBox>("TgCheck").IsChecked=Settings.TgSelected;updatingChecks=false;
-        Find<CheckBox>("ZapretCheck").Checked+=ChoiceChanged; Find<CheckBox>("ZapretCheck").Unchecked+=ChoiceChanged;
-        Find<CheckBox>("TgCheck").Checked+=ChoiceChanged; Find<CheckBox>("TgCheck").Unchecked+=ChoiceChanged;
         Find<Button>("Minimize").Click+=(_,_)=>Window.WindowState=WindowState.Minimized;
         Find<Button>("Close").Click+=(_,_)=>HideToTray();
         Find<Button>("LogoLink").Click+=(_,_)=>OpenRepository();
         Find<Button>("Settings").Click+=(_,_)=>OpenSettings();
         Find<Button>("ZapretSettings").Click+=(_,_)=>OpenModuleSettings("zapret");
         Find<Button>("TgSettings").Click+=(_,_)=>OpenModuleSettings("tg");
-        Primary.Click+=async(_,_)=> {await Refresh();if(PrimaryAction.Stop(Observations,Selected())) await StopSelected(false);else await StartSelected();};
+        Find<Button>("DnsSettings").Click+=(_,_)=>OpenDnsSettings();
+        UpdateDnsStatus();
+        Workspace=new WorkspaceController(this,files);
+        Primary.Click+=async(_,_)=>await Workspace.Execute();
         Find<Button>("ZapretInstall").Click+=async(_,_)=>await InstallOrCheck("zapret");
         Find<Button>("TgInstall").Click+=async(_,_)=>await InstallOrCheck("tg");
         foreach(string prefix in new[]{"Zapret","Tg"})ModuleIconAlignment.Attach(Find<Button>(prefix+"Install"),Find<Button>(prefix+"Settings"),Find<CheckBox>(prefix+"Check"));
+        ModuleIconAlignment.GeneralSettings(Find<System.Windows.Shapes.Path>("SettingsGear"));
         Window.Closing+=OnClosing;
         TrayOpen=new Forms.ToolStripMenuItem(L.T("Open Open Net")); TrayStart=new Forms.ToolStripMenuItem(L.T("Start selected"));
         TrayStop=new Forms.ToolStripMenuItem(L.T("Stop managed processes")); TrayExit=new Forms.ToolStripMenuItem(L.T("Exit"));
@@ -97,12 +107,13 @@ public sealed class Shell : IDisposable
         Window.SourceInitialized+=(_,_)=>UpdateIcon();Window.DpiChanged+=(_,_)=>UpdateIcon();
         ThemeManager.StyleTray(Tray.ContextMenuStrip!);ThemeManager.Changed+=ApplyTheme;
         Tray.DoubleClick+=(_,_)=>Window.Dispatcher.Invoke(Restore);
-        void LanguageChanged(){TrayOpen.Text=L.T("Open Open Net");TrayStart.Text=L.T("Start selected");TrayStop.Text=L.T("Stop managed processes");TrayExit.Text=L.T("Exit");ShowMessage(L.T("Close the window — Open Net stays in the tray."));_ =Refresh();Render();}
+        void LanguageChanged(){TrayOpen.Text=L.T("Open Open Net");TrayStart.Text=L.T("Start selected");TrayStop.Text=L.T("Stop managed processes");TrayExit.Text=L.T("Exit");ShowNotice(L.T("Close the window — Open Net stays in the tray."));_ =Refresh();Render();UpdateDnsStatus();}
         L.Changed+=LanguageChanged;Window.Closed+=(_,_)=>L.Changed-=LanguageChanged;
         TrayOpen.Click+=(_,_)=>Restore(); TrayStart.Click+=async(_,_)=>await StartSelected();
         TrayStop.Click+=async(_,_)=>await StopSelected(true); TrayExit.Click+=(_,_)=>Exit();
         timer=new DispatcherTimer {Interval=TimeSpan.FromSeconds(5)};timer.Tick+=async(_,_)=>await Refresh();timer.Start();
-        Window.Loaded+=async(_,_)=>{await Refresh();if(Runtime.TestMode)ShowMessage(L.T("Safe testing: buttons run only our test processes."));else if(errors.ContainsKey("settings"))ShowMessage(L.T("Settings are damaged. Save them again; the original and a backup have been kept."));else if(Settings.StartWithWindows){var state=Autostart.Inspect(Settings);if(state.NeedsRepair||!state.Registered)ShowMessage(state.Message);}else if(!string.Equals(files.Data,Path.Combine(files.Root,"Data"),StringComparison.OrdinalIgnoreCase))ShowMessage(L.T("Data: ")+files.Data);};
+        Window.Loaded+=async(_,_)=>{await Refresh();if(Runtime.TestMode)ShowNotice(L.T("Safe testing: buttons run only our test processes."));else if(errors.ContainsKey("settings"))ShowMessage(L.T("Settings are damaged. Save them again; the original and a backup have been kept."));else if(Settings.StartWithWindows){var state=Autostart.Inspect(Settings);if(state.NeedsRepair||!state.Registered)ShowMessage(state.Message);}};
+        Window.Loaded+=async(_,_)=>{if(!Runtime.TestMode){await Updates.Check();if(string.IsNullOrEmpty(activeNotice))ShowMessage("");}};
     }
     public T Find<T>(string name) where T:class => (T)Window.FindName(name);
 #if OPENNET_TESTING
@@ -119,12 +130,6 @@ public sealed class Shell : IDisposable
         }
         catch(Exception ex){files.Log("Open repository: "+ex);ShowMessage(L.T("Could not open the browser. Open github.com/MaratKraft/Open-Net manually."));}
     }
-    private void ChoiceChanged(object sender,RoutedEventArgs e)
-    {
-        if(updatingChecks) return;
-        Settings.ZapretSelected=Find<CheckBox>("ZapretCheck").IsChecked==true;Settings.TgSelected=Find<CheckBox>("TgCheck").IsChecked==true;
-        try {files.Save(Settings);} catch(Exception ex) {ShowMessage(L.T("Could not save the selection: ")+ex.Message);} Render();
-    }
     private string[] Selected()=>new[]{Settings.ZapretSelected?"zapret":"",Settings.TgSelected?"tg":""}.Where(x=>x!="").ToArray();
     private bool IsActive(string id)=>Observations.Any(x=>x.Id==id&&(x.State==ObservedState.Running||x.State==ObservedState.External||x.State==ObservedState.CleanupRequired));
     public Task Refresh()
@@ -134,7 +139,7 @@ public sealed class Shell : IDisposable
     }
     private async Task RefreshCore()
     {
-        try {var snapshot=Settings.Copy();var result=await Task.Run(()=>{var observations=ModuleCatalog.All.Select(module=>Runtime.Observe(module.Id,snapshot)).ToArray();var health=ModuleCatalog.All.ToDictionary(module=>module.Id,module=>readiness.Read(module.Id,snapshot));return (observations,health);});Observations=result.observations;HealthStates=result.health;Render();}
+        try {var snapshot=Settings.Copy();var result=await Task.Run(()=>{var observations=ModuleCatalog.All.Select(module=>Runtime.Observe(module.Id,snapshot)).ToArray();var health=ModuleCatalog.All.ToDictionary(module=>module.Id,module=>readiness.Read(module.Id,snapshot));return (observations,health);});Observations=result.observations;HealthStates=result.health;UpdateDnsStatus();Render();}
         finally {refreshTask=null;}
     }
     private static string Label(ObservedState s)=>s switch {ObservedState.Stopped=>L.T("Stopped"),ObservedState.Starting=>L.T("Starting"),ObservedState.Running=>L.T("Running"),ObservedState.Error=>L.T("Error"),ObservedState.External=>L.T("External instance"),ObservedState.CleanupRequired=>L.T("WinDivert is still loaded"),ObservedState.NotInstalled=>L.T("Not installed"),_=>L.T("Unknown state")};
@@ -144,10 +149,10 @@ public sealed class Shell : IDisposable
         {
             var text=Find<TextBlock>(o.Id=="zapret"?"ZapretState":"TgState");
             bool failed=errors.ContainsKey(o.Id)&&(o.State==ObservedState.Stopped||o.State==ObservedState.NotInstalled);
-            text.Text=failed?L.T("Installation / launch failed"):Label(o.State)+(o.Pid.HasValue?" · PID "+o.Pid:"");
-            if(o.State==ObservedState.Error)text.Text=o.Detail;
-            text.TextWrapping=TextWrapping.Wrap;
-            text.ToolTip=failed?errors[o.Id]:o.Detail;
+            text.Text=failed?L.T("Installation / launch failed"):Label(o.State);
+            if(o.State==ObservedState.Error)text.Text=L.T("Error");
+            text.TextWrapping=TextWrapping.NoWrap;text.TextTrimming=TextTrimming.CharacterEllipsis;
+            text.ToolTip=failed?errors[o.Id]:o.Detail+(o.Pid.HasValue?" · PID "+o.Pid:"");
             text.Foreground=SystemParameters.HighContrast?SystemColors.WindowTextBrush:ThemeManager.Brush(o.State==ObservedState.Running?"Success":o.State==ObservedState.Error||failed?"Error":o.State==ObservedState.External||o.State==ObservedState.Unknown?"Warning":"Muted");
         }
         Find<TextBlock>("ZapretStrategy").Text=Settings.Strategy==""?"":"· "+Path.GetFileNameWithoutExtension(Settings.Strategy);Find<TextBlock>("ZapretStrategy").ToolTip=Settings.Strategy;
@@ -168,17 +173,18 @@ public sealed class Shell : IDisposable
         Find<TextBlock>("Summary").Text=title; Find<TextBlock>("Selection").Text=L.T("Selected tools: ")+selected.Length;
         bool canStop=PrimaryAction.Stop(Observations,selected),externalOnly=PrimaryAction.ExternalOnly(Observations,selected);
         Primary.Content=Busy?(configuring?L.T("Console is open…"):stopping?L.T("Stopping…"):installing!=null?L.T("Installing…"):L.T("Starting…")):canStop?L.T("Stop selected"):externalOnly?L.T("External instance"):L.T("Start selected");Primary.IsEnabled=!Busy&&selected.Length>0&&!externalOnly;
-        Primary.ToolTip=selected.Any(id=>Observations.Any(x=>x.Id==id&&x.State==ObservedState.External))?L.T("Close external tools using their own window or tray. Open Net manages only processes it launched."):null;
+        Primary.ToolTip=selected.Any(id=>Observations.Any(x=>x.Id==id&&x.State==ObservedState.External))?L.T("Use the individual switch to review an external instance."):null;
         var brush=ThemeManager.Brush(active>0?"Success":"Muted");Find<System.Windows.Shapes.Path>("PowerArc").Stroke=brush;Find<System.Windows.Shapes.Path>("PowerLine").Stroke=brush;
         Tray.Text="Open Net · "+(active>0?active+L.T(" processes"):L.T("ready")); TrayStart.Enabled=!Busy&&selected.Length>0&&!externalOnly;TrayStop.Enabled=!Busy&&Observations.Any(PrimaryAction.CanStop);
         if(settingsWindow!=null)settingsWindow.IsEnabled=!Busy||installing!=null;
-        Find<CheckBox>("ZapretCheck").IsEnabled=!Busy||installing!=null;Find<CheckBox>("TgCheck").IsEnabled=!Busy||installing!=null;Find<Button>("Settings").IsEnabled=!Busy||installing!=null;
+        Find<Button>("Settings").IsEnabled=!Busy||installing!=null;
         if(files.LogFailure!=null)ShowMessage(L.T("Could not write the log: ")+files.LogFailure);
-        StateChanged?.Invoke();
+        Workspace?.Render();StateChanged?.Invoke();
     }
-    public async Task StartSelected()
+    public async Task StartSelected(string[]? targets=null)
     {
-        if(Busy) return;await Refresh();if(Busy)return;string[] ids=Selected();if(ids.Length==0){ShowMessage(L.T("Select at least one tool."));return;}
+        if(Busy||Workspace?.Editing==true) return;await Refresh();if(Busy)return;string[] ids=targets??Selected();if(ids.Length==0){ShowMessage(L.T("Select at least one tool."));return;}
+        if(ids.Contains("zapret")&&!IsActive("zapret")&&!string.IsNullOrEmpty(Settings.PendingStrategy)){Settings.Strategy=Settings.PendingStrategy;Settings.PendingStrategy="";files.Save(Settings);}
         bool authorized=Runtime.TestMode;
         if(Runtime.TestMode&&RoutineConfirmationForTests!=null&&!ConfirmLaunch(ids))return;
         if(!Runtime.TestMode)
@@ -195,11 +201,14 @@ public sealed class Shell : IDisposable
             foreach(string id in ids)
             {
                 errors.Remove(id);
+                ShowMessage(L.T("Starting")+" · "+WorkspaceController.Name(id));
+                var operationTimer=System.Diagnostics.Stopwatch.StartNew();
                 try {messages.Add((id=="zapret"?"Zapret: ":"TG: ")+await Runtime.Start(id,Settings,authorized));}
                 catch(Exception ex) {errors[id]=L.Error(ex);messages.Add((id=="zapret"?"Zapret: ":"TG: ")+errors[id]);files.Log(id+" start: "+ex);}
+                finally{files.Log("Timing start "+id+": "+operationTimer.ElapsedMilliseconds+" ms");}
             }
         }
-        finally {Busy=false;await Refresh();ShowMessage(string.Join("\n",messages));}
+        finally {Busy=false;await Refresh();foreach(var message in messages)files.Log(message);if(ids.Any(errors.ContainsKey))ShowMessage(string.Join("\n",messages));else if(ids.All(id=>Observations.Any(o=>o.Id==id&&o.State==ObservedState.Running)))ShowNotice(L.T("Processes are running"));else ShowMessage(string.Join("\n",messages));}
     }
     private bool ConfirmLaunch(string[] ids)
     {
@@ -212,29 +221,38 @@ public sealed class Shell : IDisposable
     }
     internal Func<string,bool>? RoutineConfirmationForTests {get;set;}
     private bool AskRoutine(string kind,string message,string title)=>Runtime.TestMode?RoutineConfirmationForTests?.Invoke(kind)??true:AppDialog.Show(Window,message,title,MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)==MessageBoxResult.Yes;
-    public async Task StopSelected(bool allManaged)
+    public async Task StopSelected(bool allManaged,string[]? targets=null)
     {
-        if(Busy)return;await Refresh();if(Busy)return;
-        string[] ids=allManaged?ModuleCatalog.All.Select(x=>x.Id).ToArray():Selected();
+        if(Busy||Workspace?.Editing==true)return;await Refresh();if(Busy)return;
+        string[] ids=targets??(allManaged?ModuleCatalog.All.Select(x=>x.Id).ToArray():Selected());
         if(ids.Length==0){ShowMessage(L.T("Select at least one tool."));return;}
         if(!Observations.Any(x=>ids.Contains(x.Id)&&PrimaryAction.CanStop(x))){ShowMessage(Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.External)?L.T("Close external tools using their own window or tray. Open Net manages only processes it launched."):L.T("The process is not running."));return;}
         bool ownRunning=Observations.Any(x=>ids.Contains(x.Id)&&x.State==ObservedState.Running);
-        if(Settings.ConfirmStartStop&&ownRunning&&!AskRoutine("stop",L.T("Only processes launched by this copy of Open Net will be ended. TG and its child processes may be terminated forcibly; unsaved settings may be lost. Zapret and WinDivert require UAC. Continue?"),L.T("Open Net — stop")))return;
-        if(!Settings.ConfirmStartStop&&!Runtime.TestMode&&Observations.Any(x=>ids.Contains(x.Id)&&x.Id=="tg"&&x.State==ObservedState.Running)&&!ConfirmForcedTgStop())return;
-        stopping=true;Busy=true;Render();ShowMessage(L.T("Stopping owned processes. Confirm the Windows prompt for Zapret."));var messages=new List<string>();
+        if(Settings.ConfirmStartStop&&ownRunning&&!AskRoutine("stop",StopConfirmation.Message(ids),L.T("Open Net — stop")))return;
+        if(!Settings.ConfirmStartStop&&!Settings.TgForcedStopAcknowledged&&(!Runtime.TestMode||ForcedTgConfirmationForTests!=null)&&Observations.Any(x=>ids.Contains(x.Id)&&x.Id=="tg"&&x.State==ObservedState.Running)){
+            if(!ConfirmForcedTgStop())return;
+            try{var next=Settings.Copy();next.TgForcedStopAcknowledged=true;ApplySettings(next);}catch(Exception ex){ShowMessage(L.Error(ex));files.Log("TG stop consent: "+ex);return;}
+        }
+        stopping=true;Busy=true;Render();ShowMessage(L.T("Stopping owned processes. Confirm the Windows prompt for Zapret."));var messages=new List<string>();bool failed=false;
         try
         {
             foreach(string id in ids)
             {
+                ShowMessage(L.T("Stopping")+" · "+WorkspaceController.Name(id));
+                var operationTimer=System.Diagnostics.Stopwatch.StartNew();
                 try{messages.Add((id=="zapret"?"Zapret: ":"TG: ")+await Runtime.Stop(id,Settings));errors.Remove(id);}
-                catch(Exception ex){messages.Add((id=="zapret"?"Zapret: ":"TG: ")+(ex is Win32Exception w&&w.NativeErrorCode==1223?L.T("Stop was cancelled in the UAC prompt."):L.Error(ex)));files.Log(id+" stop: "+ex);}
+                catch(Exception ex){failed=true;messages.Add((id=="zapret"?"Zapret: ":"TG: ")+(ex is Win32Exception w&&w.NativeErrorCode==1223?L.T("Stop was cancelled in the UAC prompt."):L.Error(ex)));files.Log(id+" stop: "+ex);}
+                finally{files.Log("Timing stop "+id+": "+operationTimer.ElapsedMilliseconds+" ms");}
             }
         }
-        catch(Exception ex){messages.Add(ex.Message);files.Log("stop: "+ex.Message);}
-        finally {Busy=false;stopping=false;await Refresh();ShowMessage(string.Join("\n",messages));}
+        catch(Exception ex){failed=true;messages.Add(ex.Message);files.Log("stop: "+ex.Message);}
+        finally {Busy=false;stopping=false;await Refresh();foreach(var message in messages)files.Log(message);if(failed)ShowMessage(string.Join("\n",messages));else ShowNotice(L.T("Stopped"));}
     }
-    public void ShowMessage(string message) {string safe=NetworkHub.Core.LogSafety.Redact(message);Find<TextBlock>("Message").Text=safe;Find<TextBlock>("Message").ToolTip=safe;if(installing!=null)moduleMessages[installing]=safe;StateChanged?.Invoke();}
-    internal bool ConfirmForcedTgStop()=>AppDialog.Show(Window,L.T("TG may be stopped forcibly with its child processes. Unsaved settings may be lost. Stop this owned instance?"),L.T("Open Net — stop"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;
+    internal void ShowNotice(string message){ShowMessage(message);noticeTimer.Start();}
+    string activeNotice="";
+    public void ShowMessage(string message) {noticeTimer.Stop();string safe=NetworkHub.Core.LogSafety.Redact(message);activeNotice=safe;var update=Updates.Current;var available=new List<string>();if(update?.Application!=null)available.Add("Open Net");if(update?.Modules.Contains("zapret")==true)available.Add("Zapret");if(update?.Modules.Contains("tg")==true)available.Add("TG WS Proxy");string display=string.IsNullOrWhiteSpace(safe)&&available.Count>0?L.T("Updates available: ")+string.Join(", ",available):safe;Find<TextBlock>("Message").Text=display;Find<TextBlock>("Message").ToolTip=string.IsNullOrWhiteSpace(display)?null:display;if(installing!=null)moduleMessages[installing]=safe;StateChanged?.Invoke();}
+    internal Func<bool>? ForcedTgConfirmationForTests {get;set;}
+    internal bool ConfirmForcedTgStop()=>Runtime.TestMode&&ForcedTgConfirmationForTests!=null?ForcedTgConfirmationForTests():AppDialog.Show(Window,L.T("TG and its child processes may be stopped forcibly; unsaved settings may be lost. If you agree, this warning will not be repeated when routine confirmations are disabled. Stop this owned instance?"),L.T("Open Net — stop"),MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes;
     public async Task ConfigureZapret(string folder,Window owner)
     {
         if(Busy)return;bool confirmed=false;string result="";
@@ -264,7 +282,7 @@ public sealed class Shell : IDisposable
             bool approved=Runtime.TestMode&&InstallConfirmationForTests!=null?InstallConfirmationForTests(cached+info):AppDialog.Show(Window,cached+info,L.T("Open Net — installation"),MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)==MessageBoxResult.Yes;
             if(!approved)return;
             await Installer.Install(asset,new Progress<int>(value=>ShowMessage(L.T("Downloading ")+asset.Version+": "+value+"%")));
-            Settings=Installer.ApplyManaged(Settings);files.Save(Settings);ShowMessage(L.T("Installed version ")+asset.Version+L.T(". Use the main button to start it."));
+            Settings=Installer.ApplyManaged(Settings);files.Save(Settings);ShowNotice(L.T("Installed version ")+asset.Version+L.T(". Use the main button to start it."));
             errors.Remove(id);
         }
         catch(Exception ex){catalogErrors[id]=L.Error(ex);ShowMessage(catalogErrors[id]);files.Log("Catalog: "+ex);}
@@ -279,7 +297,7 @@ public sealed class Shell : IDisposable
             ShowMessage(L.T("Checking official release metadata…"));var asset=await Installer.Discover(id);
             string text=(Installer.UsingCache?L.T("Using the saved catalog from ")+Installer.CatalogTimestamp?.ToLocalTime().ToString("g")+L.T(". It may be outdated. Installed modules remain available.")+"\n":"")+L.T("Import the selected file as official release ")+asset.Version+"?\n"+path+"\nSHA-256: "+(asset.Digest??L.T("Unavailable"));
             bool approved=Runtime.TestMode&&InstallConfirmationForTests!=null?InstallConfirmationForTests(text):AppDialog.Show(owner,text,L.T("Import official release"),MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)==MessageBoxResult.Yes;
-            if(!approved)return;await Installer.Import(asset,path);Settings=Installer.ApplyManaged(Settings);files.Save(Settings);ShowMessage(L.T("Official release imported. Tools were not started."));
+            if(!approved)return;await Installer.Import(asset,path);Settings=Installer.ApplyManaged(Settings);files.Save(Settings);ShowNotice(L.T("Official release imported. Tools were not started."));
         }catch(Exception ex){ShowMessage(L.Error(ex));files.Log("Import release: "+ex);}
         finally{Busy=false;installing=null;await Refresh();}
     }
@@ -289,30 +307,41 @@ public sealed class Shell : IDisposable
         if(Settings.CloseToTray){e.Cancel=true;HideToTray();}
         else {e.Cancel=true;Window.Dispatcher.BeginInvoke(new Action(Exit));}
     }
-    public void HideToTray(){Window.ShowInTaskbar=false;Window.Hide();}
+    public void HideToTray(){ownedWindows.Hide();Window.ShowInTaskbar=false;Window.Hide();}
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hwnd);
     [DllImport("user32.dll")] private static extern bool BringWindowToTop(IntPtr hwnd);
     public void Restore()
     {
         FocusCues.SetMode(false);
         Window.ShowInTaskbar=true;Window.Show();Window.WindowState=WindowState.Normal;Window.Activate();
-        var handle=new WindowInteropHelper(Window).Handle;BringWindowToTop(handle);SetForegroundWindow(handle);Window.Focus();
+        var handle=new WindowInteropHelper(Window).Handle;BringWindowToTop(handle);SetForegroundWindow(handle);Window.Focus();ownedWindows.Restore();
     }
-    public void Exit() {if(exiting)return;if(Busy){ShowMessage(L.T("Wait for the current operation to finish before exiting."));return;}exiting=true;timer.Stop();Tray.Visible=false;Window.Close();Application.Current.Shutdown();}
-    public void ApplySettings(UserSettings settings) {files.Save(settings);if(Settings.Language!=settings.Language){moduleMessages.Clear();}Settings=settings;ThemeManager.SetMode(settings.Theme);L.Set(settings.Language);WindowAppearance.Refresh(Window);errors.Clear();_ =Refresh();Render();}
+    public void Exit() {if(exiting)return;if(Busy||dnsWindow?.IsBusy==true){ShowMessage(L.T("Wait for the current operation to finish before exiting."));return;}exiting=true;timer.Stop();Tray.Visible=false;Window.Close();Application.Current.Shutdown();}
+    SimpleDnsView EnsureDns(){if(dnsWindow==null){var view=new SimpleDnsView(this,files,hbDns);dnsWindow=view;view.Window.Closed+=(_,_)=>dnsWindow=null;}return dnsWindow;}
+    internal Window OpenDnsSettings(){var view=EnsureDns();view.RefreshStatus();view.Window.Show();view.Window.WindowState=WindowState.Normal;view.Window.Activate();return view.Window;}
+    internal string DnsLineStatus {get;private set;}="";
+    internal string DnsTone {get;private set;}="Muted";
+    internal string DnsCurrentProfile {get;private set;}="";
+    internal bool DnsBusy=>dnsWindow?.IsBusy==true;
+    internal bool DnsApplied=>dnsWindow?.Applied??(dnsInspectionOk&&hbDns.Active!=null);
+    internal void SelectDnsProfile(string id){EnsureDns().SelectProfile(id);}
+    internal DnsProfile[] DnsProfilesForMenu {get{try{return hbDns.Profiles;}catch{return SimpleDns.Presets;}}}
+    internal async Task<bool> DnsAction(bool? restore=null)=>await EnsureDns().Power(restore);
+    internal void UpdateDnsStatus(){try{if(dnsWindow!=null){dnsWindow.RefreshStatus();DnsLineStatus=dnsWindow.LineStatus;DnsTone=dnsWindow.StatusTone;DnsCurrentProfile=dnsWindow.CurrentProfile;}else{hbDns.Read();DnsCurrentProfile=hbDns.Active?.Name??"";DnsLineStatus=hbDns.Current==null?L.T("Choose a connected adapter"):hbDns.Active!=null?L.T("Running"):L.T(hbDns.Current.IPv4.Mode==DnsMode.Automatic?"Automatic DNS":"Manual DNS");DnsTone=hbDns.Active!=null?"Success":"Muted";}dnsInspectionOk=true;Find<TextBlock>("DnsState").Text=DnsLineStatus;Workspace?.Render();}catch(Exception ex){dnsInspectionOk=false;DnsCurrentProfile="";DnsTone="Error";DnsLineStatus=L.T("Error");Find<TextBlock>("DnsState").Text=DnsLineStatus;files.Log("DNS inspection: "+ex);}}
+    public void ApplySettings(UserSettings settings) {settings.Workspace??=new();settings.Workspace.Normalize();settings.StartupZapret??=settings.ZapretSelected;settings.StartupTg??=settings.TgSelected;files.Save(settings);if(Settings.Language!=settings.Language){moduleMessages.Clear();}Settings=settings;ThemeManager.SetMode(settings.Theme);L.Set(settings.Language);WindowAppearance.Refresh(Window);Workspace?.Reload();errors.Clear();_ =Refresh();Render();}
     public void ApplyGeneralSettings(UserSettings settings)
     {
         if(settings.StartWithWindows!=Settings.StartWithWindows)Autostart.Configure(settings,()=>ApplySettings(settings));
         else ApplySettings(settings);
     }
-    internal async Task<bool> ApplyGeneralSettingsAsync(UserSettings settings,bool repair=false)
+    internal async Task<bool> ApplyGeneralSettingsAsync(UserSettings settings,bool repair=false,bool startupConsent=false)
     {
         var state=Autostart.Inspect(Settings);string? approvedHash=null;
         bool registration=repair||settings.StartWithWindows!=Settings.StartWithWindows||settings.AutoStartTools!=Settings.AutoStartTools||settings.StartWithWindows&&!state.Ready||!settings.StartWithWindows&&state.Exists==true;
         // Save can offer the same explicit recovery directly, without a preceding error.
         bool reviewExisting=registration&&state.Exists==true&&(!state.ConfigurationValid||state.Owned!=true||state.Enabled!=true||!string.Equals(state.Command,Autostart.Command,StringComparison.OrdinalIgnoreCase));
         if(reviewExisting)repair=true;
-        if(settings.StartWithWindows&&settings.AutoStartTools&&(!Settings.AutoStartTools||!state.Registered)&&!reviewExisting&&!repair&&!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return false;
+        if(settings.StartWithWindows&&settings.AutoStartTools&&(!Settings.AutoStartTools||!state.Registered)&&!reviewExisting&&!repair&&!startupConsent&&!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return false;
         if(repair&&state.Exists==true){
             if(!state.RepairAllowed)throw new IOException(state.Message);
             string message=L.T("Repair only this Open Net startup registration? The previous task XML will be backed up. Windows will request UAC. Running tools will be left unchanged.")+"\n\n"+state.Message+"\n\n"+L.T("Current command:")+"\n"+state.Command+"\n\n"+L.T("Requested command:")+"\n"+(settings.StartWithWindows?Autostart.Command:L.T("Remove this registration"));
@@ -332,8 +361,15 @@ public sealed class Shell : IDisposable
     }
     internal async Task SetupRecommendedStartup()
     {
-        try{if(await ApplyGeneralSettingsAsync(Settings.Copy()))ShowMessage(L.T("Settings saved."));}
+        try{if(await ApplyGeneralSettingsAsync(Settings.Copy()))ShowNotice(L.T("Settings saved."));}
         catch(Exception ex){files.Log("First-run startup setup: "+ex);ShowMessage(L.Error(ex));OpenSettings();}
+    }
+    internal async Task OfferFirstRunStartup()
+    {
+        if(!AskRoutine("startup",L.T("Allow Windows to start the selected tools automatically? A visible Task Scheduler registration will request UAC once. Open Net and its selected tools will run with administrator privileges after logon. Keep the application in a trusted folder. No password is stored. Module selection is saved and applies to future logons."),L.T("Open Net — automatic tools")))return;
+        var previous=Settings.Copy();
+        try{var next=Settings.Copy();next.StartWithWindows=true;next.AutoStartTools=true;next.StartupInTray=true;if(!await ApplyGeneralSettingsAsync(next,startupConsent:true))return;var state=Autostart.Inspect(Settings);if(!state.Ready)throw new IOException(state.Message);ShowNotice(L.T("Settings saved."));}
+        catch(Exception ex){files.Log("First-run startup setup: "+ex);try{if(!Autostart.Inspect(Settings).Ready)ApplySettings(previous);}catch(Exception rollback){files.Log("First-run preferences rollback: "+rollback);}ShowMessage(L.Error(ex));OpenSettings();}
     }
     public void RepairStartup(){var next=Settings.Copy();next.StartWithWindows=true;Autostart.Configure(next,()=>ApplySettings(next));}
     public void StartHidden(){Window.ShowInTaskbar=false;new WindowInteropHelper(Window).EnsureHandle();_ =Refresh();}
@@ -354,7 +390,7 @@ public sealed class Shell : IDisposable
             if(failed)errors[id]=message;else errors.Remove(id);
             string line=(id=="zapret"?"Zapret: ":"TG: ")+message;messages.Add(line);files.Log("Windows startup: "+line);
         });}
-        finally{Busy=false;await Refresh();if(messages.Count>0)ShowMessage(string.Join("\n",messages));StartupAttempt.Write(files,"completed",string.Join("\n",messages),approved,Runtime,Runtime.LaunchCount-previousLaunchCount);}
+        finally{Busy=false;await Refresh();if(messages.Count>0){if(errors.Count>0)ShowMessage(string.Join("\n",messages));else ShowMessage("");}StartupAttempt.Write(files,"completed",string.Join("\n",messages),approved,Runtime,Runtime.LaunchCount-previousLaunchCount);}
     }
     public static string StateLabel(ObservedState state)=>Label(state);
     public ModuleDetails DescribeModule(string id)
@@ -364,7 +400,7 @@ public sealed class Shell : IDisposable
         try{version=Installer.Current(id)?.Version;}catch(Exception ex){diagnostic=L.Error(ex);}
         return new(definition,Settings.ForModule(id),version,observation,definition.Start&&observation.State==ObservedState.Stopped,definition.Stop&&PrimaryAction.CanStop(observation),L.Current(diagnostic));
     }
-    public void RollbackModule(string id){Installer.Rollback(id);ApplySettings(Installer.ApplyManaged(Settings));ShowMessage(L.T("The previous build has been restored."));}
+    public void RollbackModule(string id){Installer.Rollback(id);ApplySettings(Installer.ApplyManaged(Settings));ShowNotice(L.T("The previous build has been restored."));}
     public Window OpenSettings()
     {
         if(settingsWindow!=null){settingsWindow.Activate();return settingsWindow;}
@@ -377,7 +413,7 @@ public sealed class Shell : IDisposable
         var view=new ModuleSettingsView(this,files,id);moduleWindows[id]=view.Window;view.Window.Closed+=(_,_)=>moduleWindows.Remove(id);view.Window.Show();return view.Window;
     }
     private void ApplyTheme(){WindowAppearance.Refresh(Window);ThemeManager.StyleTray(Tray.ContextMenuStrip!);Render();}
-    public void Dispose() {exiting=true;ThemeManager.Changed-=ApplyTheme;timer.Stop();Tray.Visible=false;Tray.ContextMenuStrip?.Dispose();Tray.Dispose();icon.Dispose();Installer.Dispose();}
+    public void Dispose() {exiting=true;ThemeManager.Changed-=ApplyTheme;noticeTimer.Stop();timer.Stop();Tray.Visible=false;Tray.ContextMenuStrip?.Dispose();Tray.Dispose();icon.Dispose();Updates.Dispose();Installer.Dispose();}
 }
 
 

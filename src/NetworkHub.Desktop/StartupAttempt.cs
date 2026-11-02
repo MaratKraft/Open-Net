@@ -12,7 +12,7 @@ internal static class StartupAttempt
     {
         try{
             string path=Paths.Owned(files.Data,"Logs/windows-startup-latest.json");Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var selected=new[]{settings.ZapretSelected?"zapret":"",settings.TgSelected?"tg":""}.Where(s=>s!="").ToArray();
+            var selected=new[]{(settings.StartupZapret??settings.ZapretSelected)?"zapret":"",(settings.StartupTg??settings.TgSelected)?"tg":""}.Where(s=>s!="").ToArray();
             string json=JsonSerializer.Serialize(new{Utc=DateTime.UtcNow.ToString("O"),Phase=phase,Message=LogSafety.Redact(message),Requested=settings.StartWithWindows,ToolsApproved=settings.AutoStartTools,Selected=selected,Simulation=runtime?.TestMode,LaunchCount=newLaunches,Observed=runtime==null?Array.Empty<ToolObservation>():selected.Select(id=>runtime.Observe(id,settings)).ToArray()},new JsonSerializerOptions{WriteIndented=true});
             string temporary=path+"."+Guid.NewGuid().ToString("N")+".tmp";File.WriteAllText(temporary,json);File.Move(temporary,path,true);
         }catch(Exception ex){files.Log("Windows startup evidence: "+ex);}

@@ -24,9 +24,22 @@ public sealed class UserSettings
     public bool TgSelected { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
     public bool ConfirmStartStop { get; set; } = false;
+    public bool UpdatePrerelease { get; set; } = false;
+    public bool TgForcedStopAcknowledged { get; set; } = false;
     public bool StartWithWindows { get; set; } = false;
     public bool AutoStartTools { get; set; } = false;
+    public bool? StartupZapret {get;set;}
+    public bool? StartupTg {get;set;}
     public bool StartupInTray { get; set; } = true;
+    public WorkspaceSettings Workspace {get;set;}=new();
+    public string PendingStrategy {get;set;}="";
+    public string DnsProfileName {get;set;}="ComssDNS";
+    public string DnsProfileId {get;set;}="comss";
+    public string HbDnsProfileId {get;set;}="hb:comss";
+    public string HbDnsAdapterId {get;set;}="";
+    public bool HbDnsPolicyAccepted {get;set;}
+    public string[] HbDnsWarningsAccepted {get;set;}=Array.Empty<string>();
+    public string DnsAdapterId {get;set;}="";
     public string StartupInstallationId { get; set; } = "";
     public UserSettings Copy()=>JsonSerializer.Deserialize<UserSettings>(JsonSerializer.Serialize(this))!;
     public ModulePreferences ForModule(string id)=>id switch {
@@ -55,15 +68,17 @@ public sealed class AppFiles
     public AppFiles(string root,string? data=null)
     {
         Root=Path.GetFullPath(root);Data=Path.GetFullPath(data??Path.Combine(Root,"Data"));
-        if(!Paths.Within(Data,Root)&&!Paths.Overlap(Data,Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Open Net")))throw new InvalidDataException(L.T("The data folder is not allowed. Choose a user folder."));
+        if(!DataAllowed(Root,Data,Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)))throw new InvalidDataException(L.T("The data folder is not allowed. Choose a user folder."));
         Paths.NoReparseAncestors(Data); Directory.CreateDirectory(Data);
     }
+    public static bool DataAllowed(string root,string data,string local){string official=Path.Combine(local,"Open Net");return Paths.Within(data,root)||string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(data)),Path.TrimEndingDirectorySeparator(Path.GetFullPath(official)),StringComparison.OrdinalIgnoreCase)||Paths.Within(data,official);}
     public UserSettings Defaults()
     {
         // Recommended first-install preferences; existing JSON keeps its own values.
         // Registration still requires explicit approval and Windows UAC.
-        return new(){StartWithWindows=true,AutoStartTools=true};
+        return new(){Language=FirstRunLanguage(System.Globalization.CultureInfo.CurrentUICulture),StartWithWindows=true,AutoStartTools=true};
     }
+    public static string FirstRunLanguage(System.Globalization.CultureInfo windowsUiCulture)=>windowsUiCulture.TwoLetterISOLanguageName.Equals("ru",StringComparison.OrdinalIgnoreCase)?"ru":"en";
     public UserSettings Load()
     {
         if(!File.Exists(SettingsPath)) return Defaults();
@@ -80,6 +95,19 @@ public sealed class AppFiles
     public void Save(UserSettings settings)
     {
         Paths.NoReparseAncestors(SettingsPath);Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+        if(File.Exists(SettingsPath))
+        {
+            byte[] original=File.ReadAllBytes(SettingsPath);
+            bool needsBackup=true;
+            try{using var prior=JsonDocument.Parse(original);needsBackup=prior.RootElement.ValueKind!=JsonValueKind.Object||!prior.RootElement.TryGetProperty("HbDnsProfileId",out _);}catch(JsonException){}
+            if(needsBackup)
+            {
+                string backup=Paths.Owned(Data,"Backups/Settings/v0.3.3-"+Guid.NewGuid().ToString("N")+".json");
+                Paths.NoReparseAncestors(backup);Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+                using(var output=new FileStream(backup,FileMode.CreateNew,FileAccess.Write,FileShare.None)){output.Write(original);output.Flush(true);}
+                if(!original.SequenceEqual(File.ReadAllBytes(backup))||!original.SequenceEqual(File.ReadAllBytes(SettingsPath)))throw new IOException("Settings backup verification failed; settings were not changed.");
+            }
+        }
         var persisted=JsonSerializer.Deserialize<UserSettings>(JsonSerializer.Serialize(settings))!;
         string Relative(string value)=>value!=""&&Paths.Within(value,Modules)?"@modules/"+Path.GetRelativePath(Modules,value).Replace('\\','/'):value!=""&&Paths.Within(value,Root)?Path.GetRelativePath(Root,value).Replace('\\','/'):value;
         persisted.ZapretDirectory=Relative(persisted.ZapretDirectory);persisted.TgExe=Relative(persisted.TgExe);
@@ -109,27 +137,36 @@ public sealed class AppFiles
 }
 public enum ObservedState { Stopped, Starting, Running, Error, External, Unknown, CleanupRequired, NotInstalled }
 public sealed record ToolObservation(string Id,ObservedState State,string Detail,int? Pid=null);
-public sealed record OwnedReceipt(string Token,int Pid,long StartFileTime,string Executable,string Module);
+public sealed record OwnedReceipt(string Token,int Pid,long StartFileTime,string Executable,string Module)
+{
+    public string Profile {get;init;}="";
+}
 public sealed record Probe(bool Exists,bool IdentityReadable,long StartFileTime,string? Executable);
 public static class ProcessIdentity
 {
     [DllImport("kernel32.dll",SetLastError=true)] private static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
+    [DllImport("kernel32.dll")] private static extern IntPtr GetCurrentProcess();
     [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
     [DllImport("kernel32.dll")] private static extern uint WaitForSingleObject(IntPtr handle,uint timeout);
     [DllImport("kernel32.dll",SetLastError=true)] private static extern bool GetProcessTimes(IntPtr process,out long creation,out long exit,out long kernel,out long user);
     [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] private static extern bool QueryFullProcessImageNameW(IntPtr process,uint flags,StringBuilder path,ref int size);
     public static Probe Read(int pid)
     {
-        IntPtr h=OpenProcess(0x1000|0x100000,false,pid);
+        // The current process already has a pseudo-handle: do not require Windows to
+        // reopen it with SYNCHRONIZE access under a potentially restrictive ACL.
+        if(pid==Environment.ProcessId)return Inspect(GetCurrentProcess());
+        IntPtr h=OpenProcess(0x1000,false,pid);
         if(h==IntPtr.Zero) return Marshal.GetLastWin32Error()==87 ? new(false,true,0,null) : new(true,false,0,null);
-        try
-        {
-            if(WaitForSingleObject(h,0)==0) return new(false,true,0,null);
-            var path=new StringBuilder(32768); int size=path.Capacity;
-            if(!GetProcessTimes(h,out var start,out _,out _,out _) || !QueryFullProcessImageNameW(h,0,path,ref size)) return new(true,false,0,null);
-            return new(true,true,start,path.ToString());
-        }
+        try {return Inspect(h);}
         finally {CloseHandle(h);}
+    }
+    private static Probe Inspect(IntPtr h)
+    {
+        var path=new StringBuilder(32768); int size=path.Capacity;
+        if(!GetProcessTimes(h,out var start,out var exit,out _,out _))return new(true,false,0,null);
+        if(exit!=0)return new(false,true,0,null);
+        if(!QueryFullProcessImageNameW(h,0,path,ref size)) return new(true,false,0,null);
+        return new(true,true,start,path.ToString());
     }
     public static ToolObservation ObserveOwned(OwnedReceipt r)
     {
@@ -159,8 +196,14 @@ public sealed class TgExeAdapter
         return new ProcessStartInfo(Path.GetFullPath(path)) {UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(Path.GetFullPath(path))!,CreateNoWindow=true};
     }
 }
-public sealed record ZapretRequest(string Token,UserSettings Settings,int ParentPid,long ParentStart,string Action="start");
-public sealed record ZapretResponse(bool Success,string Message,OwnedReceipt? Receipt);
+public sealed record ZapretRequest(string Token,UserSettings Settings,int ParentPid,long ParentStart,string Action="start")
+{
+    public int ExternalPid {get;init;}
+    public long ExternalStart {get;init;}
+    public string ExternalExecutable {get;init;}="";
+    public OwnedReceipt[] Members {get;init;}=Array.Empty<OwnedReceipt>();
+}
+public sealed record ZapretResponse(bool Success,string Message,OwnedReceipt? Receipt){public OwnedReceipt[] Members {get;init;}=Array.Empty<OwnedReceipt>();}
 public static class ZapretPreparation
 {
     public static LaunchPlan Prepare(AppFiles files,UserSettings settings)

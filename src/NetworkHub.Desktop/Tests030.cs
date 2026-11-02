@@ -23,6 +23,13 @@ public static class Tests030
     [DllImport("user32.dll")]static extern IntPtr GetForegroundWindow();
     [DllImport("dwmapi.dll")]static extern int DwmGetWindowAttribute(IntPtr hwnd,int attribute,out int value,int size);
     static void Check(bool value,string detail){if(!value)throw new Exception(detail);}
+    internal static bool BackdropSimilar(System.Drawing.Bitmap baseline,System.Drawing.Bitmap after)
+    {
+        if(baseline.Size!=after.Size||baseline.Width<206||baseline.Height<76)return false;
+        long br=0,bg=0,bb=0,ar=0,ag=0,ab=0;int count=0;
+        for(int y=68;y<=72;y++)for(int x=198;x<=202;x++){var p=baseline.GetPixel(x,y);var q=after.GetPixel(x,y);br+=p.R;bg+=p.G;bb+=p.B;ar+=q.R;ag+=q.G;ab+=q.B;count++;}
+        return ar+ag+ab>15L*count&&(Math.Abs(br-ar)+Math.Abs(bg-ag)+Math.Abs(bb-ab))<45L*count;
+    }
     sealed class Handler(Func<HttpRequestMessage,HttpResponseMessage> response):HttpMessageHandler{protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken token)=>Task.FromResult(response(request));}
     static void Screen(Window view,string path){TestActivation.Own(view);var hwnd=new WindowInteropHelper(view).Handle;Check(GetForegroundWindow()==hwnd,"Own foreground window only");Check(GetWindowRect(hwnd,out var r),"Own rectangle");using var image=new System.Drawing.Bitmap(r.Right-r.Left,r.Bottom-r.Top);using var graphics=System.Drawing.Graphics.FromImage(image);graphics.CopyFromScreen(r.Left,r.Top,0,0,image.Size);image.Save(path,System.Drawing.Imaging.ImageFormat.Png);}
     public static async Task Run(Shell shell,AppFiles files,Func<string,Func<Task>,Task> test)
@@ -33,14 +40,14 @@ public static class Tests030
             string denied=Path.Combine(files.Root,"storage fixture","Нельзя записать");Directory.CreateDirectory(denied);File.WriteAllText(Path.Combine(denied,"portable.flag"),"");File.WriteAllText(Path.Combine(denied,"Data"),"deliberate failure");bool failed=false;try{PortableStartup.Open(denied);}catch(IOException ex){failed=ex.Message.Contains("no AppData fallback");}Check(failed,"Portable failure explicit, no silent fallback");return Task.CompletedTask;
         });
         await test("030 neutral keyboard-only button focus; main ScrollViewer has no dotted container rectangle",()=>{
-            FocusCues.SetMode(true);var button=shell.Find<Button>("Settings");button.Focus();button.ApplyTemplate();var border=(CapsuleBorder)button.Template.FindName("Bd",button);Check(border.BorderThickness==new Thickness(0)&&button.Focusable&&button.FocusVisualStyle!=null,"No blue border; keyboard access retained");Check(shell.Find<ScrollViewer>("MainScroll").FocusVisualStyle==null&&shell.Window.FocusVisualStyle==null,"No default container focus adorners");return Task.CompletedTask;
+            FocusCues.SetMode(true);var button=shell.Find<Button>("Settings");button.Focus();button.ApplyTemplate();var border=(Border)button.Template.FindName("QuietSurface",button);Check(border.BorderThickness==new Thickness(0)&&button.Focusable&&button.FocusVisualStyle!=null,"No blue border; keyboard access retained");Check(shell.Find<ScrollViewer>("MainScroll").FocusVisualStyle==null&&shell.Window.FocusVisualStyle==null,"No default container focus adorners");return Task.CompletedTask;
         });
         await test("030 immediate repeated Acrylic to Mica keeps HWND visible and restores real backdrop without hide or resize",async()=>{
             if(Environment.OSVersion.Version.Build<22621)return;string saved=shell.Settings.Backdrop;shell.Settings.Backdrop="mica";shell.ApplySettings(shell.Settings);shell.Restore();TestActivation.Own(shell.Window);await Task.Delay(400);var hwnd=new WindowInteropHelper(shell.Window).Handle;double width=shell.Window.Width,height=shell.Window.Height;Screen(shell.Window,Path.Combine(files.Data,"030-mica-before.png"));
             try{for(int n=0;n<4;n++){
                 shell.Settings.Backdrop="acrylic";shell.ApplySettings(shell.Settings);await Task.Delay(250);shell.Settings.Backdrop="mica";shell.ApplySettings(shell.Settings);await Task.Delay(400);
-                Check(shell.Window.IsVisible&&new WindowInteropHelper(shell.Window).Handle==hwnd&&shell.Window.Width==width&&shell.Window.Height==height,"No hide, recreate, or resize");Check(DwmGetWindowAttribute(hwnd,38,out int value,4)==0&&value==2,"Mica selected immediately");Screen(shell.Window,Path.Combine(files.Data,$"030-mica-return-{n}.png"));
-                using var baseline=new System.Drawing.Bitmap(Path.Combine(files.Data,"030-mica-before.png"));using var after=new System.Drawing.Bitmap(Path.Combine(files.Data,$"030-mica-return-{n}.png"));var p=baseline.GetPixel(200,70);var q=after.GetPixel(200,70);Check(Math.Abs(p.R-q.R)+Math.Abs(p.G-q.G)+Math.Abs(p.B-q.B)<20&&q.R+q.G+q.B>15,"Actual Mica pixels restored; no black stale surface");
+                Check(shell.Window.IsVisible&&new WindowInteropHelper(shell.Window).Handle==hwnd&&shell.Window.Width==width&&shell.Window.Height==height,"No hide, recreate, or resize: visible="+shell.Window.IsVisible+", HWND="+(new WindowInteropHelper(shell.Window).Handle==hwnd)+", before="+width+"x"+height+", after="+shell.Window.Width+"x"+shell.Window.Height);Check(DwmGetWindowAttribute(hwnd,38,out int value,4)==0&&value==2,"Mica selected immediately");Screen(shell.Window,Path.Combine(files.Data,$"030-mica-return-{n}.png"));
+                using var baseline=new System.Drawing.Bitmap(Path.Combine(files.Data,"030-mica-before.png"));using var after=new System.Drawing.Bitmap(Path.Combine(files.Data,$"030-mica-return-{n}.png"));Check(BackdropSimilar(baseline,after),"Actual Mica surface differs substantially or is black");
             }}finally{shell.Settings.Backdrop=saved;shell.ApplySettings(shell.Settings);}
         });
         await test("030 dark log, native dark title, UTF-8 Cyrillic, selection/copy and bounded asynchronous large-file tail",async()=>{

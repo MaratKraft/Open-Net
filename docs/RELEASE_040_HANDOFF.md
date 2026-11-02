@@ -1,0 +1,15 @@
+# Open Net 0.4.0 — controlled publication handoff
+
+Development prepares files only. Perform this checklist in Open Net — GitHub & Releases after owner approval. No step is enabled automatically by this document.
+
+1. Read the final local HANDOFF_RU.md: exact source commit, artifact hashes, test receipts, signature status and remaining limits. Check Draft PR #5 and successful Windows CI for that SHA. Review THIRD_PARTY_NOTICES.md, including the existing derivative-symbol permission question.
+2. Confirm the owner accepts the final Stable build and the known limits. Download/verify the intended candidate independently; hashes from the same location are not publisher authentication. Preserve the tested internal pre.3 set and public v0.3.3.
+3. Fetch main and the PR head again. If either changed, stop and re-evaluate mergeability/diff/CI. Do not force-push or bypass protections. Audit the entire proposed diff, not just the last commit.
+4. Only with the separately assigned merge permission, merge PR #5 through the approved GitHub workflow. Record the resulting main commit. Do not merge historical DNS PRs or silently discard their history.
+5. Build from the clean resulting main commit using the pinned toolchain, or explicitly approve use of the exact previously tested binary. A merge changes source revision metadata: do not call the pre-merge binary a build of the merge SHA. Re-run safe checks/package verification and generate new sums if rebuilding. Do not replace candidate files without preserving the reviewed set.
+6. Only with explicit tag permission, create v0.4.0 at the approved main commit. Never move an existing tag. Verify no internal pre.1/pre.2/pre.3 tags or Releases are needed.
+7. Only with Release preparation permission, create one Draft Release for v0.4.0. Keep prerelease=false; keep the draft unpublished. Upload only the reviewed Standard EXE, Portable ZIP, SHA256SUMS, bilingual README/release notes, license/notices and upgrade/recovery documentation. Safe Preview, test hosts, reports/private logs and fixtures are not public Stable assets. Ensure readable Notices are included or embedded as inventoried; do not redistribute network utilities.
+8. Verify asset filenames, sizes, hashes, release notes and download links. Change the README release-preparation banner/links through the approved source workflow when publication is actually ready. Do not label unavailable assets as downloadable.
+9. Ask the owner for the final publish confirmation in that chat. Publish as Stable only after confirmation. Check public download access and checksums afterward; retain v0.3.3 unchanged. Document the actual final main/tag/artifact association.
+
+A failed test, different artifact hash, changed PR head or unresolved release-owner concern pauses publication. This handoff grants no merge/tag/publish authorization.

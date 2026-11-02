@@ -23,10 +23,10 @@ public static class Tests032Final
   {
    var controls=new FrameworkElement[]{shell.Find<Button>(prefix+"Install"),shell.Find<Button>(prefix+"Settings"),shell.Find<CheckBox>(prefix+"Check")};
    var rects=controls.Select(c=>Bounds(c,(Visual)shell.Window.Content)).ToArray();
-   Check(rects.All(r=>Math.Abs(r.Width-rects[0].Width)<.1&&Math.Abs(r.Height-rects[0].Height)<.1),"Equal hit areas");
+   Check(rects[0].Width==28&&rects[1].Width==28&&rects[2].Width==42&&rects.All(r=>Math.Abs(r.Height-28)<.1),"Approved action areas and wider runtime switch");
    Check(Math.Abs((rects[1].Left-rects[0].Right)-(rects[2].Left-rects[1].Right))<.1&&rects[1].Left>=rects[0].Right&&rects[2].Left>=rects[1].Right,"Equal gaps, no overlap");
    Check(rects.All(r=>Math.Abs(r.Top+r.Height/2-rects[0].Top-rects[0].Height/2)<.1),"Vertical alignment");
-   var selection=(CheckBox)controls[2];selection.ApplyTemplate();var box=(Border)selection.Template.FindName("Box",selection);var circle=Bounds(box,(Visual)shell.Window.Content);
+   var selection=(CheckBox)controls[2];selection.ApplyTemplate();var box=(Border)selection.Template.FindName("Track",selection);var circle=Bounds(box,(Visual)shell.Window.Content);
    Check(Math.Abs(circle.Left+circle.Width/2-rects[2].Left-rects[2].Width/2)<.1,"Selection optically centered");
    Check(VisualTreeHelper.HitTest(selection,new Point(1,selection.ActualHeight/2))!=null&&VisualTreeHelper.HitTest(selection,new Point(selection.ActualWidth-1,selection.ActualHeight/2))!=null,"Selection visual hits use the full shared area");
    if(shell.Window.IsVisible)Check(selection.InputHitTest(new Point(1,selection.ActualHeight/2))!=null&&selection.InputHitTest(new Point(selection.ActualWidth-1,selection.ActualHeight/2))!=null,"Selection input hits use the full shared area");
@@ -35,7 +35,7 @@ public static class Tests032Final
    {
     glyph.Data=GeometryParse(installed);shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);shell.Window.UpdateLayout();
     var gear=(System.Windows.Shapes.Path)((Button)controls[1]).Content;var left=ModuleIconAlignment.Ink(glyph,(Visual)shell.Window.Content);var middle=ModuleIconAlignment.Ink(gear,(Visual)shell.Window.Content);
-    Check(Math.Abs(middle.Left+middle.Width/2-rects[1].Left-rects[1].Width/2)<.1,"Gear stays centered in its hover area for both glyphs");
+     Check(Math.Abs(middle.Left+middle.Width/2-rects[1].Left-rects[1].Width/2)<.1,"Gear stays centred in the hover and hit area for both glyphs");
    }}finally{glyph.Data=original;shell.Window.UpdateLayout();ModuleIconAlignment.Update((Button)controls[0],(Button)controls[1],selection);}
   }
  }
@@ -49,7 +49,7 @@ public static class Tests032Final
    var track=(Border)toggle.Template.FindName("Track",toggle);var thumb=(System.Windows.Shapes.Ellipse)toggle.Template.FindName("Thumb",toggle);
    var a=Bounds(track,toggle);var b=Bounds(thumb,toggle);
    double diameter=enabled&&state=="hover"?16:enabled&&state=="pressed"?12:14,inset=(22-diameter)/2;
-   Check(a.Width==42&&a.Height==22&&b.Width==diameter&&b.Height==diameter&&track.BorderThickness==new Thickness(1),"Stable track and thumb");
+   Check(a.Width==42&&a.Height==22&&b.Width==diameter&&b.Height==diameter&&track.BorderThickness==new Thickness(on?0:1),"Stable track and thumb");
    Check(Math.Abs(b.Top-a.Top-inset)<.1&&Math.Abs(a.Bottom-b.Bottom-inset)<.1,"Balanced vertical inset");
    Check(Math.Abs(on?a.Right-b.Right-inset:b.Left-a.Left-inset)<.1,"State matches thumb position");
    Check(thumb.HorizontalAlignment==(on?HorizontalAlignment.Right:HorizontalAlignment.Left),"Checked value drives position");
@@ -74,7 +74,7 @@ public static class Tests032Final
      button.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,source,Environment.TickCount,key){RoutedEvent=Keyboard.KeyDownEvent});
      button.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,source,Environment.TickCount,key){RoutedEvent=Keyboard.KeyUpEvent});
     }
-    Check(invoked==5,"Enter and Space routed keyboard activation");
+    Check(invoked==5,"Enter and Space routed keyboard activation: invoked="+invoked+", active="+shell.Window.IsActive+", focused="+button.IsKeyboardFocused);
     shell.RepositoryLaunchForTests=_=>throw new InvalidOperationException("simulated unavailable browser");button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Check(shell.Find<TextBlock>("Message").Text==L.T("Could not open the browser. Open github.com/MaratKraft/Open-Net manually."),"Browser failure is readable and nonfatal");
    }finally{shell.RepositoryLaunchForTests=null;L.Set(language);}
   });
