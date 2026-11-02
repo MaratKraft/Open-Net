@@ -15,8 +15,6 @@
 </p>
 <p align="center"><a href="https://github.com/MaratKraft/Open-Net/releases/download/v0.4.0/Open-Net-0.4.0-Windows-x64-Portable.zip">Portable ZIP</a> · <a href="https://github.com/MaratKraft/Open-Net/releases/download/v0.4.0/SHA256SUMS.txt">SHA-256</a></p>
 
-v0.4.0 is still a draft: direct downloads become available after publication. [v0.3.3 is available now](https://github.com/MaratKraft/Open-Net/releases/tag/v0.3.3).
-
 <p align="center"><img src="assets/screenshots/v0.4.0/presentation-dark.png" width="508" alt="Open Net — dark theme"></p>
 
 ## Quick Start
