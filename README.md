@@ -74,6 +74,6 @@ Windows x64. .NET 10.0.12 is included; no separate .NET/Python installation is n
 
 ## Credits and License
 
-Thanks to [Flowseal / Zapret](https://github.com/Flowseal/zapret-discord-youtube), [TG WS Proxy](https://github.com/Flowseal/tg-ws-proxy), [HB AI Smart DNS](https://github.com/neiroseti-ai/hb-ai-xbox-dns), .NET/WPF and Fluent.
+Thanks to [Flowseal / Zapret](https://github.com/Flowseal/zapret-discord-youtube), [TG WS Proxy](https://github.com/Flowseal/tg-ws-proxy), [HB AI Smart DNS](https://github.com/neiroseti-ai/hb-ai-xbox-dns), [.NET](https://github.com/dotnet/runtime), [WPF](https://github.com/dotnet/wpf) and [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons).
 
 Original Open Net code is [MIT](LICENSE). Third-party components, HB AI code and brand symbols retain separate terms; required credits and license texts are preserved. See [Third-Party Notices](THIRD_PARTY_NOTICES.md) and About and licenses. Open Net claims no upstream affiliation. [Report a bug](https://github.com/MaratKraft/Open-Net/issues) after removing personal data and secrets.

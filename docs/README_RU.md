@@ -74,6 +74,6 @@ Windows x64. .NET 10.0.12 включён; отдельно устанавлив�
 
 ## Благодарности и лицензия
 
-Спасибо [Flowseal / Zapret](https://github.com/Flowseal/zapret-discord-youtube), [TG WS Proxy](https://github.com/Flowseal/tg-ws-proxy), [HB AI Smart DNS](https://github.com/neiroseti-ai/hb-ai-xbox-dns), .NET/WPF и Fluent.
+Спасибо [Flowseal / Zapret](https://github.com/Flowseal/zapret-discord-youtube), [TG WS Proxy](https://github.com/Flowseal/tg-ws-proxy), [HB AI Smart DNS](https://github.com/neiroseti-ai/hb-ai-xbox-dns), [.NET](https://github.com/dotnet/runtime), [WPF](https://github.com/dotnet/wpf) и [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons).
 
 Собственный код Open Net — [MIT](../LICENSE). У сторонних компонентов, кода HB AI и символики отдельные условия; сохранены необходимые авторство и лицензионные тексты. См. [Third-Party Notices](../THIRD_PARTY_NOTICES.md) и «О программе и лицензии». Open Net не заявляет аффилированность с исходными проектами. [Сообщить об ошибке](https://github.com/MaratKraft/Open-Net/issues) — удалите личные данные и секреты из отчёта.
