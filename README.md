@@ -19,7 +19,7 @@
 
 ## Quick Start
 
-1. **Download Open Net.** Choose the Standard EXE from the official Releases page. It is the ready-to-run application, not an installer.
+1. **[Download Open Net](https://github.com/MaratKraft/Open-Net/releases).** Choose the Standard EXE from the official Releases page. It is the ready-to-run application, not an installer.
 2. **Open the EXE.** System operations may request administrator approval. Review the Windows prompt and approve when appropriate. Keep Windows security enabled.
 3. **Install your tools.** Click the download icon beside Zapret or TG WS Proxy. Open Net retrieves compatible versions from official sources; network tools are not bundled.
 4. **Choose settings.** Open the module's gear. For Zapret, choose a supported strategy such as ALT13. Configure DNS Manager separately.
