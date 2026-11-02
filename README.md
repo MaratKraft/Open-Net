@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/OpenNet.png" width="80" alt="Open Net logo"></p>
 <h1 align="center">Open Net</h1>
 <p align="center">An open-source Windows application for managing Zapret, TG WS Proxy and DNS Manager from one compact window.</p>
-<p align="center">**English** | [Русский](docs/README_RU.md)</p>
+<p align="center"><strong>English</strong> | <a href="docs/README_RU.md">Русский</a></p>
 
 <p align="center">
 <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-596579">
