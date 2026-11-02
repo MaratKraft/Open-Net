@@ -19,13 +19,13 @@ Open Net 0.4.0 adds a configurable modular workspace and a compact DNS Manager w
 
 ## Improvements & Fixes
 
-The owner reports successful pre.3 tests on the main PC and several previously affected laptops, including YouTube, TG, external instances and switches. Stable adds narrow audit fixes for damaged update caches and asynchronous/bounded helper waits, plus official metadata and documentation; it therefore receives a fresh isolated test pass.
+The owner reports successful pre.3 tests on the main PC and several previously affected laptops, including YouTube, TG, external instances and switches. Stable adds narrow audit fixes for damaged update caches and asynchronous/bounded helper waits, plus official metadata and documentation; it has passed a fresh isolated test run.
 
 ## Known Limitations
 
  no Authenticode publisher signature; checksums provide integrity only. Physical Windows 10 and every OS/DPI/network combination have not been certified. Recovery is machine-local; unusual encrypted DNS/policies and ambiguous/service-managed processes are refused. After shell restart, surviving tools may require external-instance confirmation. External TG validation needs GitHub. Memory usage is not reduced to a promised 100–120 MB. Automatic application installation and old-version cleanup remain deferred. Network tools are not bundled.
 
-Internal pre.1/pre.2/pre.3 candidates were not public Releases. v0.3.3 remains unchanged. This prepared file does not itself publish v0.4.0.
+Internal pre.1/pre.2/pre.3 candidates were not public Releases. v0.3.3 remains unchanged.
 ## Download / Скачать
 
 - [Standard EXE](https://github.com/MaratKraft/Open-Net/releases/download/v0.4.0/Open-Net-0.4.0-Windows-x64.exe) — data / данные: `%LOCALAPPDATA%\Open Net`.
@@ -53,13 +53,13 @@ Open Net 0.4.0 добавляет настраиваемую модульную 
 - Проверка новых официальных выпусков: Stable по умолчанию, дополнительный Pre-release. Открыть выпуск ведёт на GitHub; автоматической установки оболочки пока нет.
 - Сохранение данных v0.3.3 в прежней официальной папке, резервная копия до преобразования старых настроек. При первом запуске выбирается русский для русской Windows, иначе английский; сохранённый выбор важнее системного языка.
 
-Владелец подтвердил успешные проверки pre.3 на основном ПК и нескольких ранее проблемных ноутбуках: YouTube, TG, внешние экземпляры и переключатели. После этого аудит добавил узкие исправления повреждённого кэша обновлений и ожиданий помощников, официальные метаданные и документацию; стабильная сборка проверяется повторно изолированно.
+Владелец подтвердил успешные проверки pre.3 на основном ПК и нескольких ранее проблемных ноутбуках: YouTube, TG, внешние экземпляры и переключатели. После этого аудит добавил узкие исправления повреждённого кэша обновлений и ожиданий помощников, официальные метаданные и документацию; стабильная сборка прошла повторные изолированные проверки.
 
 ## Известные ограничения
 
  Authenticode-подписи издателя нет; SHA-256 проверяет только целостность. Физическая Windows 10 и все сочетания DPI/ОС/сетей не сертифицированы. Восстановление DNS привязано к компьютеру; неподдерживаемое шифрование/политики и неоднозначные процессы/службы не изменяются. После перезапуска оболочки оставшиеся инструменты могут требовать подтверждения внешнего экземпляра. Для внешнего TG нужен GitHub. Расход памяти не снижен до обещанных 100–120 MB. Автоустановка Open Net и очистка старых версий отложены. Сетевые инструменты в комплект не входят.
 
-Внутренние pre.1/pre.2/pre.3 не публиковались как Releases. v0.3.3 сохранена. Подготовка этого файла сама по себе не публикует v0.4.0.
+Внутренние pre.1/pre.2/pre.3 не публиковались как Releases. v0.3.3 сохранена.
 ## Download / Скачать
 
 - [Standard EXE](https://github.com/MaratKraft/Open-Net/releases/download/v0.4.0/Open-Net-0.4.0-Windows-x64.exe) — data / данные: `%LOCALAPPDATA%\Open Net`.

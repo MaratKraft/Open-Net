@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0 — 2026-11-02
+
+- Configurable workspace: show, hide and reorder modules, assign the main button, and display quick profiles.
+- DNS Manager for IPv4 DNS on one physical adapter, custom profiles, hosts-conflict checks, separate cache clearing and protected offline recovery. DNS Off selects automatic IPv4 DNS; IPv6 is preserved.
+- Compatible official Zapret/TG release installation, corrected ALT13 selection and verified parent/child process controls.
+- Official update discovery with Stable and optional Pre-release channels; opening a release does not install an application update.
+- Preserved v0.3.3 settings and installed modules, with a backup before legacy settings conversion and Windows UI language on first launch.
+- Audit fixes for damaged update caches and bounded asynchronous helper waits; refreshed bilingual documentation and screenshots.
+
+[Release notes and known limitations](docs/RELEASE_NOTES_v0.4.0.md).
+
 ## v0.3.3 — 2026-10-21
 
 - Explicitly approved Windows logon startup of selected tools and optional tray launch; existing preferences are retained.

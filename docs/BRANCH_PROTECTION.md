@@ -1,17 +1,17 @@
-# Recommended main protection
+# Main branch protection
 
-Read-only check on 2026-10-12: the public MaratKraft/Open-Net repository exposes admin permission to the connected account; main was not protected and the public rulesets list was empty. No GitHub protection settings were changed.
+Verified on 2026-11-02: the repository's [Protect main ruleset](https://github.com/MaratKraft/Open-Net/rules/26346998) is active for the default branch, `main`. The owner configured this protection after the v0.4.0 release.
 
-GitHub rulesets are available for public repositories, including GitHub Free. Proposed main branch ruleset:
+Current rules:
 
-- Require changes through a pull request, with no routine direct-push bypass.
-- Require the **Windows build and safe checks** status check from GitHub Actions after its first successful run.
-- Block force pushes and branch deletion.
-- Require resolution of review discussions.
-- Restrict the ability to update main directly; reserve any exceptional bypass for an explicitly approved recovery.
+- Changes must go through a pull request. Required approving reviews: **0**, so a sole maintainer is not blocked by an impossible self-approval requirement.
+- The **Windows build and safe checks** check must pass, with **GitHub Actions** as the expected source.
+- The PR branch must be up to date with main before merging.
+- Branch deletion and force pushes are blocked.
+- The bypass list is empty. Review-thread resolution is not currently a required rule.
 
-Keep the human owner's explicit approval before merging and separate release authorization. A sole maintainer cannot approve their own PR in GitHub: do not set an impossible self-approval gate. Use an additional reviewer if formal approvals are required; otherwise require PR/CI and keep explicit owner approval as the workflow rule.
+These GitHub rules supplement the permanent [Development Workflow](../CONTRIBUTING.md#development-workflow): merging still requires explicit owner approval, and publishing a release requires separate authorization. Do not bypass protection or change its settings without separate approval.
 
-These are proposals. Changing settings needs separate owner confirmation. Never enable auto-merge as part of this development task.
+Earlier recommendations in historical workflow reports describe the state at the time of those reports, not the current protection settings.
 
 Official sources: [creating repository rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository), [available rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets).

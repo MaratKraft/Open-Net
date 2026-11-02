@@ -14,7 +14,7 @@ The canonical source is [MaratKraft/Open-Net](https://github.com/MaratKraft/Open
 
 Keep secrets, profiles, user data, network binaries and temporary build/test output out of Git. Tests use only owned safe stubs; real network tools, drivers, DNS, routes, firewall changes, foreign-process termination and reboots require separate authorization. Preserve the preceding stable source/artifacts.
 
-Before editing, check status/remotes, fetch branches/tags, verify the published baseline and preserve uncommitted work. Do not use destructive resets/cleanups. For v0.3.2 use `feature/ui-theme-0.3.2`.
+Before editing, check status/remotes, fetch branches/tags, verify the published baseline and preserve uncommitted work. Do not use destructive resets/cleanups. Create a focused `feature/...` or `fix/...` branch from current `main`; historical version branches are not the starting point for new work.
 
 Only implemented and supported modules appear in the application. Compatible official upstream releases must not require a new Open Net release solely because their version number changed; preserve source/digest/format validation and explicit failure for unsupported formats.
 
